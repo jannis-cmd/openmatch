@@ -1094,6 +1094,46 @@ textarea {
   font-weight: 680;
   text-decoration: none;
 }
+.public-transparency {
+  background: #eef1eb;
+  padding: 100px clamp(24px, 8vw, 120px);
+}
+.public-resource-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 40px 0;
+}
+.public-resource-grid a {
+  background: #fff;
+  border: 1px solid #dde2da;
+  border-radius: 18px;
+  color: inherit;
+  padding: 22px;
+  text-decoration: none;
+}
+.public-resource-grid a:hover {
+  border-color: #315c47;
+}
+.public-resource-grid strong,
+.public-resource-grid span {
+  display: block;
+}
+.public-resource-grid span {
+  color: #62675f;
+  margin-top: 7px;
+}
+.public-limit {
+  margin: 0 auto 26px;
+  max-width: 760px;
+  text-align: center;
+}
+.public-transparency > .calculator {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 760px;
+  padding: 30px;
+}
 .final-callout {
   max-width: 850px;
   margin: auto;
@@ -1212,6 +1252,9 @@ textarea {
     grid-template-columns: 1fr;
     gap: 42px;
     margin-top: 70px;
+  }
+  .public-resource-grid {
+    grid-template-columns: 1fr;
   }
   .promise-grid h3 {
     margin-top: 24px;

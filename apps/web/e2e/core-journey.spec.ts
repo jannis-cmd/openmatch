@@ -26,6 +26,24 @@ test("first run through a persistent connection and safety action", async ({
       name: "Five understandable steps. No black box.",
     }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Transparency before an account." }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Data inventory/ }),
+  ).toHaveAttribute("href", /DATA_INVENTORY\.json/);
+  const publicApiRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/v1/")) publicApiRequests.push(request.url());
+  });
+  const publicCalculator = page
+    .getByRole("heading", { name: "Reciprocal score calculator" })
+    .locator("..");
+  await page.getByLabel(/Your directed fit/).fill("20");
+  await expect(
+    publicCalculator.locator(".calculator-result > div").nth(1),
+  ).toContainText("Final score30%");
+  expect(publicApiRequests).toEqual([]);
   await expectAccessible(page);
   await page.getByRole("button", { name: "Sign in" }).first().click();
   await expect(

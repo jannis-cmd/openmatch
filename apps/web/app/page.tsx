@@ -688,6 +688,7 @@ function LandingPage({
           <a href="#how">How it works</a>
           <a href="#principles">Principles</a>
           <a href="#evidence">Evidence</a>
+          <a href="#transparency">Transparency</a>
         </nav>
         <button className="nav-sign-in" onClick={signIn}>
           Sign in
@@ -805,6 +806,66 @@ function LandingPage({
             </a>
           </div>
         </div>
+      </section>
+
+      <section className="public-transparency" id="transparency">
+        <div className="evidence-heading">
+          <p className="landing-eyebrow">Inspect everything</p>
+          <h2>Transparency before an account.</h2>
+          <p>
+            The formula, source, evidence, personal-data inventory, decisions,
+            and limitations are public. You do not need to sign in or enter the
+            demo to inspect them.
+          </p>
+        </div>
+        <div className="public-resource-grid">
+          <a
+            href="https://github.com/jannis-cmd/openmatch/blob/main/packages/matching/src/index.ts"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <strong>Matching source</strong>
+            <span>The exact deterministic kernel.</span>
+          </a>
+          <a
+            href="https://github.com/jannis-cmd/openmatch/blob/main/research/EVIDENCE_REGISTER.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <strong>Evidence register</strong>
+            <span>Claims, grades, uncertainties, and exclusions.</span>
+          </a>
+          <a
+            href="https://github.com/jannis-cmd/openmatch/blob/main/docs/ALGORITHM_DECISIONS.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <strong>Decision history</strong>
+            <span>
+              Why each formula choice exists and what could change it.
+            </span>
+          </a>
+          <a
+            href="https://github.com/jannis-cmd/openmatch/blob/main/docs/DATA_INVENTORY.json"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <strong>Data inventory</strong>
+            <span>
+              Every current field, purpose, retention, and access role.
+            </span>
+          </a>
+        </div>
+        <div className="public-limit">
+          <h3>Known limits</h3>
+          <p>
+            This prototype cannot predict attraction, love, relationship
+            success, or safety. A passing test proves implementation behavior,
+            not fairness or effectiveness with real people. Those claims need
+            prospective, independent evaluation.
+          </p>
+        </div>
+        <ScoreCalculator />
       </section>
 
       <section className="final-callout">
