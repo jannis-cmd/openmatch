@@ -46,3 +46,18 @@ test("turns API failures into inspectable errors", async () => {
       error.code === "invalid_message",
   );
 });
+
+test("updates account visibility with an explicit state", async () => {
+  let received: { url?: string; init?: RequestInit } = {};
+  const client = createApiClient("http://example.test", async (url, init) => {
+    received = { url: String(url), init };
+    return new Response(JSON.stringify({ status: "hidden" }), { status: 200 });
+  });
+  const result = await client.updateAccountStatus("hidden");
+  assert.equal(received.url, "http://example.test/v1/account/status");
+  assert.equal(received.init?.method, "PATCH");
+  assert.deepEqual(JSON.parse(String(received.init?.body)), {
+    status: "hidden",
+  });
+  assert.equal(result.status, "hidden");
+});

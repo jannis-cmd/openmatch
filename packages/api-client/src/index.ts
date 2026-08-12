@@ -23,6 +23,7 @@ export type Message = {
 };
 export type ReportReason =
   "harassment" | "scam" | "impersonation" | "offline_safety" | "other";
+export type AccountStatus = "active" | "paused" | "hidden";
 
 export class ApiError extends Error {
   constructor(
@@ -80,6 +81,13 @@ export function createApiClient(
         automaticChanges: false;
       }>("/v1/preferences/suggestions"),
     onboarding: () => request<{ complete: boolean }>("/v1/onboarding"),
+    accountStatus: () =>
+      request<{ status: AccountStatus }>("/v1/account/status"),
+    updateAccountStatus: (status: AccountStatus) =>
+      request<{ status: AccountStatus }>(
+        "/v1/account/status",
+        json("PATCH", { status }),
+      ),
     completeOnboarding: () =>
       request<{ complete: true }>("/v1/onboarding/complete", json("POST")),
     introductions: () =>

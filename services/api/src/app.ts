@@ -114,12 +114,35 @@ export function createApp(
         );
       if (request.method === "GET" && url.pathname === "/v1/onboarding")
         return send(response, 200, { complete: store.onboardingComplete() });
+      if (request.method === "GET" && url.pathname === "/v1/account/status")
+        return send(response, 200, { status: store.accountStatus() });
+      if (request.method === "PATCH" && url.pathname === "/v1/account/status") {
+        const body = (await readJson(request)) as { status?: unknown };
+        if (
+          typeof body.status !== "string" ||
+          !["active", "paused", "hidden"].includes(body.status)
+        )
+          return send(response, 400, { error: "invalid_account_status" });
+        return send(
+          response,
+          200,
+          store.updateAccountStatus(
+            body.status as "active" | "paused" | "hidden",
+          ),
+        );
+      }
       if (
         request.method === "POST" &&
         url.pathname === "/v1/onboarding/complete"
       )
         return send(response, 200, store.completeOnboarding());
       if (request.method === "GET" && url.pathname === "/v1/introductions") {
+        if (store.accountStatus() !== "active")
+          return send(response, 200, {
+            items: [],
+            finite: true,
+            remaining: 0,
+          });
         const hidden = new Set([...store.decidedIds(), ...store.hiddenIds()]);
         const items = createIntroductions(
           store.profile(),

@@ -19,7 +19,11 @@
       }
     },
     "android": {
-      "package": "org.openmatch.app"
+      "package": "org.openmatch.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#FAFAF7"
+      }
     },
     "extra": {
       "router": {},

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  AppState,
   Pressable,
   ScrollView,
   Share,
@@ -12,8 +13,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   createApiClient,
+  type AccountStatus,
   type Connection,
   type Message,
+  type ReportReason,
 } from "@openmatch/api-client";
 import {
   ALGORITHM_VERSION,
@@ -54,6 +57,8 @@ export default function App() {
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
+  const [draft, setDraft] = useState("");
   const current = introductions[0];
   const connection = connections[0];
   const load = useCallback(async () => {
@@ -67,6 +72,7 @@ export default function App() {
         nextConnections,
         onboarding,
         nextSuggestions,
+        nextAccountStatus,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -74,6 +80,7 @@ export default function App() {
         api.connections(),
         api.onboarding(),
         api.preferenceSuggestions(),
+        api.accountStatus(),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -82,6 +89,7 @@ export default function App() {
       setConnections(nextConnections.items);
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
+      setAccountStatus(nextAccountStatus.status);
       setMessages(
         nextConnections.items[0]
           ? (await api.messages(nextConnections.items[0].id)).items
@@ -97,6 +105,12 @@ export default function App() {
   }, [api]);
   useEffect(() => {
     void load();
+  }, [load]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void load();
+    });
+    return () => subscription.remove();
   }, [load]);
   const savePreferences = async (next: Preferences) => {
     setPreferences(next);
@@ -228,6 +242,26 @@ export default function App() {
       </View>
       <ScrollView contentContainerStyle={styles.page}>
         <>
+          {accountStatus !== "active" && (
+            <View style={styles.statusBanner} accessibilityLiveRegion="polite">
+              <View style={styles.statusCopy}>
+                <Text style={styles.statusTitle}>
+                  {accountStatus === "paused"
+                    ? "Introductions paused"
+                    : "Profile hidden"}
+                </Text>
+                <Text style={styles.mathNote}>
+                  No new introductions appear until you resume.
+                </Text>
+              </View>
+              <Action
+                label="Resume"
+                onPress={() =>
+                  void api.updateAccountStatus("active").then(load)
+                }
+              />
+            </View>
+          )}
           {tab === "Today" &&
             (current ? (
               <>
@@ -408,30 +442,68 @@ export default function App() {
                       </Text>
                     ))
                   )}
+                  <TextInput
+                    accessibilityLabel={`Message ${connection.profile?.name ?? "connection"}`}
+                    value={draft}
+                    onChangeText={setDraft}
+                    maxLength={1000}
+                    multiline
+                    placeholder="Write a message"
+                    style={styles.messageInput}
+                  />
                   <Action
-                    label="Send a thoughtful hello"
-                    onPress={() =>
+                    label="Send"
+                    disabled={!draft.trim()}
+                    onPress={() => {
+                      const text = draft.trim();
+                      if (!text) return;
                       void api
-                        .sendMessage(
-                          connection.id,
-                          "Hi — your answer about making room for people resonated with me.",
-                        )
-                        .then((message) =>
-                          setMessages((previous) => [...previous, message]),
-                        )
-                        .catch(() => setError("Message could not be sent."))
-                    }
+                        .sendMessage(connection.id, text)
+                        .then((message) => {
+                          setMessages((previous) => [...previous, message]);
+                          setDraft("");
+                        })
+                        .catch(() =>
+                          setSafetyNotice("Message could not be sent. Retry."),
+                        );
+                    }}
                   />
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => void api.unmatch(connection.id).then(load)}
+                    onPress={() =>
+                      Alert.alert(
+                        "Unmatch?",
+                        "This closes the conversation for both people.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Unmatch",
+                            style: "destructive",
+                            onPress: () =>
+                              void api.unmatch(connection.id).then(load),
+                          },
+                        ],
+                      )
+                    }
                   >
                     <Text style={styles.safetyLink}>Unmatch</Text>
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
                     onPress={() =>
-                      void api.block(connection.profileId).then(load)
+                      Alert.alert(
+                        "Block this person?",
+                        "They will be removed from your introductions and connections.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Block",
+                            style: "destructive",
+                            onPress: () =>
+                              void api.block(connection.profileId).then(load),
+                          },
+                        ],
+                      )
                     }
                   >
                     <Text style={styles.safetyLink}>Block</Text>
@@ -439,17 +511,20 @@ export default function App() {
                   <Pressable
                     accessibilityRole="button"
                     onPress={() =>
-                      void api
-                        .report(
-                          connection.profileId,
-                          "other",
-                          "Submitted from the mobile prototype.",
-                        )
-                        .then((result) =>
-                          setSafetyNotice(
-                            `Report received. Reference status: .`,
-                          ),
-                        )
+                      chooseReportReason(
+                        (reason) =>
+                          void api
+                            .report(
+                              connection.profileId,
+                              reason,
+                              "Submitted from the mobile prototype.",
+                            )
+                            .then((result) =>
+                              setSafetyNotice(
+                                `Report received. Reference status: ${result.status}.`,
+                              ),
+                            ),
+                      )
                     }
                   >
                     <Text style={styles.safetyLink}>Report</Text>
@@ -518,6 +593,42 @@ export default function App() {
                   Precise location, legal name, contacts, activity time, and
                   decisions are never shown.
                 </Text>
+                {accountStatus === "active" ? (
+                  <>
+                    <Action
+                      label="Pause introductions"
+                      secondary
+                      onPress={() =>
+                        void api
+                          .updateAccountStatus("paused")
+                          .then((result) => {
+                            setAccountStatus(result.status);
+                            setIntroductions([]);
+                          })
+                      }
+                    />
+                    <Action
+                      label="Hide my profile"
+                      secondary
+                      onPress={() =>
+                        void api
+                          .updateAccountStatus("hidden")
+                          .then((result) => {
+                            setAccountStatus(result.status);
+                            setIntroductions([]);
+                          })
+                      }
+                    />
+                  </>
+                ) : (
+                  <Action
+                    label="Resume and show profile"
+                    secondary
+                    onPress={() =>
+                      void api.updateAccountStatus("active").then(load)
+                    }
+                  />
+                )}
                 <Action
                   label="Export my data"
                   secondary
@@ -782,6 +893,18 @@ function PreferencesScreen({
     </>
   );
 }
+
+function chooseReportReason(onSelect: (reason: ReportReason) => void) {
+  Alert.alert("What happened?", "Choose the closest reason.", [
+    { text: "Harassment", onPress: () => onSelect("harassment") },
+    { text: "Scam", onPress: () => onSelect("scam") },
+    { text: "Impersonation", onPress: () => onSelect("impersonation") },
+    { text: "Offline safety", onPress: () => onSelect("offline_safety") },
+    { text: "Other", onPress: () => onSelect("other") },
+    { text: "Cancel", style: "cancel" },
+  ]);
+}
+
 function Action({
   label,
   onPress,
@@ -1021,4 +1144,27 @@ const styles = StyleSheet.create({
     maxWidth: "85%",
   },
   safetyLink: { color: "#8A4040", textAlign: "center", paddingTop: 20 },
+  messageInput: {
+    minHeight: 88,
+    marginTop: 14,
+    padding: 13,
+    textAlignVertical: "top",
+    borderWidth: 1,
+    borderColor: "#CED1CA",
+    borderRadius: 14,
+    backgroundColor: "#FAFAF7",
+    fontSize: 16,
+  },
+  statusBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#CBD5CD",
+    borderRadius: 16,
+    backgroundColor: "#E7EEE8",
+  },
+  statusCopy: { flex: 2 },
+  statusTitle: { color: "#294536", fontWeight: "700", fontSize: 15 },
 });

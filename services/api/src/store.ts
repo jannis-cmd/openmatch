@@ -23,6 +23,7 @@ export type Message = {
   text: string;
   createdAt: string;
 };
+export type AccountStatus = "active" | "paused" | "hidden";
 
 export class Store {
   readonly db: DatabaseSync;
@@ -50,6 +51,7 @@ export class Store {
     insert.run("profile", JSON.stringify(demoUser));
     insert.run("preferences", JSON.stringify(defaultPreferences));
     insert.run("onboarding_complete", JSON.stringify(false));
+    insert.run("account_status", JSON.stringify("active"));
   }
 
   private getState<T>(key: string): T {
@@ -94,6 +96,13 @@ export class Store {
   completeOnboarding() {
     this.setState("onboarding_complete", true);
     return { complete: true as const };
+  }
+  accountStatus() {
+    return this.getState<AccountStatus>("account_status");
+  }
+  updateAccountStatus(status: AccountStatus) {
+    this.setState("account_status", status);
+    return { status };
   }
   decidedIds() {
     return new Set(
@@ -252,6 +261,7 @@ export class Store {
       profile: this.profile(),
       preferences: this.preferences(),
       onboardingComplete: this.onboardingComplete(),
+      accountStatus: this.accountStatus(),
       decisions: this.db
         .prepare(
           "SELECT profile_id AS profileId,decision,created_at AS createdAt FROM decisions ORDER BY created_at",

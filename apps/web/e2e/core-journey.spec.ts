@@ -83,6 +83,10 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByRole("button", { name: "Your profile" }).click();
   await expectAccessible(page);
+  await page.getByRole("button", { name: "Pause introductions" }).click();
+  await expect(page.getByRole("status")).toContainText("Introductions paused");
+  await page.getByRole("button", { name: "Resume", exact: true }).click();
+  await expect(page.getByRole("status")).not.toBeVisible();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export my data" }).click();
   expect((await downloadPromise).suggestedFilename()).toBe(

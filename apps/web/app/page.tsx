@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createApiClient,
+  type AccountStatus,
   type Connection,
   type Message,
 } from "@openmatch/api-client";
@@ -80,6 +81,7 @@ function AppExperience({ exit }: { exit: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const current = introductions[0];
   const connected = connections.length > 0;
 
@@ -94,6 +96,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         nextConnections,
         onboarding,
         nextSuggestions,
+        nextAccountStatus,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -101,6 +104,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         api.connections(),
         api.onboarding(),
         api.preferenceSuggestions(),
+        api.accountStatus(),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -109,6 +113,7 @@ function AppExperience({ exit }: { exit: () => void }) {
       setConnections(nextConnections.items);
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
+      setAccountStatus(nextAccountStatus.status);
       if (nextConnections.items[0])
         setMessages((await api.messages(nextConnections.items[0].id)).items);
       else setMessages([]);
@@ -230,6 +235,27 @@ function AppExperience({ exit }: { exit: () => void }) {
           )}
           {!loading && !error && onboarded && (
             <>
+              {accountStatus !== "active" && (
+                <div className="account-status" role="status">
+                  <strong>
+                    {accountStatus === "paused"
+                      ? "Introductions paused"
+                      : "Profile hidden"}
+                  </strong>
+                  <span>
+                    {accountStatus === "paused"
+                      ? "You will not receive new introductions until you resume."
+                      : "Your profile is not available for introductions until you make it visible."}
+                  </span>
+                  <button
+                    onClick={() =>
+                      void api.updateAccountStatus("active").then(() => load())
+                    }
+                  >
+                    Resume
+                  </button>
+                </div>
+              )}
               {view === "today" && (
                 <>
                   <div className="section-head">
@@ -464,6 +490,12 @@ function AppExperience({ exit }: { exit: () => void }) {
                     setEditing(value);
                   }}
                   setBio={setBio}
+                  accountStatus={accountStatus}
+                  setAccountStatus={async (status) => {
+                    const result = await api.updateAccountStatus(status);
+                    setAccountStatus(result.status);
+                    setIntroductions((await api.introductions()).items);
+                  }}
                   exportData={async () => {
                     const data = await api.exportData();
                     const url = URL.createObjectURL(
@@ -1083,6 +1115,8 @@ function ProfileView({
   editing,
   setEditing,
   setBio,
+  accountStatus,
+  setAccountStatus,
   exportData,
   deleteData,
 }: {
@@ -1091,6 +1125,8 @@ function ProfileView({
   editing: boolean;
   setEditing: (value: boolean) => void | Promise<void>;
   setBio: (value: string) => void;
+  accountStatus: AccountStatus;
+  setAccountStatus: (status: AccountStatus) => Promise<void>;
   exportData: () => Promise<void>;
   deleteData: () => Promise<void>;
 }) {
@@ -1141,6 +1177,20 @@ function ProfileView({
           preference decisions are never displayed.
         </p>
         <div className="data-actions">
+          {accountStatus === "active" ? (
+            <>
+              <button onClick={() => void setAccountStatus("paused")}>
+                Pause introductions
+              </button>
+              <button onClick={() => void setAccountStatus("hidden")}>
+                Hide my profile
+              </button>
+            </>
+          ) : (
+            <button onClick={() => void setAccountStatus("active")}>
+              Resume and show profile
+            </button>
+          )}
           <button onClick={() => void exportData()}>Export my data</button>
           <button className="danger" onClick={() => void deleteData()}>
             Delete local data

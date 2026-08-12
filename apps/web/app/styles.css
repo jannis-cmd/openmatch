@@ -270,6 +270,31 @@ input {
   color: #7a2f2f;
   border-color: #cdaaaa;
 }
+.account-status {
+  max-width: 920px;
+  margin: 0 auto 24px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #cbd5cd;
+  border-radius: 14px;
+  background: #e7eee8;
+  color: #294536;
+}
+.account-status span {
+  flex: 1;
+  color: #536158;
+  font-size: 14px;
+}
+.account-status button {
+  border: 0;
+  border-radius: 99px;
+  background: #173f32;
+  color: white;
+  padding: 9px 15px;
+  cursor: pointer;
+}
 .suggestion {
   border-top: 1px solid #e5e6e0;
   padding: 14px 0;

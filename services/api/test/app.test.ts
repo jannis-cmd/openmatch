@@ -82,6 +82,36 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ).complete,
       true,
     );
+    assert.deepEqual(await (await request("/v1/account/status")).json(), {
+      status: "active",
+    });
+    assert.equal(
+      (
+        await request("/v1/account/status", {
+          method: "PATCH",
+          body: JSON.stringify({ status: "paused" }),
+        })
+      ).status,
+      200,
+    );
+    assert.deepEqual(await (await request("/v1/introductions")).json(), {
+      items: [],
+      finite: true,
+      remaining: 0,
+    });
+    assert.equal(
+      (
+        await request("/v1/account/status", {
+          method: "PATCH",
+          body: JSON.stringify({ status: "unknown" }),
+        })
+      ).status,
+      400,
+    );
+    await request("/v1/account/status", {
+      method: "PATCH",
+      body: JSON.stringify({ status: "active" }),
+    });
     const introductionsResponse = await request("/v1/introductions");
     const introductionsText = await introductionsResponse.text();
     const introductions = JSON.parse(introductionsText) as {
@@ -148,11 +178,13 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       reports: unknown[];
       blocks: unknown[];
       preferenceObservations: unknown[];
+      accountStatus: string;
     };
     assert.equal(dataExport.profile.id, "me");
     assert.equal(dataExport.reports.length, 1);
     assert.equal(dataExport.blocks.length, 1);
     assert.equal(dataExport.preferenceObservations.length, 1);
+    assert.equal(dataExport.accountStatus, "active");
     assert.equal((await request("/v1/me", { method: "DELETE" })).status, 204);
     assert.equal(
       (

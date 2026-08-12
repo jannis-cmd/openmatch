@@ -11,14 +11,14 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Transparent reciprocal matching | Shared deterministic kernel; mutual boundaries; separate A→B and B→A compatibility and weights; harmonic mean; versioned explanations |
 | Proximity without public precision | Internal coarse-region estimate; only five public distance bands leave the matching boundary |
 | Limited learning from decisions | Interested/Pass observations store only shown A-side factors and selection probability; suggestions require 20 mixed observations; no automatic changes |
-| Personal-data transparency | JSON export and deletion/reset from Profile on web and mobile |
+| Personal-data transparency | JSON export, pause, hide, resume, and deletion/reset from Profile on web and mobile |
 | Preference privacy | Candidate factor traces default private; sharing is explicit; redaction is tested not to change scores |
-| Basic safety | Mutual-only messaging, no read receipts, unmatch, block, structured report, and visible report receipt |
+| Basic safety | Mutual-only user-written text messaging, no read receipts, confirmed unmatch/block actions, categorized reports, and visible report receipt |
 | Local API hardening | SQLite, validation, 64 KiB body limit, allowlisted browser origins, no-store responses, known-profile checks, explicit demo boundary |
 | Accessibility baseline | Semantic controls, visible/non-color states, automated WCAG 2.2 A/AA scans at four web states, native component queries, contrast fixes |
 | Open development | AGPL software license, CC BY documentation license, governance, research proposal template, evidence register, decision log, and formatting gate |
 
-The release gate is:
+Mobile clients also refresh private state when returning to the foreground. The release gate is:
 
 ```bash
 pnpm format:check
