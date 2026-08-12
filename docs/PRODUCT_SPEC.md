@@ -127,6 +127,8 @@ idempotently, but it is not a production message service.
 
 ### 4.6 Safety
 
+Submitting a report immediately conceals that profile from the reporter's future discovery surfaces. It does not silently erase an existing conversation, so the reporter can preserve context and separately choose unmatch or block; this local concealment is not a moderation finding or a claim that staff reviewed the report.
+
 - Block/report from every profile and conversation.
 - Evidence-preserving report flow, severity triage, published response targets, status tracking, human appeal, and anti-retaliation controls.
 - Rate limits, device/account abuse signals, duplicate-account checks, and optional privacy-preserving liveness/photo verification.

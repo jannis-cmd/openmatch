@@ -392,15 +392,6 @@ test("first run through a persistent connection and safety action", async ({
   await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
   await expect(page.getByText("Same approximate region")).toBeVisible();
   await expect(page.getByText("Ready to meet in person")).toBeVisible();
-  await page.getByRole("button", { name: "Safety options" }).click();
-  await page.getByLabel("Reason").selectOption("other");
-  await page
-    .getByLabel("Details optional")
-    .fill("A concern visible before matching");
-  await page.getByRole("button", { name: "Submit report" }).click();
-  await expect(
-    page.getByRole("status").filter({ hasText: "Report received" }),
-  ).toHaveText("Report received. Reference status: received.");
   await page.getByRole("button", { name: "See the full calculation" }).click();
   await expect(page.getByText(/Your directed fit:/)).toBeVisible();
   await expect(page.getByText(/Their directed fit:/)).toBeVisible();
@@ -543,7 +534,9 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Submit report" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Report received" }),
-  ).toHaveText("Report received. Reference status: received.");
+  ).toHaveText(
+    "Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: received.",
+  );
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Block" }).click();
   await expect(
@@ -618,10 +611,10 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "Your safety reports" }),
   ).toBeVisible();
-  await expect(page.getByText("Report #2")).toBeVisible();
+  await expect(page.getByText("Report #1")).toBeVisible();
   await expect(page.getByText(/offline safety · received/i)).toBeVisible();
   const reportCard = page.locator(".report-history > div").filter({
-    hasText: "Report #2",
+    hasText: "Report #1",
   });
   await reportCard
     .getByRole("button", { name: "Add context or correction" })
@@ -632,7 +625,7 @@ test("first run through a persistent connection and safety action", async ({
     .fill("The timing in my original report was imprecise.");
   await reportCard.getByRole("button", { name: "Add to report" }).click();
   await expect(
-    page.getByRole("status").filter({ hasText: "Update added to report #2" }),
+    page.getByRole("status").filter({ hasText: "Update added to report #1" }),
   ).toBeVisible();
   await expect(
     reportCard.getByText(/correction.*The timing in my original report/i),

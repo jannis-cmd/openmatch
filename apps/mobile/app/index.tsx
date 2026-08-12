@@ -1070,10 +1070,11 @@ export default function App() {
                           details,
                         );
                         setSafetyNotice(
-                          `Report received. Reference status: ${result.status}.`,
+                          `Report received. This profile is concealed from future introductions. Reference status: ${result.status}.`,
                         );
                         setReports((await api.reports()).items);
                         setIntroductionReportOpen(false);
+                        await load();
                       } catch (error) {
                         setSafetyNotice(
                           operationLimitMessage(
@@ -1486,7 +1487,7 @@ export default function App() {
                             details,
                           );
                           setSafetyNotice(
-                            `Report received. Reference status: ${result.status}.`,
+                            `Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: ${result.status}.`,
                           );
                           setReports((await api.reports()).items);
                           setConnectionReportOpen(false);

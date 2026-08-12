@@ -2057,6 +2057,13 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ).status,
       201,
     );
+    const afterPreConnectionReport = (await (
+      await request("/v1/introductions")
+    ).json()) as { items: Array<{ profile: { id: string } }> };
+    assert.equal(
+      afterPreConnectionReport.items.some((item) => item.profile.id === "noah"),
+      false,
+    );
     assert.equal(
       (await request("/v1/profiles/noah/block", { method: "POST" })).status,
       200,

@@ -847,9 +847,10 @@ function AppExperience({
                                 reportDetails,
                               );
                               setNotice(
-                                `Report received. Reference status: ${result.status}.`,
+                                `Report received. This profile is concealed from future introductions. Reference status: ${result.status}.`,
                               );
                               setReports((await api.reports()).items);
+                              await load();
                             } catch (error) {
                               setError(
                                 operationLimitMessage(
@@ -1034,7 +1035,7 @@ function AppExperience({
                           reportDetails,
                         );
                         setNotice(
-                          `Report received. Reference status: ${result.status}.`,
+                          `Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: ${result.status}.`,
                         );
                         setReports((await api.reports()).items);
                       } catch (error) {

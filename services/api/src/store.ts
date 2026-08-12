@@ -328,9 +328,12 @@ export class Store {
   hiddenIds() {
     return new Set(
       (
-        this.db.prepare("SELECT profile_id FROM blocks").all() as Array<{
-          profile_id: string;
-        }>
+        this.db
+          .prepare(
+            `SELECT profile_id FROM blocks
+             UNION SELECT profile_id FROM reports`,
+          )
+          .all() as Array<{ profile_id: string }>
       ).map((row) => row.profile_id),
     );
   }
