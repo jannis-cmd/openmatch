@@ -1243,6 +1243,8 @@ function LandingPage({
         <div>
           <a href="https://github.com/jannis-cmd/openmatch">GitHub</a>
           <a href="#evidence">Research</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/support">Support</a>
           <button onClick={signIn}>Sign in</button>
         </div>
       </footer>

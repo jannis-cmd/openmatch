@@ -14,6 +14,34 @@ const expectAccessible = async (page: Page) => {
   ).toEqual([]);
 };
 
+test("public privacy and support pages describe the real prototype", async ({
+  page,
+}) => {
+  await page.goto("/privacy");
+  await expect(
+    page.getByRole("heading", {
+      name: "Your private life is not the product.",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/no staffed privacy office yet/i)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Open the data inventory/ }),
+  ).toHaveAttribute("href", /DATA_INVENTORY\.json/);
+  await expectAccessible(page);
+
+  await page.getByRole("link", { name: "Support" }).first().click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Help, without pretending we are ready.",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Victim Support Switzerland · 142/ }),
+  ).toHaveAttribute("href", "tel:142");
+  await expect(page.getByText(/no staffed customer-support/i)).toBeVisible();
+  await expectAccessible(page);
+});
+
 test("first run through a persistent connection and safety action", async ({
   page,
   request,
