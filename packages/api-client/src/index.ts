@@ -181,10 +181,14 @@ export function createApiClient(
       request<{ items: Message[] }>(
         `/v1/connections/${encodeURIComponent(connectionId)}/messages`,
       ),
-    sendMessage: (connectionId: string, text: string) =>
+    sendMessage: (
+      connectionId: string,
+      text: string,
+      safetyAcknowledged = false,
+    ) =>
       request<Message>(
         `/v1/connections/${encodeURIComponent(connectionId)}/messages`,
-        json("POST", { text }),
+        json("POST", { text, safetyAcknowledged }),
       ),
     unmatch: (connectionId: string) =>
       request<void>(

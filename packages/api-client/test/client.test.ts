@@ -127,3 +127,25 @@ test("updates a reversible meeting-planning preference", async () => {
   assert.deepEqual(received.body, { meetingPreference: "open_to_plan" });
   assert.equal(result.meetingPreference, "open_to_plan");
 });
+
+test("sends message safety acknowledgement only after client confirmation", async () => {
+  let body: unknown;
+  const client = createApiClient("http://example.test", async (_url, init) => {
+    body = JSON.parse(String(init?.body));
+    return new Response(
+      JSON.stringify({
+        id: 1,
+        connectionId: "connection-mara",
+        senderId: "me",
+        text: "See https://example.com",
+        createdAt: "2026-08-12T12:00:00.000Z",
+      }),
+      { status: 201 },
+    );
+  });
+  await client.sendMessage("connection-mara", "See https://example.com", true);
+  assert.deepEqual(body, {
+    text: "See https://example.com",
+    safetyAcknowledged: true,
+  });
+});

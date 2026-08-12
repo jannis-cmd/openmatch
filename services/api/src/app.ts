@@ -9,6 +9,7 @@ import {
   createIntroduction,
   createIntroductions,
   demoCandidates,
+  messageSafetyFlags,
   publicWeeklySeed,
   toPublicProfile,
 } from "@openmatch/matching";
@@ -447,10 +448,19 @@ export function createApp(
       if (request.method === "POST" && messages) {
         if (!store.connection(messages[1]))
           return send(response, 404, { error: "connection_not_found" });
-        const body = (await readJson(request)) as { text?: string };
+        const body = (await readJson(request)) as {
+          text?: string;
+          safetyAcknowledged?: unknown;
+        };
         const text = body.text?.trim() ?? "";
         if (!text || text.length > 2000)
           return send(response, 400, { error: "invalid_message" });
+        const safetyFlags = messageSafetyFlags(text);
+        if (safetyFlags.length && body.safetyAcknowledged !== true)
+          return send(response, 409, {
+            error: "message_safety_confirmation_required",
+            flags: safetyFlags,
+          });
         return send(response, 201, store.sendMessage(messages[1], text));
       }
       const connection = url.pathname.match(/^\/v1\/connections\/([^/]+)$/);

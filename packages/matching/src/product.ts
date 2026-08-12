@@ -18,6 +18,49 @@ export const POLITE_CLOSE_MESSAGE =
 export const conversationStarter = (profile: Pick<Profile, "promptAnswer">) =>
   `You mentioned “${profile.promptAnswer}” — I’d enjoy hearing more about that.`;
 
+export type MessageSafetyFlag = {
+  id: "external_link" | "payment_request";
+  label: string;
+  explanation: string;
+};
+
+/**
+ * Two deliberately narrow, published rules for contextual friction. They are
+ * not a scam classifier and must never affect matching, reporting, or profile
+ * visibility. Nothing from this check is stored separately from a sent message.
+ */
+export function messageSafetyFlags(text: string): MessageSafetyFlag[] {
+  const normalized = text.normalize("NFKC").toLowerCase();
+  const flags: MessageSafetyFlag[] = [];
+  if (
+    /(?:https?:\/\/|www\.)\S+/i.test(normalized) ||
+    /\b[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:com|org|net|ch|de|io|app)(?:\b|\/)/i.test(
+      normalized,
+    )
+  )
+    flags.push({
+      id: "external_link",
+      label: "External link",
+      explanation:
+        "Open links cautiously and keep early conversation inside the app.",
+    });
+  if (
+    /\b(?:send|transfer|wire|pay|buy|purchase)\b.{0,48}\b(?:money|cash|funds|gift\s*cards?|bitcoin|crypto(?:currency)?|usdt|bank\s*transfer|wire\s*transfer)\b/i.test(
+      normalized,
+    ) ||
+    /\b(?:send|transfer|pay)\b.{0,24}(?:[$€£]|\b(?:usd|eur|chf|gbp)\b)/i.test(
+      normalized,
+    )
+  )
+    flags.push({
+      id: "payment_request",
+      label: "Possible payment request",
+      explanation:
+        "Never send money, gift cards, bank transfers, or cryptocurrency to someone you met here.",
+    });
+  return flags;
+}
+
 export type Profile = {
   id: string;
   name: string;

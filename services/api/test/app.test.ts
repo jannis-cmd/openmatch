@@ -520,10 +520,38 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ).status,
       201,
     );
+    const flaggedMessage = "Please send money at https://example.com";
+    const warningResponse = await request(`/v1/connections/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ text: flaggedMessage }),
+    });
+    assert.equal(warningResponse.status, 409);
+    const warning = (await warningResponse.json()) as {
+      error: string;
+      flags: Array<{ id: string }>;
+    };
+    assert.equal(warning.error, "message_safety_confirmation_required");
+    assert.deepEqual(
+      warning.flags.map(({ id: flagId }) => flagId),
+      ["external_link", "payment_request"],
+    );
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/messages`, {
+          method: "POST",
+          body: JSON.stringify({
+            text: flaggedMessage,
+            safetyAcknowledged: true,
+          }),
+        })
+      ).status,
+      201,
+    );
     const messages = (await (
       await request(`/v1/connections/${id}/messages`)
     ).json()) as { items: Array<{ text: string }> };
     assert.equal(messages.items[0].text, "Hello Mara");
+    assert.equal(messages.items[1].text, flaggedMessage);
     const report = await request("/v1/reports", {
       method: "POST",
       body: JSON.stringify({

@@ -112,6 +112,7 @@ The batch size is a testable starting hypothesis—not settled science. Users ma
 - Rate limits, device/account abuse signals, duplicate-account checks, and optional privacy-preserving liveness/photo verification.
 - Every verification badge states exactly what was checked and what it cannot establish. Photo/liveness verification must never imply background safety or good intent.
 - Scam defenses include risky-link and payment-request friction, contextual education, fast escalation, evidence preservation, trained human support, and a non-blaming recovery path. Automated suspicion never silently lowers dating visibility.
+- The executable prototype implements the friction portion with two inspectable rules and explicit human confirmation. It does not claim to identify scams, retain a suspicion label, or perform automatic enforcement.
 - Location is stored at coarse regional/geohash precision; public distance is bucketed and never continuously updated.
 - No read receipts, online status, precise last-active time, contact discovery, or screenshot alerts in MVP.
 - Crisis and local support resources are accessible without filing a report.

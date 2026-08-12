@@ -28,6 +28,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let reportPayload: { reason?: string; details?: string } | null = null;
   let connectionActive = false;
   let meetingPreference = "not_asked";
+  let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
@@ -177,6 +178,22 @@ test("first run uses explicit accessible controls and opens introductions", asyn
             ]
           : [],
       });
+    if (
+      path === "/v1/connections/connection-mara/messages" &&
+      init.method === "POST"
+    ) {
+      sentMessageBody = body;
+      return response(
+        {
+          id: 1,
+          connectionId: "connection-mara",
+          senderId: "me",
+          text: body.text,
+          createdAt: "2026-08-12T12:00:00.000Z",
+        },
+        201,
+      );
+    }
     if (path === "/v1/connections/connection-mara/messages")
       return response({ items: [] });
     if (path === "/v1/reports" && init.method === "POST") {
@@ -257,6 +274,28 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() => expect(meetingPreference).toBe("open_to_plan"));
   expect(screen.getByText("Saved privately: open to planning.")).toBeTruthy();
   expect(screen.getByText("✓ Choose a busy public place.")).toBeTruthy();
+  const warningSpy = jest.spyOn(Alert, "alert");
+  await fireEvent.changeText(
+    screen.getByLabelText("Message Mara"),
+    "See https://example.com",
+  );
+  await fireEvent.press(screen.getByText("Send"));
+  const warningCall = warningSpy.mock.calls.find(
+    ([title]) => title === "Pause before sending",
+  );
+  expect(warningCall?.[1]).toMatch(/External link/);
+  expect(sentMessageBody).toBeNull();
+  warningCall?.[2]?.[1].onPress?.();
+  await waitFor(() =>
+    expect(sentMessageBody).toMatchObject({
+      text: "See https://example.com",
+      safetyAcknowledged: true,
+    }),
+  );
+  await waitFor(() =>
+    expect(screen.getByText("See https://example.com")).toBeTruthy(),
+  );
+  warningSpy.mockRestore();
   expect(profile.name).toBe("Taylor");
   expect(profile.city).toBe("Winterthur");
   expect(profile.readiness).toBe("Ready to meet in person");

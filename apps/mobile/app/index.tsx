@@ -29,6 +29,7 @@ import {
   defaultPreferences,
   demoUser,
   explainMatch,
+  messageSafetyFlags,
   nearestPriority,
   POLITE_CLOSE_MESSAGE,
   conversationStarter,
@@ -822,14 +823,33 @@ export default function App() {
                     onPress={() => {
                       const text = draft.trim();
                       if (!text) return;
-                      void api
-                        .sendMessage(connection.id, text)
-                        .then((message) => {
-                          setMessages((previous) => [...previous, message]);
-                          setDraft("");
-                        })
-                        .catch(() =>
-                          setSafetyNotice("Message could not be sent. Retry."),
+                      const safetyFlags = messageSafetyFlags(text);
+                      const sendMessage = (safetyAcknowledged = false) =>
+                        void api
+                          .sendMessage(connection.id, text, safetyAcknowledged)
+                          .then((message) => {
+                            setMessages((previous) => [...previous, message]);
+                            setDraft("");
+                          })
+                          .catch(() =>
+                            setSafetyNotice(
+                              "Message could not be sent. Retry.",
+                            ),
+                          );
+                      if (safetyFlags.length === 0) sendMessage();
+                      else
+                        Alert.alert(
+                          "Pause before sending",
+                          `${safetyFlags
+                            .map((flag) => `${flag.label}: ${flag.explanation}`)
+                            .join("\n\n")}\n\nThese simple rules can be wrong.`,
+                          [
+                            { text: "Go back", style: "cancel" },
+                            {
+                              text: "Send anyway",
+                              onPress: () => sendMessage(true),
+                            },
+                          ],
                         );
                     }}
                   />

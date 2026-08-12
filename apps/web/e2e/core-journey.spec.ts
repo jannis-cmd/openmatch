@@ -148,6 +148,17 @@ test("first run through a persistent connection and safety action", async ({
     page.getByText("Saved privately: open to planning."),
   ).toBeVisible();
   await expect(page.getByText("Choose a busy public place.")).toBeVisible();
+  const composer = page.getByRole("textbox", { name: "Message Mara" });
+  await composer.fill("See https://example.com before we meet");
+  let safetyWarning = "";
+  page.once("dialog", async (dialog) => {
+    safetyWarning = dialog.message();
+    await dialog.dismiss();
+  });
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  expect(safetyWarning).toContain("External link");
+  expect(safetyWarning).toContain("These simple rules can be wrong");
+  await expect(composer).toHaveValue("See https://example.com before we meet");
   await expect(
     page.getByRole("button", {
       name: "Close politely with a standard message",
@@ -158,12 +169,8 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("button", { name: "Unmute conversation" }),
   ).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Start from their profile" }).click();
-  await expect(page.getByRole("textbox", { name: "Message Mara" })).toHaveValue(
-    /You mentioned/,
-  );
-  await page
-    .getByRole("textbox", { name: "Message Mara" })
-    .fill("Hello from the repeatable journey");
+  await expect(composer).toHaveValue(/You mentioned/);
+  await composer.fill("Hello from the repeatable journey");
   await page.getByRole("button", { name: "Send" }).click();
   await page.reload();
   await page.getByRole("button", { name: /Connections · 1/ }).click();

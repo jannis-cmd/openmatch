@@ -7,6 +7,7 @@ import {
   demoCandidates,
   demoUser,
   explainMatch,
+  messageSafetyFlags,
   nearestPriority,
   priorityLabel,
   proximityCompatibility,
@@ -311,6 +312,24 @@ test("conversation starters only reuse visible human-written profile text", () =
   assert.equal(
     conversationStarter(demoCandidates[0].profile),
     `You mentioned “${demoCandidates[0].profile.promptAnswer}” — I’d enjoy hearing more about that.`,
+  );
+});
+
+test("message safety friction uses narrow published link and payment rules", () => {
+  assert.deepEqual(messageSafetyFlags("Would you like coffee on Sunday?"), []);
+  assert.deepEqual(
+    messageSafetyFlags("See https://example.com/details").map(({ id }) => id),
+    ["external_link"],
+  );
+  assert.deepEqual(
+    messageSafetyFlags("Please send money by bank transfer").map(
+      ({ id }) => id,
+    ),
+    ["payment_request"],
+  );
+  assert.deepEqual(
+    messageSafetyFlags("Pay €50 at example.com").map(({ id }) => id),
+    ["external_link", "payment_request"],
   );
 });
 

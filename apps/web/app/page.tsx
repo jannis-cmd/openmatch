@@ -18,6 +18,7 @@ import {
   defaultPreferences,
   demoUser,
   explainMatch,
+  messageSafetyFlags,
   nearestPriority,
   POLITE_CLOSE_MESSAGE,
   conversationStarter,
@@ -595,10 +596,23 @@ function AppExperience({ exit }: { exit: () => void }) {
                   send={async () => {
                     const text = draft.trim();
                     if (!text || !connections[0]) return;
+                    const safetyFlags = messageSafetyFlags(text);
+                    if (
+                      safetyFlags.length > 0 &&
+                      !window.confirm(
+                        `Pause before sending\n\n${safetyFlags
+                          .map((flag) => `${flag.label}: ${flag.explanation}`)
+                          .join(
+                            "\n\n",
+                          )}\n\nThese simple rules can be wrong. Send anyway?`,
+                      )
+                    )
+                      return;
                     try {
                       const message = await api.sendMessage(
                         connections[0].id,
                         text,
+                        safetyFlags.length > 0,
                       );
                       setMessages((previous) => [...previous, message]);
                       setDraft("");
