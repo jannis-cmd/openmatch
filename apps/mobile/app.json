@@ -16,7 +16,6 @@
     ],
     "ios": {
       "bundleIdentifier": "org.openmatch.app",
-      "buildNumber": "1",
       "supportsTablet": false,
       "config": {
         "usesNonExemptEncryption": false
