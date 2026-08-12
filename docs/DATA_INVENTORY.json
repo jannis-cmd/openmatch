@@ -66,7 +66,7 @@
       "purpose": "Durably stage an account-to-account decision, connection, message, close, or block until the intended mutation has committed in every affected isolated account store.",
       "retention": "Only while delivery is incomplete. The row is deleted immediately after every intended store commits it; an interrupted row is retried in sequence on API restart and before authenticated work continues.",
       "access": ["service", "operator"],
-      "fields": ["sequence", "id", "firstAccountId", "secondAccountId", "firstActionJson", "secondActionJson", "createdAt", "attemptCount", "lastAttemptAt", "lastErrorCode"],
+      "fields": ["sequence", "id", "firstAccountId", "secondAccountId", "firstActionJson", "secondActionJson", "createdAt", "attemptCount", "lastAttemptAt", "lastErrorCode", "nextAttemptAt", "leaseUntil"],
       "disclosure": "A pending action can temporarily duplicate the minimum payload needed for retry, including message text. Each target store applies the event and records its opaque ID in one local transaction, so retry cannot duplicate the visible action. Retry metadata stores only a count, timestamp, and generic error category. Completed payloads are deleted rather than retained as an activity log. Affected people can see a privacy-minimal pending count and retry state, but not payload or peer details. Pending delivery metadata is excluded from personal export; the resulting profile decision, connection, message, or block appears in the normal export."
     },
     {

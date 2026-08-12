@@ -37,6 +37,9 @@ const RECOVERY_CODE_COUNT = 8;
 const SECURITY_NOTICE_RETRY_BASE_MS = 60_000;
 const SECURITY_NOTICE_RETRY_MAX_MS = 6 * 60 * 60_000;
 const SECURITY_NOTICE_LEASE_MS = 30_000;
+const ACCOUNT_DELIVERY_RETRY_BASE_MS = 5_000;
+const ACCOUNT_DELIVERY_RETRY_MAX_MS = 5 * 60_000;
+const ACCOUNT_DELIVERY_LEASE_MS = 30_000;
 const SCRYPT_OPTIONS = { N: 32_768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
 type AccountRow = {
@@ -164,7 +167,9 @@ export class Accounts {
         created_at TEXT NOT NULL,
         attempt_count INTEGER NOT NULL DEFAULT 0,
         last_attempt_at TEXT,
-        last_error_code TEXT
+        last_error_code TEXT,
+        next_attempt_at INTEGER NOT NULL DEFAULT 0,
+        lease_until INTEGER NOT NULL DEFAULT 0
       );
       CREATE TABLE IF NOT EXISTS account_security_notification_outbox (
         id TEXT PRIMARY KEY,
@@ -211,6 +216,14 @@ export class Accounts {
       this.db.exec(
         "ALTER TABLE account_delivery_events ADD COLUMN last_error_code TEXT",
       );
+    if (!deliveryColumns.some(({ name }) => name === "next_attempt_at"))
+      this.db.exec(
+        "ALTER TABLE account_delivery_events ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0",
+      );
+    if (!deliveryColumns.some(({ name }) => name === "lease_until"))
+      this.db.exec(
+        "ALTER TABLE account_delivery_events ADD COLUMN lease_until INTEGER NOT NULL DEFAULT 0",
+      );
     const notificationOutboxColumns = this.db
       .prepare("PRAGMA table_info(account_security_notification_outbox)")
       .all() as Array<{ name: string }>;
@@ -238,7 +251,7 @@ export class Accounts {
       "CREATE UNIQUE INDEX IF NOT EXISTS account_sessions_id ON account_sessions(id)",
     );
     try {
-      this.flushDeliveryEvents();
+      this.flushDeliveryEvents(true);
     } catch {
       // The durable row remains available for ordered retry and status. A
       // transient target-store failure must not prevent the API from starting.
@@ -267,7 +280,7 @@ export class Accounts {
         new Date().toISOString(),
       );
     try {
-      this.flushDeliveryEvents();
+      this.flushDeliveryEvents(true);
     } catch {
       throw new AccountError("account_delivery_incomplete", 503);
     }
@@ -278,21 +291,45 @@ export class Accounts {
     return eventId;
   }
 
-  flushDeliveryEvents() {
-    const pending = this.db
-      .prepare(
-        `SELECT id,first_account_id AS firstAccountId,second_account_id AS secondAccountId,
-                first_action_json AS firstActionJson,second_action_json AS secondActionJson
-         FROM account_delivery_events ORDER BY sequence`,
-      )
-      .all() as Array<{
-      id: string;
-      firstAccountId: string;
-      secondAccountId: string | null;
-      firstActionJson: string;
-      secondActionJson: string | null;
-    }>;
-    for (const event of pending) {
+  flushDeliveryEvents(force = false) {
+    while (true) {
+      const event = this.db
+        .prepare(
+          `SELECT id,first_account_id AS firstAccountId,second_account_id AS secondAccountId,
+                  first_action_json AS firstActionJson,second_action_json AS secondActionJson,
+                  attempt_count AS attemptCount,next_attempt_at AS nextAttemptAt,
+                  lease_until AS leaseUntil
+           FROM account_delivery_events ORDER BY sequence LIMIT 1`,
+        )
+        .get() as
+        | {
+            id: string;
+            firstAccountId: string;
+            secondAccountId: string | null;
+            firstActionJson: string;
+            secondActionJson: string | null;
+            attemptCount: number;
+            nextAttemptAt: number;
+            leaseUntil: number;
+          }
+        | undefined;
+      if (!event) return;
+      const now = Date.now();
+      if (event.leaseUntil > now || (!force && event.nextAttemptAt > now))
+        return;
+      const claimed = this.db
+        .prepare(
+          `UPDATE account_delivery_events SET lease_until=?
+           WHERE id=? AND lease_until<=? AND (?=1 OR next_attempt_at<=?)`,
+        )
+        .run(
+          now + ACCOUNT_DELIVERY_LEASE_MS,
+          event.id,
+          now,
+          force ? 1 : 0,
+          now,
+        );
+      if (!claimed.changes) return;
       const attemptedAt = new Date().toISOString();
       this.db
         .prepare(
@@ -322,11 +359,17 @@ export class Accounts {
           .prepare("DELETE FROM account_delivery_events WHERE id=?")
           .run(event.id);
       } catch (error) {
+        const retryDelay = Math.min(
+          ACCOUNT_DELIVERY_RETRY_BASE_MS * 2 ** event.attemptCount,
+          ACCOUNT_DELIVERY_RETRY_MAX_MS,
+        );
         this.db
           .prepare(
-            "UPDATE account_delivery_events SET last_error_code='target_write_failed' WHERE id=?",
+            `UPDATE account_delivery_events
+             SET last_error_code='target_write_failed',next_attempt_at=?,lease_until=0
+             WHERE id=?`,
           )
-          .run(event.id);
+          .run(Date.now() + retryDelay, event.id);
         throw error;
       }
     }

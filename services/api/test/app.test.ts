@@ -234,6 +234,78 @@ test("replays interrupted cross-account delivery exactly once after restart", ()
   }
 });
 
+test("background worker retries interrupted account delivery in strict order", async () => {
+  let interrupt = true;
+  const accounts = new Accounts(":memory:", {
+    dataDirectory: null,
+    beforeDelivery: (_eventId, _accountId, position) => {
+      if (position === 2 && interrupt) {
+        interrupt = false;
+        throw new Error("simulated target outage");
+      }
+    },
+  });
+  const first = accounts.register(
+    "worker-first@example.org",
+    "a sufficiently long first passphrase",
+  );
+  const second = accounts.register(
+    "worker-second@example.org",
+    "a sufficiently long second passphrase",
+  );
+  const connectionId = "connection-worker-test";
+  const createdAt = "2026-08-13T20:00:00.000Z";
+  first.store.ensureConnection(connectionId, second.accountId, createdAt);
+  second.store.ensureConnection(connectionId, first.accountId, createdAt);
+  assert.throws(() =>
+    accounts.deliverPairEvent(
+      first.accountId,
+      {
+        kind: "message",
+        connectionId,
+        text: "Background delivery",
+        senderId: "me",
+        createdAt,
+      },
+      second.accountId,
+      {
+        kind: "message",
+        connectionId,
+        text: "Background delivery",
+        senderId: first.accountId,
+        createdAt,
+      },
+    ),
+  );
+  assert.equal(second.store.messages(connectionId).length, 0);
+  accounts.db
+    .prepare("UPDATE account_delivery_events SET next_attempt_at=0")
+    .run();
+  const server = createApp({
+    accounts,
+    demoSessionsEnabled: false,
+    accountDeliveryRetryIntervalMs: 10,
+    emailVerificationSender: null,
+    securityNotificationSender: null,
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  try {
+    for (
+      let attempt = 0;
+      attempt < 20 && second.store.messages(connectionId).length === 0;
+      attempt += 1
+    )
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(first.store.messages(connectionId).length, 1);
+    assert.equal(second.store.messages(connectionId).length, 1);
+    assert.equal(accounts.pendingDeliveryCount(), 0);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("email confirmation is delivered out of band, hashed, expiring, and single use", async () => {
   const accounts = new Accounts(":memory:", { dataDirectory: null });
   const deliveries: Array<{
@@ -1555,6 +1627,8 @@ test("the public data inventory covers every current storage and export field", 
       "attemptCount",
       "lastAttemptAt",
       "lastErrorCode",
+      "nextAttemptAt",
+      "leaseUntil",
     ],
     accountSecurityNotificationOutbox: [
       "id",

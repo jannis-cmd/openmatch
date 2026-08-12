@@ -157,6 +157,7 @@ export function createApp(
     emailVerificationSender?: EmailVerificationSender | null;
     securityNotificationSender?: SecurityNotificationSender | null;
     securityNotificationRetryIntervalMs?: number;
+    accountDeliveryRetryIntervalMs?: number;
   } = {},
 ) {
   const demoStore = options.store ?? new Store();
@@ -191,6 +192,15 @@ export function createApp(
   )
     throw new RangeError(
       "security notification retry interval must be at least 10ms",
+    );
+  const accountDeliveryRetryIntervalMs =
+    options.accountDeliveryRetryIntervalMs ?? 5_000;
+  if (
+    !Number.isInteger(accountDeliveryRetryIntervalMs) ||
+    accountDeliveryRetryIntervalMs < 10
+  )
+    throw new RangeError(
+      "account delivery retry interval must be at least 10ms",
     );
   const demoSessionTtlMs = options.demoSessionTtlMs ?? 12 * 60 * 60 * 1000;
   if (!Number.isInteger(demoSessionTtlMs) || demoSessionTtlMs < 60_000)
@@ -578,7 +588,7 @@ export function createApp(
       ) {
         if (accountSession && accounts)
           try {
-            accounts.flushDeliveryEvents();
+            accounts.flushDeliveryEvents(true);
           } catch {
             // Status remains readable after a failed retry. Any newer
             // cross-account mutation still enters the ordered journal and
@@ -1670,8 +1680,25 @@ export function createApp(
       }, securityNotificationRetryIntervalMs)
     : null;
   securityRetryTimer?.unref();
+  let accountDeliveryRetryRunning = false;
+  const accountDeliveryRetryTimer = accounts
+    ? setInterval(() => {
+        if (accountDeliveryRetryRunning) return;
+        accountDeliveryRetryRunning = true;
+        try {
+          accounts.flushDeliveryEvents();
+        } catch {
+          // The oldest row has already recorded its bounded next attempt.
+          // Strict ordering prevents later actions from bypassing it.
+        } finally {
+          accountDeliveryRetryRunning = false;
+        }
+      }, accountDeliveryRetryIntervalMs)
+    : null;
+  accountDeliveryRetryTimer?.unref();
   server.on("close", () => {
     if (securityRetryTimer) clearInterval(securityRetryTimer);
+    if (accountDeliveryRetryTimer) clearInterval(accountDeliveryRetryTimer);
     demoStore.close();
     accounts?.close();
   });
