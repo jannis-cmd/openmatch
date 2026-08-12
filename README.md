@@ -26,6 +26,7 @@ This repository is an initial, research-backed specification and executable skel
 - `docs/PRIVACY_SECURITY.md` — data minimization and threat model
 - `docs/ARCHITECTURE.md` — mobile, web, API, and data architecture
 - `docs/TESTFLIGHT.md` — fail-closed mobile build and distribution guide
+- `docs/RELEASE_ARTIFACTS.md` — current verified mobile build provenance and hashes
 - `docs/WEB_DEPLOYMENT.md` — landing-only and future interactive hosting modes
 - `docs/TAILNET_BETA.md` — current owner-only web/mobile beta topology and limits
 - `governance/GOVERNANCE.md` — nonprofit and algorithm-change governance
