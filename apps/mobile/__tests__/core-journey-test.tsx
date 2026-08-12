@@ -19,6 +19,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let profile = structuredClone(demoUser);
   let preferences = structuredClone(defaultPreferences);
   let accountStatus = "active";
+  let batchSize: 1 | 2 | 3 | 4 | 5 = 5;
   let consentAccepted = false;
   const savedIds = new Set<string>();
   let reportPayload: { reason?: string; details?: string } | null = null;
@@ -50,6 +51,11 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/account/status")
       return response({ status: accountStatus });
+    if (path === "/v1/delivery" && init.method === "PATCH") {
+      batchSize = body.batchSize;
+      return response({ batchSize });
+    }
+    if (path === "/v1/delivery") return response({ batchSize });
     if (path === "/v1/consents" && init.method === "PATCH") {
       consentAccepted = true;
       return response({
@@ -89,9 +95,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/introductions")
       return response({
-        items: createIntroductions(profile, demoCandidates, preferences).filter(
-          (item) => !savedIds.has(item.profile.id),
-        ),
+        items: createIntroductions(profile, demoCandidates, preferences)
+          .filter((item) => !savedIds.has(item.profile.id))
+          .slice(0, batchSize),
         finite: true,
         remaining: 3,
       });
@@ -163,6 +169,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(onboardingComplete).toBe(true);
   expect(consentAccepted).toBe(true);
   await fireEvent.press(screen.getByText("Preferences"));
+  await fireEvent.press(screen.getByLabelText("1 introductions per batch"));
+  await waitFor(() => expect(batchSize).toBe(1));
   await fireEvent.press(screen.getByLabelText("Lower youngest age"));
   await waitFor(() => expect(preferences.ageMin).toBe(26));
   await fireEvent.press(screen.getByText("Still figuring it out"));

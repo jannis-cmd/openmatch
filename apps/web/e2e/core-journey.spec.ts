@@ -123,6 +123,13 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Preferences" }).click();
+  const batchSettings = page
+    .getByRole("heading", { name: "Finite batch size" })
+    .locator("..");
+  await batchSettings.getByRole("button", { name: "1", exact: true }).click();
+  await expect(
+    batchSettings.getByRole("button", { name: "1", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText(/Nothing suggested yet/)).toBeVisible();
   await expect(page.getByText(/Nothing changes automatically/)).toBeVisible();
   await page

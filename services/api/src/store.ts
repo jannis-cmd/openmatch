@@ -24,6 +24,7 @@ export type Message = {
   createdAt: string;
 };
 export type AccountStatus = "active" | "paused" | "hidden";
+export type DeliverySettings = { batchSize: 1 | 2 | 3 | 4 | 5 };
 export type ConsentReceipt = {
   adultConfirmed: true;
   prototypeDataUseAccepted: true;
@@ -59,6 +60,7 @@ export class Store {
     insert.run("preferences", JSON.stringify(defaultPreferences));
     insert.run("onboarding_complete", JSON.stringify(false));
     insert.run("account_status", JSON.stringify("active"));
+    insert.run("delivery_settings", JSON.stringify({ batchSize: 5 }));
     insert.run("consent_receipt", JSON.stringify(null));
   }
 
@@ -124,6 +126,13 @@ export class Store {
   updateAccountStatus(status: AccountStatus) {
     this.setState("account_status", status);
     return { status };
+  }
+  deliverySettings() {
+    return this.getState<DeliverySettings>("delivery_settings");
+  }
+  updateDeliverySettings(settings: DeliverySettings) {
+    this.setState("delivery_settings", settings);
+    return settings;
   }
   decidedIds() {
     return new Set(
@@ -319,6 +328,7 @@ export class Store {
       onboardingComplete: this.onboardingComplete(),
       consentReceipt: this.consentReceipt(),
       accountStatus: this.accountStatus(),
+      deliverySettings: this.deliverySettings(),
       decisions: this.db
         .prepare(
           "SELECT profile_id AS profileId,decision,created_at AS createdAt FROM decisions ORDER BY created_at",

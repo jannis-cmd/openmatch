@@ -32,6 +32,7 @@ export type ReportRecord = {
   createdAt: string;
 };
 export type AccountStatus = "active" | "paused" | "hidden";
+export type DeliverySettings = { batchSize: 1 | 2 | 3 | 4 | 5 };
 export type ConsentReceipt = {
   adultConfirmed: true;
   prototypeDataUseAccepted: true;
@@ -109,6 +110,9 @@ export function createApiClient(
         "/v1/account/status",
         json("PATCH", { status }),
       ),
+    deliverySettings: () => request<DeliverySettings>("/v1/delivery"),
+    updateDeliverySettings: (batchSize: DeliverySettings["batchSize"]) =>
+      request<DeliverySettings>("/v1/delivery", json("PATCH", { batchSize })),
     completeOnboarding: () =>
       request<{ complete: true }>("/v1/onboarding/complete", json("POST")),
     consent: () => request<{ receipt: ConsentReceipt | null }>("/v1/consents"),

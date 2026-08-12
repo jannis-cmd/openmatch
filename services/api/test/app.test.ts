@@ -57,6 +57,7 @@ test("the public data inventory covers every current storage and export field", 
     ],
     onboarding: ["complete"],
     accountStatus: ["status"],
+    deliverySettings: ["batchSize"],
     consentReceipt: [
       "adultConfirmed",
       "prototypeDataUseAccepted",
@@ -191,6 +192,39 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     );
     assert.deepEqual(await (await request("/v1/account/status")).json(), {
       status: "active",
+    });
+    assert.deepEqual(await (await request("/v1/delivery")).json(), {
+      batchSize: 5,
+    });
+    assert.equal(
+      (
+        await request("/v1/delivery", {
+          method: "PATCH",
+          body: JSON.stringify({ batchSize: 1 }),
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        (await (await request("/v1/introductions")).json()) as {
+          items: unknown[];
+        }
+      ).items.length,
+      1,
+    );
+    assert.equal(
+      (
+        await request("/v1/delivery", {
+          method: "PATCH",
+          body: JSON.stringify({ batchSize: 6 }),
+        })
+      ).status,
+      400,
+    );
+    await request("/v1/delivery", {
+      method: "PATCH",
+      body: JSON.stringify({ batchSize: 5 }),
     });
     assert.equal(
       (
@@ -343,6 +377,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       blocks: unknown[];
       preferenceObservations: unknown[];
       accountStatus: string;
+      deliverySettings: { batchSize: number };
       consentReceipt: { noticeVersion: string };
       savedIntroductions: Array<{ profileId: string }>;
     };
@@ -351,6 +386,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(dataExport.blocks.length, 2);
     assert.equal(dataExport.preferenceObservations.length, 1);
     assert.equal(dataExport.accountStatus, "active");
+    assert.equal(dataExport.deliverySettings.batchSize, 5);
     assert.equal(dataExport.consentReceipt.noticeVersion, "prototype-0.1");
     assert.equal(dataExport.savedIntroductions.length, 1);
     assert.equal(dataExport.savedIntroductions[0].profileId, "lea");

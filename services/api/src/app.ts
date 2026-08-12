@@ -116,6 +116,24 @@ export function createApp(
         return send(response, 200, { complete: store.onboardingComplete() });
       if (request.method === "GET" && url.pathname === "/v1/account/status")
         return send(response, 200, { status: store.accountStatus() });
+      if (request.method === "GET" && url.pathname === "/v1/delivery")
+        return send(response, 200, store.deliverySettings());
+      if (request.method === "PATCH" && url.pathname === "/v1/delivery") {
+        const body = (await readJson(request)) as { batchSize?: unknown };
+        if (
+          !Number.isInteger(body.batchSize) ||
+          Number(body.batchSize) < 1 ||
+          Number(body.batchSize) > 5
+        )
+          return send(response, 400, { error: "invalid_batch_size" });
+        return send(
+          response,
+          200,
+          store.updateDeliverySettings({
+            batchSize: body.batchSize as 1 | 2 | 3 | 4 | 5,
+          }),
+        );
+      }
       if (request.method === "PATCH" && url.pathname === "/v1/account/status") {
         const body = (await readJson(request)) as { status?: unknown };
         if (
@@ -168,7 +186,9 @@ export function createApp(
           store.profile(),
           demoCandidates,
           store.preferences(),
-        ).filter((item) => !hidden.has(item.profile.id));
+        )
+          .filter((item) => !hidden.has(item.profile.id))
+          .slice(0, store.deliverySettings().batchSize);
         return send(response, 200, {
           items,
           finite: true,

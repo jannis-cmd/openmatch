@@ -19,6 +19,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Proximity without public precision | Internal coarse-region estimate; only five public distance bands leave the matching boundary |
 | Limited learning from decisions | Interested/Pass observations store only shown A-side factors and selection probability; suggestions require 20 mixed observations; no automatic changes |
 | Saved introductions | Save/restore is persisted independently from Interested/Pass, available on web and mobile, private from candidates, exported, and cleared on reset/deletion; the prototype queue has no scheduled expiry yet |
+| User-controlled finite delivery | A persisted 1–5 batch-size control is enforced by the API and exposed on web and mobile with an explicit hypothesis caveat; pause remains separately available |
 | Personal-data transparency | JSON export, pause, hide, resume, and deletion/reset from Profile on web and mobile |
 | Preference privacy | Candidate factor traces default private; sharing is explicit; redaction is tested not to change scores |
 | Basic safety | Report/block from introductions and conversations, mutual-only user-written text messaging, no read receipts, confirmed destructive actions, categorized reports with optional user context, private report history/status, visible report receipts, and always-reachable safer-dating/scam guidance |

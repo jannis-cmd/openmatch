@@ -5,6 +5,7 @@ import {
   createApiClient,
   type AccountStatus,
   type Connection,
+  type DeliverySettings,
   type Message,
   type ReportRecord,
   type ReportReason,
@@ -89,6 +90,7 @@ function AppExperience({ exit }: { exit: () => void }) {
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
+  const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
     null,
   );
@@ -109,6 +111,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         onboarding,
         nextSuggestions,
         nextAccountStatus,
+        nextDelivery,
         nextTransparency,
         nextReports,
       ] = await Promise.all([
@@ -120,6 +123,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         api.onboarding(),
         api.preferenceSuggestions(),
         api.accountStatus(),
+        api.deliverySettings(),
         api.transparencyVersion(),
         api.reports(),
       ]);
@@ -131,6 +135,7 @@ function AppExperience({ exit }: { exit: () => void }) {
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
       setAccountStatus(nextAccountStatus.status);
+      setDelivery(nextDelivery);
       setTransparency(nextTransparency);
       setReports(nextReports.items);
       if (nextConnections.items[0])
@@ -520,6 +525,12 @@ function AppExperience({ exit }: { exit: () => void }) {
               {view === "preferences" && (
                 <PreferencesView
                   value={preferences}
+                  delivery={delivery}
+                  setBatchSize={async (batchSize) => {
+                    const next = await api.updateDeliverySettings(batchSize);
+                    setDelivery(next);
+                    setIntroductions((await api.introductions()).items);
+                  }}
                   suggestions={suggestions}
                   onChange={(next) => void savePreferences(next)}
                 />
@@ -1205,10 +1216,14 @@ function BoundaryFields({
 
 function PreferencesView({
   value,
+  delivery,
+  setBatchSize,
   suggestions,
   onChange,
 }: {
   value: Preferences;
+  delivery: DeliverySettings;
+  setBatchSize: (batchSize: DeliverySettings["batchSize"]) => Promise<void>;
   suggestions: WeightSuggestion[];
   onChange: (value: Preferences) => void;
 }) {
@@ -1222,6 +1237,29 @@ function PreferencesView({
         Hard boundaries filter first. Priorities only order people who are
         mutually eligible. Every change is yours.
       </p>
+      <section className="settings-card">
+        <h2>Finite batch size</h2>
+        <p>
+          Choose up to how many mutually eligible people appear at once. One to
+          five is a product hypothesis, not a scientifically optimal number.
+        </p>
+        <div className="decision-row" aria-label="Introductions per batch">
+          {([1, 2, 3, 4, 5] as const).map((size) => (
+            <button
+              key={size}
+              aria-pressed={delivery.batchSize === size}
+              className={delivery.batchSize === size ? "interest" : "pass"}
+              onClick={() => void setBatchSize(size)}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+        <p className="help">
+          Saved profiles are separate. Pause introductions any time from Your
+          profile.
+        </p>
+      </section>
       <section className="settings-card">
         <h2>Mutual boundaries</h2>
         <label>

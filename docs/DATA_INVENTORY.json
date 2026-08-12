@@ -77,6 +77,14 @@
       "fields": ["status"]
     },
     {
+      "id": "deliverySettings",
+      "storage": "state.delivery_settings JSON",
+      "purpose": "Apply the person's chosen finite maximum of one to five active introductions.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["batchSize"]
+    },
+    {
       "id": "consentReceipt",
       "storage": "state.consent_receipt JSON",
       "purpose": "Prove explicit adult confirmation and acceptance of prototype data use under a named notice.",

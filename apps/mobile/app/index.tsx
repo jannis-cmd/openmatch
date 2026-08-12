@@ -16,6 +16,7 @@ import {
   createApiClient,
   type AccountStatus,
   type Connection,
+  type DeliverySettings,
   type Message,
   type ReportRecord,
   type ReportReason,
@@ -67,6 +68,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
+  const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [draft, setDraft] = useState("");
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
@@ -91,6 +93,7 @@ export default function App() {
         onboarding,
         nextSuggestions,
         nextAccountStatus,
+        nextDelivery,
         nextTransparency,
         nextReports,
       ] = await Promise.all([
@@ -102,6 +105,7 @@ export default function App() {
         api.onboarding(),
         api.preferenceSuggestions(),
         api.accountStatus(),
+        api.deliverySettings(),
         api.transparencyVersion(),
         api.reports(),
       ]);
@@ -114,6 +118,7 @@ export default function App() {
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
       setAccountStatus(nextAccountStatus.status);
+      setDelivery(nextDelivery);
       setTransparency(nextTransparency);
       setReports(nextReports.items);
       setMessages(
@@ -602,6 +607,15 @@ export default function App() {
             <PreferencesScreen
               value={preferences}
               suggestions={suggestions}
+              delivery={delivery}
+              setBatchSize={(batchSize) =>
+                void api
+                  .updateDeliverySettings(batchSize)
+                  .then(async (next) => {
+                    setDelivery(next);
+                    setIntroductions((await api.introductions()).items);
+                  })
+              }
               onChange={(next) => void savePreferences(next)}
             />
           )}
@@ -1131,10 +1145,14 @@ function PreferencesScreen({
   value,
   onChange,
   suggestions,
+  delivery,
+  setBatchSize,
 }: {
   value: Preferences;
   onChange: (value: Preferences) => void;
   suggestions?: WeightSuggestion[];
+  delivery?: DeliverySettings;
+  setBatchSize?: (batchSize: DeliverySettings["batchSize"]) => void;
 }) {
   const bump = (key: keyof Preferences["weights"], delta: -1 | 1) => {
     const current = nearestPriority(value.weights[key]);
@@ -1152,6 +1170,36 @@ function PreferencesScreen({
       <Text style={styles.subtle}>
         Boundaries filter. Priorities order. Every change is yours.
       </Text>
+      {delivery && setBatchSize && (
+        <View style={styles.scoreCard}>
+          <Text style={styles.name}>Finite batch size</Text>
+          <Text style={styles.scoreNote}>
+            Choose up to how many mutually eligible people appear at once. One
+            to five is a product hypothesis, not a scientifically optimal
+            number.
+          </Text>
+          <View style={styles.adjust}>
+            {([1, 2, 3, 4, 5] as const).map((size) => (
+              <Pressable
+                key={size}
+                accessibilityRole="button"
+                accessibilityState={{ selected: delivery.batchSize === size }}
+                accessibilityLabel={`${size} introductions per batch`}
+                style={[
+                  styles.smallButton,
+                  delivery.batchSize === size && styles.selectedButton,
+                ]}
+                onPress={() => setBatchSize(size)}
+              >
+                <Text>{size}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={styles.mathNote}>
+            Saved profiles are separate. Pause introductions from Profile.
+          </Text>
+        </View>
+      )}
       <View style={styles.scoreCard}>
         <Text style={styles.name}>Mutual boundaries</Text>
         <Text style={styles.setting}>
@@ -1838,6 +1886,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFF",
+  },
+  selectedButton: {
+    backgroundColor: "#CFE5D8",
+    borderColor: "#39715A",
   },
   method: {
     flexDirection: "row",
