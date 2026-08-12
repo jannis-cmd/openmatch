@@ -980,6 +980,7 @@ function OnboardingView({
             }
           />
         </label>
+        <BoundaryFields value={preferences} onChange={onPreferences} />
       </section>
       <section className="settings-card">
         <h2>Your ordering priorities</h2>
@@ -1030,6 +1031,78 @@ function OnboardingView({
   );
 }
 
+function BoundaryFields({
+  value,
+  onChange,
+}: {
+  value: Preferences;
+  onChange: (value: Preferences) => void;
+}) {
+  const intents: Profile["intent"][] = [
+    "Long-term relationship",
+    "Long-term, open to short",
+    "Still figuring it out",
+  ];
+  return (
+    <div className="boundary-fields">
+      <fieldset>
+        <legend>Relationship intentions you are open to</legend>
+        {intents.map((intent) => (
+          <label key={intent}>
+            <input
+              type="checkbox"
+              checked={value.intents.includes(intent)}
+              onChange={(event) => {
+                const next = event.target.checked
+                  ? [...value.intents, intent]
+                  : value.intents.filter((item) => item !== intent);
+                if (next.length) onChange({ ...value, intents: next });
+              }}
+            />
+            {intent}
+          </label>
+        ))}
+      </fieldset>
+      <label>
+        Smoking boundary
+        <select
+          value={value.smoking}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              smoking: event.target.value as Preferences["smoking"],
+            })
+          }
+        >
+          <option value="no">Non-smoking only</option>
+          <option value="any">No boundary</option>
+        </select>
+      </label>
+      <label>
+        Children boundary
+        <select
+          value={value.children}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              children: event.target.value as Preferences["children"],
+            })
+          }
+        >
+          <option value="want">Wants children</option>
+          <option value="open">Open to children</option>
+          <option value="do not want">Does not want children</option>
+          <option value="any">No boundary</option>
+        </select>
+      </label>
+      <p className="help">
+        These are mutual boundaries. A person is introduced only when both
+        people’s stated boundaries are satisfied.
+      </p>
+    </div>
+  );
+}
+
 function PreferencesView({
   value,
   suggestions,
@@ -1049,6 +1122,34 @@ function PreferencesView({
         Hard boundaries filter first. Priorities only order people who are
         mutually eligible. Every change is yours.
       </p>
+      <section className="settings-card">
+        <h2>Mutual boundaries</h2>
+        <label>
+          Youngest age <strong>{value.ageMin}</strong>
+          <input
+            type="range"
+            min="18"
+            max={value.ageMax}
+            value={value.ageMin}
+            onChange={(event) =>
+              onChange({ ...value, ageMin: Number(event.target.value) })
+            }
+          />
+        </label>
+        <label>
+          Oldest age <strong>{value.ageMax}</strong>
+          <input
+            type="range"
+            min={value.ageMin}
+            max="80"
+            value={value.ageMax}
+            onChange={(event) =>
+              onChange({ ...value, ageMax: Number(event.target.value) })
+            }
+          />
+        </label>
+        <BoundaryFields value={value} onChange={onChange} />
+      </section>
       <section className="settings-card">
         <h2>Distance</h2>
         <label>

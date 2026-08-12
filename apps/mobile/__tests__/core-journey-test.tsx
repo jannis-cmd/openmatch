@@ -81,6 +81,13 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(profile.name).toBe("Taylor");
   expect(profile.city).toBe("Winterthur");
   expect(onboardingComplete).toBe(true);
+  await fireEvent.press(screen.getByText("Preferences"));
+  await fireEvent.press(screen.getByLabelText("Lower youngest age"));
+  await waitFor(() => expect(preferences.ageMin).toBe(26));
+  await fireEvent.press(screen.getByText("Still figuring it out"));
+  await waitFor(() =>
+    expect(preferences.intents).toContain("Still figuring it out"),
+  );
   await fireEvent.press(screen.getByText("Profile"));
   await fireEvent.press(screen.getByText("Edit profile"));
   await fireEvent.changeText(

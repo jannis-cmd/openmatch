@@ -101,6 +101,12 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Preferences" }).click();
   await expect(page.getByText(/Nothing suggested yet/)).toBeVisible();
   await expect(page.getByText(/Nothing changes automatically/)).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Smoking boundary" })
+    .selectOption("any");
+  await expect(
+    page.getByRole("combobox", { name: "Smoking boundary" }),
+  ).toHaveValue("any");
 
   await page.getByRole("button", { name: "Your profile" }).click();
   await expectAccessible(page);

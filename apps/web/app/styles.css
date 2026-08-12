@@ -493,6 +493,34 @@ input {
   color: #62665e;
   line-height: 1.5;
 }
+.boundary-fields {
+  margin-top: 24px;
+  padding-top: 4px;
+  border-top: 1px solid #e3e4de;
+}
+.boundary-fields fieldset {
+  margin: 18px 0;
+  padding: 0;
+  border: 0;
+}
+.boundary-fields legend {
+  margin-bottom: 8px;
+  font-weight: 650;
+}
+.boundary-fields fieldset label {
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 0;
+}
+.boundary-fields fieldset input {
+  grid-column: auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
 .help {
   color: #5f635c;
   font-size: 13px;

@@ -179,6 +179,7 @@ export default function App() {
             <View style={styles.adjust}>
               <Action
                 label="−"
+                accessibilityLabel="Lower age"
                 secondary
                 onPress={() =>
                   setProfile({ ...profile, age: Math.max(18, profile.age - 1) })
@@ -186,6 +187,7 @@ export default function App() {
               />
               <Action
                 label="+"
+                accessibilityLabel="Raise age"
                 secondary
                 onPress={() =>
                   setProfile({
@@ -648,6 +650,7 @@ export default function App() {
                     <View style={styles.adjust}>
                       <Action
                         label="−"
+                        accessibilityLabel="Lower profile age"
                         secondary
                         onPress={() =>
                           setProfile({
@@ -658,6 +661,7 @@ export default function App() {
                       />
                       <Action
                         label="+"
+                        accessibilityLabel="Raise profile age"
                         secondary
                         onPress={() =>
                           setProfile({
@@ -918,6 +922,110 @@ function PreferencesScreen({
         Boundaries filter. Priorities order. Every change is yours.
       </Text>
       <View style={styles.scoreCard}>
+        <Text style={styles.name}>Mutual boundaries</Text>
+        <Text style={styles.setting}>
+          Youngest age <Text style={styles.settingValue}>{value.ageMin}</Text>
+        </Text>
+        <View style={styles.adjust}>
+          <Action
+            label="−"
+            accessibilityLabel="Lower youngest age"
+            secondary
+            onPress={() =>
+              onChange({ ...value, ageMin: Math.max(18, value.ageMin - 1) })
+            }
+          />
+          <Action
+            label="+"
+            accessibilityLabel="Raise youngest age"
+            secondary
+            onPress={() =>
+              onChange({
+                ...value,
+                ageMin: Math.min(value.ageMax, value.ageMin + 1),
+              })
+            }
+          />
+        </View>
+        <Text style={styles.setting}>
+          Oldest age <Text style={styles.settingValue}>{value.ageMax}</Text>
+        </Text>
+        <View style={styles.adjust}>
+          <Action
+            label="−"
+            accessibilityLabel="Lower oldest age"
+            secondary
+            onPress={() =>
+              onChange({
+                ...value,
+                ageMax: Math.max(value.ageMin, value.ageMax - 1),
+              })
+            }
+          />
+          <Action
+            label="+"
+            accessibilityLabel="Raise oldest age"
+            secondary
+            onPress={() =>
+              onChange({ ...value, ageMax: Math.min(120, value.ageMax + 1) })
+            }
+          />
+        </View>
+        <Text style={styles.setting}>
+          Relationship intentions you are open to
+        </Text>
+        {(
+          [
+            "Long-term relationship",
+            "Long-term, open to short",
+            "Still figuring it out",
+          ] as Profile["intent"][]
+        ).map((intent) => {
+          const checked = value.intents.includes(intent);
+          return (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked }}
+              style={styles.radioRow}
+              onPress={() => {
+                const next = checked
+                  ? value.intents.filter((item) => item !== intent)
+                  : [...value.intents, intent];
+                if (next.length) onChange({ ...value, intents: next });
+              }}
+              key={intent}
+            >
+              <Text style={styles.radioMark}>{checked ? "☑" : "☐"}</Text>
+              <Text style={styles.radioLabel}>{intent}</Text>
+            </Pressable>
+          );
+        })}
+        <Text style={styles.setting}>Smoking boundary</Text>
+        <ChoiceRows
+          value={value.smoking}
+          options={[
+            ["no", "Non-smoking only"],
+            ["any", "No boundary"],
+          ]}
+          onChange={(smoking) => onChange({ ...value, smoking })}
+        />
+        <Text style={styles.setting}>Children boundary</Text>
+        <ChoiceRows
+          value={value.children}
+          options={[
+            ["want", "Wants children"],
+            ["open", "Open to children"],
+            ["do not want", "Does not want children"],
+            ["any", "No boundary"],
+          ]}
+          onChange={(children) => onChange({ ...value, children })}
+        />
+        <Text style={styles.mathNote}>
+          A person is introduced only when both people’s stated boundaries are
+          satisfied.
+        </Text>
+      </View>
+      <View style={styles.scoreCard}>
         <Text style={styles.name}>Distance</Text>
         <Text style={styles.setting}>
           Ideal{" "}
@@ -926,6 +1034,7 @@ function PreferencesScreen({
         <View style={styles.adjust}>
           <Action
             label="−"
+            accessibilityLabel="Lower ideal distance"
             secondary
             onPress={() =>
               onChange({
@@ -936,6 +1045,7 @@ function PreferencesScreen({
           />
           <Action
             label="+"
+            accessibilityLabel="Raise ideal distance"
             secondary
             onPress={() =>
               onChange({
@@ -955,6 +1065,7 @@ function PreferencesScreen({
         <View style={styles.adjust}>
           <Action
             label="−"
+            accessibilityLabel="Lower maximum distance"
             secondary
             onPress={() =>
               onChange({
@@ -968,6 +1079,7 @@ function PreferencesScreen({
           />
           <Action
             label="+"
+            accessibilityLabel="Raise maximum distance"
             secondary
             onPress={() =>
               onChange({
@@ -1099,20 +1211,50 @@ function IntentSelector({
   );
 }
 
+function ChoiceRows<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: Array<readonly [T, string]>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <View>
+      {options.map(([option, label]) => (
+        <Pressable
+          accessibilityRole="radio"
+          accessibilityState={{ checked: value === option }}
+          style={styles.radioRow}
+          onPress={() => onChange(option)}
+          key={option}
+        >
+          <Text style={styles.radioMark}>{value === option ? "●" : "○"}</Text>
+          <Text style={styles.radioLabel}>{label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 function Action({
   label,
   onPress,
   secondary = false,
   disabled = false,
+  accessibilityLabel,
 }: {
   label: string;
   onPress: () => void;
   secondary?: boolean;
   disabled?: boolean;
+  accessibilityLabel?: string;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}

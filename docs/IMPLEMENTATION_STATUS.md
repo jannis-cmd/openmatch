@@ -9,6 +9,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Web, iOS, and Android clients | Next.js production build plus Expo iOS and Android exports |
 | One durable product flow | Onboarding → finite introductions → decision → mutual connection → text message → safety action |
 | User-controlled public profile | Name, adult age, approximate city/region, optional free-text pronouns, relationship intention, and biography are editable during setup and later on web and mobile |
+| User-controlled mutual boundaries | Age range, accepted relationship intentions, smoking, children, and distance boundaries are editable independently from ordering priorities on web and mobile |
 | Transparent reciprocal matching | Shared deterministic kernel; mutual boundaries; separate A→B and B→A compatibility and weights; harmonic mean; versioned explanations |
 | Proximity without public precision | Internal coarse-region estimate; only five public distance bands leave the matching boundary |
 | Limited learning from decisions | Interested/Pass observations store only shown A-side factors and selection probability; suggestions require 20 mixed observations; no automatic changes |
