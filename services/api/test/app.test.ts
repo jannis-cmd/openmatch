@@ -2010,6 +2010,67 @@ test("throttles authenticated API traffic with a retry window", async () => {
   }
 });
 
+test("applies stricter per-operation limits to one authenticated client", async () => {
+  const server = createApp({
+    store: new Store(":memory:"),
+    rateLimit: { maximum: 100, windowMs: 60_000 },
+    operationRateLimits: {
+      report: { maximum: 2, windowMs: 60_000 },
+    },
+    demoSessionsEnabled: true,
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const url = `http://127.0.0.1:${address.port}`;
+  const headers = await sessionHeaders(url);
+  const submitReport = () =>
+    fetch(`${url}/v1/reports`, {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({
+        profileId: "mara",
+        reason: "other",
+        details: "Operation limiter test",
+      }),
+    });
+  try {
+    const first = await submitReport();
+    assert.equal(first.status, 201);
+    assert.equal(first.headers.get("operation-ratelimit-limit"), "2");
+    assert.equal(first.headers.get("operation-ratelimit-remaining"), "1");
+    const second = await submitReport();
+    assert.equal(second.status, 201);
+    assert.equal(second.headers.get("operation-ratelimit-remaining"), "0");
+    const limited = await submitReport();
+    assert.equal(limited.status, 429);
+    assert.equal(limited.headers.get("retry-after"), "60");
+    assert.deepEqual(await limited.json(), {
+      error: "operation_rate_limit_exceeded",
+      operation: "report",
+    });
+    assert.equal(
+      (await fetch(`${url}/v1/me`, { headers })).status,
+      200,
+      "the operation limit must not consume the general request budget",
+    );
+  } finally {
+    server.close();
+  }
+});
+
+test("rejects invalid per-operation rate-limit configuration", () => {
+  assert.throws(
+    () =>
+      createApp({
+        operationRateLimits: {
+          message: { maximum: 0, windowMs: 60_000 },
+        },
+      }),
+    /invalid operation rate limit configuration/,
+  );
+});
+
 test("publishes only a validated deployed revision", async () => {
   assert.throws(
     () =>

@@ -30,6 +30,8 @@ const send = (response: ServerResponse, status: number, body: unknown) => {
     "content-type": "application/json; charset=utf-8",
     "access-control-allow-methods": "GET,PATCH,POST,DELETE,OPTIONS",
     "access-control-allow-headers": "authorization,content-type",
+    "access-control-expose-headers":
+      "retry-after,ratelimit-remaining,operation-ratelimit-limit,operation-ratelimit-remaining",
     "cache-control": "no-store",
     "referrer-policy": "no-referrer",
     "x-content-type-options": "nosniff",
@@ -125,6 +127,15 @@ const pairConnectionId = (left: string, right: string) =>
     .digest("base64url")
     .slice(0, 22)}`;
 
+type OperationName = "decision" | "message" | "report";
+type RateLimit = { maximum: number; windowMs: number };
+
+const defaultOperationRateLimits: Record<OperationName, RateLimit> = {
+  decision: { maximum: 20, windowMs: 60_000 },
+  message: { maximum: 30, windowMs: 60_000 },
+  report: { maximum: 20, windowMs: 60 * 60_000 },
+};
+
 export function createApp(
   options: {
     store?: Store;
@@ -135,6 +146,7 @@ export function createApp(
     demoSessionTtlMs?: number;
     accounts?: Accounts | false;
     authRateLimit?: { maximum: number; windowMs: number };
+    operationRateLimits?: Partial<Record<OperationName, RateLimit>>;
     emailVerificationSender?: EmailVerificationSender | null;
     securityNotificationSender?: SecurityNotificationSender | null;
   } = {},
@@ -189,6 +201,42 @@ export function createApp(
       process.env.OPENMATCH_AUTH_RATE_LIMIT_WINDOW_MS ?? 15 * 60_000,
     ),
   };
+  const environmentOperationRateLimits: Record<OperationName, RateLimit> = {
+    decision: {
+      maximum: Number(
+        process.env.OPENMATCH_DECISION_RATE_LIMIT_MAX ??
+          defaultOperationRateLimits.decision.maximum,
+      ),
+      windowMs: Number(
+        process.env.OPENMATCH_DECISION_RATE_LIMIT_WINDOW_MS ??
+          defaultOperationRateLimits.decision.windowMs,
+      ),
+    },
+    message: {
+      maximum: Number(
+        process.env.OPENMATCH_MESSAGE_RATE_LIMIT_MAX ??
+          defaultOperationRateLimits.message.maximum,
+      ),
+      windowMs: Number(
+        process.env.OPENMATCH_MESSAGE_RATE_LIMIT_WINDOW_MS ??
+          defaultOperationRateLimits.message.windowMs,
+      ),
+    },
+    report: {
+      maximum: Number(
+        process.env.OPENMATCH_REPORT_RATE_LIMIT_MAX ??
+          defaultOperationRateLimits.report.maximum,
+      ),
+      windowMs: Number(
+        process.env.OPENMATCH_REPORT_RATE_LIMIT_WINDOW_MS ??
+          defaultOperationRateLimits.report.windowMs,
+      ),
+    },
+  };
+  const operationRateLimits = {
+    ...environmentOperationRateLimits,
+    ...options.operationRateLimits,
+  };
   const configuredCommit =
     options.deployedCommit === undefined
       ? (process.env.OPENMATCH_COMMIT_SHA ?? null)
@@ -215,11 +263,23 @@ export function createApp(
     authRateLimit.windowMs < 1000
   )
     throw new RangeError("invalid authentication rate limit configuration");
+  for (const limit of Object.values(operationRateLimits))
+    if (
+      !Number.isInteger(limit.maximum) ||
+      limit.maximum < 1 ||
+      !Number.isInteger(limit.windowMs) ||
+      limit.windowMs < 1000
+    )
+      throw new RangeError("invalid operation rate limit configuration");
   const requestWindows = new Map<
     string,
     { startedAt: number; count: number }
   >();
   const authenticationWindows = new Map<
+    string,
+    { startedAt: number; count: number }
+  >();
+  const operationWindows = new Map<
     string,
     { startedAt: number; count: number }
   >();
@@ -425,6 +485,44 @@ export function createApp(
         return send(response, 401, { error: "session_required" });
       }
       const store = accountSession?.store ?? demoStore;
+      const operationClientKey =
+        accountSession?.accountId ?? tokenHash ?? "missing-session";
+      const consumeOperation = (
+        operation: OperationName,
+        operationResponse: ServerResponse,
+      ) => {
+        const limit = operationRateLimits[operation];
+        const operationKey = `${operation}:${operationClientKey}`;
+        const previousOperation = operationWindows.get(operationKey);
+        const operationWindow =
+          !previousOperation ||
+          now - previousOperation.startedAt >= limit.windowMs
+            ? { startedAt: now, count: 0 }
+            : previousOperation;
+        operationWindow.count += 1;
+        operationWindows.set(operationKey, operationWindow);
+        operationResponse.setHeader(
+          "operation-ratelimit-limit",
+          String(limit.maximum),
+        );
+        operationResponse.setHeader(
+          "operation-ratelimit-remaining",
+          String(Math.max(0, limit.maximum - operationWindow.count)),
+        );
+        if (operationWindow.count <= limit.maximum) return true;
+        operationResponse.setHeader(
+          "retry-after",
+          String(
+            Math.max(
+              1,
+              Math.ceil(
+                (limit.windowMs - (now - operationWindow.startedAt)) / 1000,
+              ),
+            ),
+          ),
+        );
+        return false;
+      };
       const accountDirectory = Boolean(accountSession && accounts);
       const candidates =
         accountSession && accounts
@@ -1002,6 +1100,11 @@ export function createApp(
         /^\/v1\/introductions\/([^/]+)\/decision$/,
       );
       if (request.method === "POST" && decision) {
+        if (!consumeOperation("decision", response))
+          return send(response, 429, {
+            error: "operation_rate_limit_exceeded",
+            operation: "decision",
+          });
         if (
           accountSession &&
           accounts &&
@@ -1088,6 +1191,11 @@ export function createApp(
         return send(response, 200, { items: store.messages(messages[1]) });
       }
       if (request.method === "POST" && messages) {
+        if (!consumeOperation("message", response))
+          return send(response, 429, {
+            error: "operation_rate_limit_exceeded",
+            operation: "message",
+          });
         const activeConnection = store.connection(messages[1]);
         if (!activeConnection)
           return send(response, 404, { error: "connection_not_found" });
@@ -1207,6 +1315,11 @@ export function createApp(
       if (request.method === "GET" && url.pathname === "/v1/reports")
         return send(response, 200, { items: store.reports() });
       if (request.method === "POST" && url.pathname === "/v1/reports") {
+        if (!consumeOperation("report", response))
+          return send(response, 429, {
+            error: "operation_rate_limit_exceeded",
+            operation: "report",
+          });
         const body = (await readJson(request)) as {
           profileId?: string;
           reason?: string;

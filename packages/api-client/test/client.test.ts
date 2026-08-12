@@ -52,6 +52,32 @@ test("bootstraps an opaque demo session and sends a bearer token", async () => {
   assert.equal(result.mutual, true);
 });
 
+test("preserves operation and retry metadata from a throttled response", async () => {
+  const client = createApiClient(
+    "https://api.example.test",
+    (async () =>
+      new Response(
+        JSON.stringify({
+          error: "operation_rate_limit_exceeded",
+          operation: "message",
+        }),
+        { status: 429, headers: { "retry-after": "37" } },
+      )) as typeof fetch,
+    { initialToken: demoToken, demoSessions: false },
+  );
+  await assert.rejects(
+    () => client.sendMessage("connection-mara", "Hello"),
+    (error: unknown) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.status, 429);
+      assert.equal(error.code, "operation_rate_limit_exceeded");
+      assert.equal(error.retryAfterSeconds, 37);
+      assert.equal(error.operation, "message");
+      return true;
+    },
+  );
+});
+
 test("creates an authenticated account, reuses its token, and signs out", async () => {
   const token = "a".repeat(43);
   const requests: Array<{ url: string; init?: RequestInit }> = [];

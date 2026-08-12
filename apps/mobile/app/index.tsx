@@ -57,6 +57,18 @@ import {
 
 type Tab = "Today" | "Connections" | "Preferences" | "Profile" | "Method";
 
+const operationLimitMessage = (error: unknown, fallback: string) => {
+  if (
+    !(error instanceof ApiError) ||
+    error.code !== "operation_rate_limit_exceeded"
+  )
+    return fallback;
+  const wait = error.retryAfterSeconds
+    ? ` Try again in about ${error.retryAfterSeconds} seconds.`
+    : " Try again after the short waiting period.";
+  return `This action is temporarily limited to protect people and the service.${wait}`;
+};
+
 function sessionClientLabel(client: AccountSession["client"]) {
   if (client === "web") return "Web browser";
   if (client === "ios") return "iPhone or iPad app";
@@ -355,8 +367,10 @@ export default function App() {
       setShowMath(false);
       setShowSaved(false);
       await load();
-    } catch {
-      setError("Your decision could not be saved.");
+    } catch (error) {
+      setError(
+        operationLimitMessage(error, "Your decision could not be saved."),
+      );
     }
   };
 
@@ -907,8 +921,13 @@ export default function App() {
                         );
                         setReports((await api.reports()).items);
                         setIntroductionReportOpen(false);
-                      } catch {
-                        setSafetyNotice("Report could not be sent. Retry.");
+                      } catch (error) {
+                        setSafetyNotice(
+                          operationLimitMessage(
+                            error,
+                            "Report could not be sent. Retry.",
+                          ),
+                        );
                       }
                     }}
                   />
@@ -1171,9 +1190,12 @@ export default function App() {
                             setMessages((previous) => [...previous, message]);
                             setDraft("");
                           })
-                          .catch(() =>
+                          .catch((error) =>
                             setSafetyNotice(
-                              "Message could not be sent. Retry.",
+                              operationLimitMessage(
+                                error,
+                                "Message could not be sent. Retry.",
+                              ),
                             ),
                           );
                       if (safetyFlags.length === 0) sendMessage();
@@ -1255,8 +1277,13 @@ export default function App() {
                           );
                           setReports((await api.reports()).items);
                           setConnectionReportOpen(false);
-                        } catch {
-                          setSafetyNotice("Report could not be sent. Retry.");
+                        } catch (error) {
+                          setSafetyNotice(
+                            operationLimitMessage(
+                              error,
+                              "Report could not be sent. Retry.",
+                            ),
+                          );
                         }
                       }}
                     />

@@ -134,6 +134,8 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
+    readonly retryAfterSeconds: number | null = null,
+    readonly operation: "decision" | "message" | "report" | null = null,
   ) {
     super(`OpenMatch API request failed (${status}: ${code})`);
   }
@@ -241,8 +243,17 @@ export function createApiClient(
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;
+        operation?: "decision" | "message" | "report";
       };
-      throw new ApiError(response.status, body.error ?? "unknown_error");
+      const retryAfter = Number(response.headers.get("retry-after"));
+      throw new ApiError(
+        response.status,
+        body.error ?? "unknown_error",
+        Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null,
+        ["decision", "message", "report"].includes(body.operation ?? "")
+          ? (body.operation ?? null)
+          : null,
+      );
     }
     return response.status === 204
       ? (undefined as T)

@@ -40,6 +40,18 @@ import {
 type View = "today" | "connections" | "preferences" | "profile" | "about";
 type SiteView = "landing" | "sign-in" | "app";
 
+const operationLimitMessage = (error: unknown, fallback: string) => {
+  if (
+    !(error instanceof ApiError) ||
+    error.code !== "operation_rate_limit_exceeded"
+  )
+    return fallback;
+  const wait = error.retryAfterSeconds
+    ? ` Try again in about ${error.retryAfterSeconds} seconds.`
+    : " Try again after the short waiting period.";
+  return `This action is temporarily limited to protect people and the service.${wait}`;
+};
+
 export default function Home() {
   const demoConfiguration = useMemo(
     () =>
@@ -314,8 +326,13 @@ function AppExperience({
       setDetails(false);
       setShowSaved(false);
       await load();
-    } catch {
-      setError("Your decision could not be saved. Please retry.");
+    } catch (error) {
+      setError(
+        operationLimitMessage(
+          error,
+          "Your decision could not be saved. Please retry.",
+        ),
+      );
     }
   };
 
@@ -689,15 +706,25 @@ function AppExperience({
                             }
                           }}
                           report={async (reason, reportDetails) => {
-                            const result = await api.report(
-                              current.profile.id,
-                              reason,
-                              reportDetails,
-                            );
-                            setNotice(
-                              `Report received. Reference status: ${result.status}.`,
-                            );
-                            setReports((await api.reports()).items);
+                            try {
+                              const result = await api.report(
+                                current.profile.id,
+                                reason,
+                                reportDetails,
+                              );
+                              setNotice(
+                                `Report received. Reference status: ${result.status}.`,
+                              );
+                              setReports((await api.reports()).items);
+                            } catch (error) {
+                              setError(
+                                operationLimitMessage(
+                                  error,
+                                  "The report could not be sent. Please retry.",
+                                ),
+                              );
+                              throw error;
+                            }
                           }}
                         />
                       </aside>
@@ -777,8 +804,13 @@ function AppExperience({
                       );
                       setMessages((previous) => [...previous, message]);
                       setDraft("");
-                    } catch {
-                      setError("Message could not be sent.");
+                    } catch (error) {
+                      setError(
+                        operationLimitMessage(
+                          error,
+                          "Message could not be sent.",
+                        ),
+                      );
                     }
                   }}
                   unmatch={async () => {
@@ -819,15 +851,25 @@ function AppExperience({
                   }}
                   report={async (reason, reportDetails) => {
                     if (selectedConnection) {
-                      const result = await api.report(
-                        selectedConnection.profileId,
-                        reason,
-                        reportDetails,
-                      );
-                      setNotice(
-                        `Report received. Reference status: ${result.status}.`,
-                      );
-                      setReports((await api.reports()).items);
+                      try {
+                        const result = await api.report(
+                          selectedConnection.profileId,
+                          reason,
+                          reportDetails,
+                        );
+                        setNotice(
+                          `Report received. Reference status: ${result.status}.`,
+                        );
+                        setReports((await api.reports()).items);
+                      } catch (error) {
+                        setError(
+                          operationLimitMessage(
+                            error,
+                            "The report could not be sent. Please retry.",
+                          ),
+                        );
+                        throw error;
+                      }
                     }
                   }}
                 />
@@ -3090,6 +3132,8 @@ function CandidateSafety({
                   await report(reason, reportDetails.trim());
                   setReportDetails("");
                   setOpen(false);
+                } catch {
+                  // The parent keeps the form open and presents the error.
                 } finally {
                   setSubmitting(false);
                 }
@@ -3302,9 +3346,13 @@ function ConnectionsView({
             <div>
               <button
                 onClick={async () => {
-                  await report(reportReason, reportDetails.trim());
-                  setReportDetails("");
-                  setReportOpen(false);
+                  try {
+                    await report(reportReason, reportDetails.trim());
+                    setReportDetails("");
+                    setReportOpen(false);
+                  } catch {
+                    // The parent keeps the form open and presents the error.
+                  }
                 }}
               >
                 Submit report

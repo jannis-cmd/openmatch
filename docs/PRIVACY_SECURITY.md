@@ -47,6 +47,22 @@ Personal responses are `no-store`, JSON bodies are limited to 64 KiB, candidate 
 
 Authenticated prototype routes are also limited per direct network address (600 requests per 60 seconds by default, configurable with `OPENMATCH_RATE_LIMIT_MAX` and `OPENMATCH_RATE_LIMIT_WINDOW_MS`). The deliberately generous development default supports the prototype’s broad state refreshes; it is not a recommended production threshold. Responses expose remaining capacity and return `429` plus `Retry-After` when exhausted. This in-memory local guard is not a production abuse system: a deployment behind a proxy must use authenticated-account/device keys, safely configured proxy addresses, shared storage, endpoint-specific limits, and monitoring.
 
+Three higher-risk write operations also have independent fixed-window budgets
+keyed to the authenticated account (or to the opaque demo session): decisions
+default to 20/minute, messages to 30/minute, and reports to 20/hour. Their
+maximums and windows are configurable with the corresponding
+`OPENMATCH_DECISION_*`, `OPENMATCH_MESSAGE_*`, and `OPENMATCH_REPORT_*`
+`RATE_LIMIT_MAX`/`RATE_LIMIT_WINDOW_MS` variables. A rejection returns `429`,
+`Retry-After`, the operation name, and remaining-budget headers without
+consuming another operation's budget. These values are conservative prototype
+hypotheses, not research findings about healthy dating behavior. OWASP's API
+Security guidance recommends operation-specific resource limits and explicit
+tuning to business needs; it does not prescribe universal values. The current
+maps are process-local, reset on restart, and cannot defend a distributed
+deployment. Before a pilot they require shared durable counters, monitoring,
+privacy review, and tuning against capacity and abuse tests. See
+<https://owasp.org/API-Security/editions/2023/en/0xa4-unrestricted-resource-consumption/>.
+
 Account creation and sign-in share a stricter direct-address limit of 10 attempts per 15 minutes by default (`OPENMATCH_AUTH_RATE_LIMIT_MAX` and `OPENMATCH_AUTH_RATE_LIMIT_WINDOW_MS`). It returns `429` and `Retry-After`. This slows simple local credential attacks but is neither distributed nor safely proxy-aware; production controls must combine account, device, network, and anomaly signals without turning abuse prevention into an account-enumeration channel.
 
 Passphrase creation and change follow NIST SP 800-63B-4's single-factor baseline: 15–128 Unicode characters, NFC normalization, no composition rules, password-manager paste/autofill, no arbitrary periodic rotation, and rejection of a small disclosed list of common/context-specific whole values. The list is intentionally local and dependency-free for this prototype; it is not equivalent to a maintained breach corpus. Changing a passphrase requires the current passphrase, shares the stricter authentication throttle, derives a new random salt and scrypt hash, deletes every old session, and inserts one fresh session in the same SQLite transaction. Web adopts the replacement in session storage; iOS/Android require device-secure persistence and sign out fail-closed if that write fails. Production still needs passkeys, multiple verified notification/recovery addresses, durable notification delivery, a privacy-reviewed compromised-password check, and independent assessment.
