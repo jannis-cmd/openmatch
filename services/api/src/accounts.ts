@@ -9,7 +9,7 @@ import {
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "node:path";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
-import { Store } from "./store.js";
+import { Store, type AccountDeliveryAction } from "./store.js";
 import type { Candidate, PublicProfile } from "@openmatch/matching";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -73,10 +73,23 @@ export class Accounts {
   private readonly stores = new Map<string, Store>();
   private readonly dataDirectory: string | null;
   private readonly sessionTtlMs: number;
+  private readonly beforeDelivery?: (
+    eventId: string,
+    accountId: string,
+    position: 1 | 2,
+  ) => void;
 
   constructor(
     path = process.env.OPENMATCH_ACCOUNTS_DB ?? "./openmatch-accounts.sqlite",
-    options: { dataDirectory?: string | null; sessionTtlMs?: number } = {},
+    options: {
+      dataDirectory?: string | null;
+      sessionTtlMs?: number;
+      beforeDelivery?: (
+        eventId: string,
+        accountId: string,
+        position: 1 | 2,
+      ) => void;
+    } = {},
   ) {
     this.db = new DatabaseSync(path);
     this.dataDirectory =
@@ -86,6 +99,7 @@ export class Accounts {
           : join(dirname(path), "openmatch-account-data")
         : options.dataDirectory;
     this.sessionTtlMs = options.sessionTtlMs ?? SESSION_TTL_MS;
+    this.beforeDelivery = options.beforeDelivery;
     if (!Number.isInteger(this.sessionTtlMs) || this.sessionTtlMs < 60_000)
       throw new RangeError(
         "account session lifetime must be at least one minute",
@@ -136,6 +150,15 @@ export class Accounts {
         failed_attempts INTEGER NOT NULL DEFAULT 0,
         sent_at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS account_delivery_events (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT UNIQUE NOT NULL,
+        first_account_id TEXT NOT NULL,
+        second_account_id TEXT,
+        first_action_json TEXT NOT NULL,
+        second_action_json TEXT,
+        created_at TEXT NOT NULL
+      );
     `);
     const accountColumns = this.db
       .prepare("PRAGMA table_info(accounts)")
@@ -165,6 +188,99 @@ export class Accounts {
       assignId.run(randomUUID(), session.tokenHash);
     this.db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS account_sessions_id ON account_sessions(id)",
+    );
+    this.flushDeliveryEvents();
+  }
+
+  private enqueueDelivery(
+    firstAccountId: string,
+    firstAction: AccountDeliveryAction,
+    secondAccountId?: string,
+    secondAction?: AccountDeliveryAction,
+    eventId: string = randomUUID(),
+  ) {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO account_delivery_events(
+          id,first_account_id,second_account_id,first_action_json,second_action_json,created_at
+        ) VALUES (?,?,?,?,?,?)`,
+      )
+      .run(
+        eventId,
+        firstAccountId,
+        secondAccountId ?? null,
+        JSON.stringify(firstAction),
+        secondAction ? JSON.stringify(secondAction) : null,
+        new Date().toISOString(),
+      );
+    this.flushDeliveryEvents();
+    const pending = this.db
+      .prepare("SELECT 1 FROM account_delivery_events WHERE id=?")
+      .get(eventId);
+    if (pending) throw new Error("account_delivery_incomplete");
+    return eventId;
+  }
+
+  flushDeliveryEvents() {
+    const pending = this.db
+      .prepare(
+        `SELECT id,first_account_id AS firstAccountId,second_account_id AS secondAccountId,
+                first_action_json AS firstActionJson,second_action_json AS secondActionJson
+         FROM account_delivery_events ORDER BY sequence`,
+      )
+      .all() as Array<{
+      id: string;
+      firstAccountId: string;
+      secondAccountId: string | null;
+      firstActionJson: string;
+      secondActionJson: string | null;
+    }>;
+    for (const event of pending) {
+      const firstStore = this.accountStore(event.firstAccountId);
+      if (firstStore) {
+        this.beforeDelivery?.(event.id, event.firstAccountId, 1);
+        firstStore.applyAccountEvent(
+          event.id,
+          JSON.parse(event.firstActionJson) as AccountDeliveryAction,
+        );
+      }
+      if (event.secondAccountId && event.secondActionJson) {
+        const secondStore = this.accountStore(event.secondAccountId);
+        if (secondStore) {
+          this.beforeDelivery?.(event.id, event.secondAccountId, 2);
+          secondStore.applyAccountEvent(
+            event.id,
+            JSON.parse(event.secondActionJson) as AccountDeliveryAction,
+          );
+        }
+      }
+      this.db
+        .prepare("DELETE FROM account_delivery_events WHERE id=?")
+        .run(event.id);
+    }
+  }
+
+  pendingDeliveryCount() {
+    return (
+      this.db
+        .prepare("SELECT COUNT(*) AS count FROM account_delivery_events")
+        .get() as { count: number }
+    ).count;
+  }
+
+  deliverPairEvent(
+    firstAccountId: string,
+    firstAction: AccountDeliveryAction,
+    secondAccountId?: string,
+    secondAction?: AccountDeliveryAction,
+    eventId?: string,
+  ) {
+    return this.enqueueDelivery(
+      firstAccountId,
+      firstAction,
+      secondAccountId,
+      secondAction,
+      eventId,
     );
   }
 

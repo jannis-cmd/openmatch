@@ -47,8 +47,9 @@ After a verified code change:
 - SMTP is not configured in the current host service. Inbox confirmation,
   backup notification addresses, and security-email delivery therefore remain
   visibly unavailable. They must not be represented as active.
-- SQLite account relationship writes are still explicitly non-production and
-  are not transactionally coordinated across account stores.
+- Account-to-account changes use a durable local journal with idempotent replay
+  after interruption. This has no cross-host worker, dead-letter support path,
+  or production monitoring and is not a distributed transaction system.
 - Tailnet access is useful for owner testing, not a substitute for a reviewed
   public deployment, moderation operation, DPIA, penetration test, or app-store
   launch review.

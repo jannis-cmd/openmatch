@@ -63,11 +63,13 @@ normalized self-entered city/region text exactly matches. It substitutes a
 transparent “Same approximate region” label and does not geocode or calculate a
 distance. The matching package still applies both accounts' boundaries and
 private priorities. A reciprocal interest creates one deterministic pair
-connection identifier in both isolated stores; messages are written to each
-participant's store and connection closure is mirrored. This is deliberately a
-bridge for end-to-end testing, not a production transaction protocol: partial
-write recovery, durable queues, cross-store locking, moderation retention, and
-privacy-reviewed region identifiers remain unresolved.
+connection identifier in both isolated stores. A durable journal records each
+cross-account action before delivery; every target commits the action and its
+opaque event ID together, so ordered replay after interruption is idempotent.
+Completed payloads are deleted immediately. This remains an end-to-end bridge,
+not a production message system: dead-letter operations, cross-host workers,
+monitoring, moderation retention, and privacy-reviewed region identifiers are
+unresolved.
 
 Native development may explicitly target a local HTTP origin. EAS development,
 preview, and production builds instead read a plain HTTPS origin from their

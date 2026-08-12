@@ -61,6 +61,24 @@
       "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. The person can see the opaque session identifier, broad allowlisted client type (web, iOS, Android, or unknown), creation time, expiry, and whether it is current, and can revoke another session. A successful passphrase change atomically deletes every prior session and issues a replacement token with the same broad client label. OpenMatch does not store an IP address, exact device model, user agent, fingerprint, or activity history for this feature. Session records and credentials are not included in the application-data export."
     },
     {
+      "id": "accountDeliveryEvents",
+      "storage": "account_delivery_events table in the authentication SQLite database",
+      "purpose": "Durably stage an account-to-account decision, connection, message, close, or block until the intended mutation has committed in every affected isolated account store.",
+      "retention": "Only while delivery is incomplete. The row is deleted immediately after every intended store commits it; an interrupted row is retried in sequence on API restart and before authenticated work continues.",
+      "access": ["service", "operator"],
+      "fields": ["sequence", "id", "firstAccountId", "secondAccountId", "firstActionJson", "secondActionJson", "createdAt"],
+      "disclosure": "A pending action can temporarily duplicate the minimum payload needed for retry, including message text. Each target store applies the event and records its opaque ID in one local transaction, so retry cannot duplicate the visible action. Completed payloads are deleted rather than retained as an activity log. Pending delivery state is operational metadata and is excluded from personal export; the resulting profile decision, connection, message, or block appears in the normal export."
+    },
+    {
+      "id": "processedAccountEvents",
+      "storage": "processed_account_events table in each isolated account application SQLite database",
+      "purpose": "Make at-least-once cross-account delivery idempotent after a process or storage interruption.",
+      "retention": "Until the person deletes or resets their application data, deletes the authenticated account, or the operator removes the account data file.",
+      "access": ["service", "operator"],
+      "fields": ["eventId", "processedAt"],
+      "disclosure": "Contains only a random event identifier and processing timestamp—no action type, profile identifier, or message content. It is internal delivery metadata and is excluded from export."
+    },
+    {
       "id": "mobileSession",
       "storage": "Expo SecureStore: Android encrypted storage or iOS Keychain under openmatch.account-session.v1",
       "purpose": "Restore one authenticated mobile session after an iOS or Android app-process restart without placing its bearer token in ordinary application storage.",
@@ -259,8 +277,8 @@
       "purpose": "Deliver user-written text inside a mutual connection.",
       "retention": "prototype",
       "access": ["person", "service", "operator"],
-      "fields": ["id", "connectionId", "senderId", "text", "createdAt"],
-      "disclosure": "For an account pair, a sent message is copied into both isolated account stores. This non-production cross-store write is not atomic and has no repair queue.",
+      "fields": ["id", "connectionId", "senderId", "text", "createdAt", "deliveryEventId"],
+      "disclosure": "For an account pair, a sent message is delivered to both isolated stores through the durable account-delivery journal. deliveryEventId is the opaque idempotency key used to prevent a retry from duplicating a message; it is not returned in the API or personal export.",
       "excluded": ["read receipt", "online status", "typing status", "image attachment"]
     },
     {

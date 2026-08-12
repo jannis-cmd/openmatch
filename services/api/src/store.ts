@@ -26,6 +26,44 @@ export type Message = {
   text: string;
   createdAt: string;
 };
+export type AccountDeliveryAction =
+  | {
+      kind: "decision";
+      profileId: string;
+      decision: "interested" | "passed";
+      observation: {
+        factors: Record<string, number>;
+        selectionProbability: number;
+      };
+      mutual: boolean;
+      connectionId: string;
+    }
+  | {
+      kind: "ensure_connection";
+      connectionId: string;
+      profileId: string;
+      createdAt: string;
+    }
+  | {
+      kind: "message";
+      connectionId: string;
+      text: string;
+      senderId: string;
+      createdAt: string;
+    }
+  | {
+      kind: "close_connection";
+      connectionId: string;
+      closedAt: string;
+    }
+  | {
+      kind: "polite_close";
+      connectionId: string;
+      text: string;
+      senderId: string;
+      createdAt: string;
+    }
+  | { kind: "block"; profileId: string };
 export type AccountStatus = "active" | "paused" | "hidden";
 export type DeliverySettings = { batchSize: 1 | 2 | 3 | 4 | 5 };
 export type IntroductionBatch = {
@@ -70,6 +108,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id TEXT NOT NULL, reason TEXT NOT NULL, details TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS saved_introductions (profile_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS preference_observations (profile_id TEXT PRIMARY KEY, interested INTEGER NOT NULL CHECK(interested IN (0,1)), factors_json TEXT NOT NULL, selection_probability REAL NOT NULL, created_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS processed_account_events (event_id TEXT PRIMARY KEY, processed_at TEXT NOT NULL);
     `);
     const connectionColumns = this.db
       .prepare("PRAGMA table_info(connections)")
@@ -82,6 +121,14 @@ export class Store {
       this.db.exec(
         "ALTER TABLE connections ADD COLUMN meeting_preference TEXT NOT NULL DEFAULT 'not_asked' CHECK(meeting_preference IN ('not_asked','not_yet','open_to_plan'))",
       );
+    const messageColumns = this.db
+      .prepare("PRAGMA table_info(messages)")
+      .all() as Array<{ name: string }>;
+    if (!messageColumns.some(({ name }) => name === "delivery_event_id"))
+      this.db.exec("ALTER TABLE messages ADD COLUMN delivery_event_id TEXT");
+    this.db.exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS messages_delivery_event_id ON messages(delivery_event_id) WHERE delivery_event_id IS NOT NULL",
+    );
     this.seed();
   }
 
@@ -373,12 +420,13 @@ export class Store {
     text: string,
     senderId = "me",
     createdAt = new Date().toISOString(),
+    deliveryEventId: string | null = null,
   ) {
     const result = this.db
       .prepare(
-        "INSERT INTO messages(connection_id,sender_id,text,created_at) VALUES (?,?,?,?)",
+        "INSERT INTO messages(connection_id,sender_id,text,created_at,delivery_event_id) VALUES (?,?,?,?,?)",
       )
-      .run(connectionId, senderId, text, createdAt);
+      .run(connectionId, senderId, text, createdAt, deliveryEventId);
     return {
       id: Number(result.lastInsertRowid),
       connectionId,
@@ -386,6 +434,74 @@ export class Store {
       text,
       createdAt,
     };
+  }
+  messageForDeliveryEvent(eventId: string) {
+    return this.db
+      .prepare(
+        "SELECT id,connection_id AS connectionId,sender_id AS senderId,text,created_at AS createdAt FROM messages WHERE delivery_event_id=?",
+      )
+      .get(eventId) as Message | undefined;
+  }
+  applyAccountEvent(eventId: string, action: AccountDeliveryAction) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const inserted = this.db
+        .prepare(
+          "INSERT OR IGNORE INTO processed_account_events(event_id,processed_at) VALUES (?,?)",
+        )
+        .run(eventId, new Date().toISOString()).changes;
+      if (!inserted) {
+        this.db.exec("COMMIT");
+        return false;
+      }
+      if (action.kind === "decision")
+        this.decide(
+          action.profileId,
+          action.decision,
+          action.observation,
+          action.mutual,
+          action.connectionId,
+        );
+      else if (action.kind === "ensure_connection")
+        this.ensureConnection(
+          action.connectionId,
+          action.profileId,
+          action.createdAt,
+        );
+      else if (action.kind === "message")
+        this.sendMessage(
+          action.connectionId,
+          action.text,
+          action.senderId,
+          action.createdAt,
+          eventId,
+        );
+      else if (action.kind === "close_connection")
+        this.db
+          .prepare(
+            "UPDATE connections SET closed_at=? WHERE id=? AND closed_at IS NULL",
+          )
+          .run(action.closedAt, action.connectionId);
+      else if (action.kind === "polite_close") {
+        this.sendMessage(
+          action.connectionId,
+          action.text,
+          action.senderId,
+          action.createdAt,
+          eventId,
+        );
+        this.db
+          .prepare(
+            "UPDATE connections SET closed_at=? WHERE id=? AND closed_at IS NULL",
+          )
+          .run(action.createdAt, action.connectionId);
+      } else this.block(action.profileId);
+      this.db.exec("COMMIT");
+      return true;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
   closeConnection(id: string) {
     return (
@@ -521,7 +637,7 @@ export class Store {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db.exec(
-        "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM state;",
+        "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM processed_account_events; DELETE FROM state;",
       );
       this.seed();
       this.db.exec("COMMIT");

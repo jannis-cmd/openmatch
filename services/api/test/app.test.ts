@@ -117,6 +117,103 @@ test("account storage migrates existing sessions to public opaque identifiers", 
   }
 });
 
+test("replays interrupted cross-account delivery exactly once after restart", () => {
+  const directory = mkdtempSync(join(tmpdir(), "openmatch-delivery-"));
+  const path = join(directory, "accounts.sqlite");
+  const dataDirectory = join(directory, "account-data");
+  let interruptSecondDelivery = true;
+  let accounts = new Accounts(path, {
+    dataDirectory,
+    beforeDelivery: (_eventId, _accountId, position) => {
+      if (position === 2 && interruptSecondDelivery) {
+        interruptSecondDelivery = false;
+        throw new Error("simulated_process_interruption");
+      }
+    },
+  });
+  try {
+    const first = accounts.register(
+      "delivery-first@example.org",
+      "a sufficiently long first passphrase",
+    );
+    const second = accounts.register(
+      "delivery-second@example.org",
+      "a sufficiently long second passphrase",
+    );
+    const connectionId = "connection-delivery-test";
+    const createdAt = "2026-08-12T20:00:00.000Z";
+    first.store.ensureConnection(connectionId, second.accountId, createdAt);
+    second.store.ensureConnection(connectionId, first.accountId, createdAt);
+    assert.throws(
+      () =>
+        accounts.deliverPairEvent(
+          first.accountId,
+          {
+            kind: "message",
+            connectionId,
+            text: "Durably delivered",
+            senderId: "me",
+            createdAt,
+          },
+          second.accountId,
+          {
+            kind: "message",
+            connectionId,
+            text: "Durably delivered",
+            senderId: first.accountId,
+            createdAt,
+          },
+        ),
+      /simulated_process_interruption/,
+    );
+    assert.equal(first.store.messages(connectionId).length, 1);
+    assert.equal(second.store.messages(connectionId).length, 0);
+    assert.equal(accounts.pendingDeliveryCount(), 1);
+    const firstAccountId = first.accountId;
+    const secondAccountId = second.accountId;
+    accounts.close();
+
+    accounts = new Accounts(path, { dataDirectory });
+    const restoredFirst = accounts.accountStore(firstAccountId);
+    const restoredSecond = accounts.accountStore(secondAccountId);
+    assert.ok(restoredFirst && restoredSecond);
+    assert.equal(restoredFirst.messages(connectionId).length, 1);
+    assert.equal(restoredSecond.messages(connectionId).length, 1);
+    assert.equal(accounts.pendingDeliveryCount(), 0);
+    accounts.flushDeliveryEvents();
+    assert.equal(restoredFirst.messages(connectionId).length, 1);
+    assert.equal(restoredSecond.messages(connectionId).length, 1);
+    const closeEventId = "delivery-test-polite-close";
+    const closeAction = {
+      kind: "polite_close" as const,
+      connectionId,
+      text: POLITE_CLOSE_MESSAGE,
+      createdAt: "2026-08-12T20:01:00.000Z",
+    };
+    accounts.deliverPairEvent(
+      firstAccountId,
+      { ...closeAction, senderId: "me" },
+      secondAccountId,
+      { ...closeAction, senderId: firstAccountId },
+      closeEventId,
+    );
+    accounts.deliverPairEvent(
+      firstAccountId,
+      { ...closeAction, senderId: "me" },
+      secondAccountId,
+      { ...closeAction, senderId: firstAccountId },
+      closeEventId,
+    );
+    assert.equal(restoredFirst.messages(connectionId).length, 2);
+    assert.equal(restoredSecond.messages(connectionId).length, 2);
+    assert.equal(restoredFirst.connection(connectionId), undefined);
+    assert.equal(restoredSecond.connection(connectionId), undefined);
+  } finally {
+    accounts.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("email confirmation is delivered out of band, hashed, expiring, and single use", async () => {
   const accounts = new Accounts(":memory:", { dataDirectory: null });
   const deliveries: Array<{
@@ -705,6 +802,7 @@ test("authenticated accounts have hashed credentials and isolated application da
       receivedMessages.items[0].text,
       "A real account-to-account hello.",
     );
+    assert.equal(accounts.pendingDeliveryCount(), 0);
     await fetch(base + `/v1/connections/${connectionId}`, {
       method: "DELETE",
       headers: auth(second.body.token!),
@@ -719,6 +817,7 @@ test("authenticated accounts have hashed credentials and isolated application da
       ).items.length,
       0,
     );
+    assert.equal(accounts.pendingDeliveryCount(), 0);
 
     const wrong = await accountSession(
       base,
@@ -1233,6 +1332,16 @@ test("the public data inventory covers every current storage and export field", 
       "expiresAt",
       "createdAt",
     ],
+    accountDeliveryEvents: [
+      "sequence",
+      "id",
+      "firstAccountId",
+      "secondAccountId",
+      "firstActionJson",
+      "secondActionJson",
+      "createdAt",
+    ],
+    processedAccountEvents: ["eventId", "processedAt"],
     accountRecoveryCodes: ["codeHash", "accountId", "createdAt"],
     mobileSession: ["rawSessionToken"],
     demoSessions: ["tokenHash", "expiresAt"],
@@ -1302,7 +1411,14 @@ test("the public data inventory covers every current storage and export field", 
       "meetingPreference",
     ],
     savedIntroductions: ["profileId", "createdAt"],
-    messages: ["id", "connectionId", "senderId", "text", "createdAt"],
+    messages: [
+      "id",
+      "connectionId",
+      "senderId",
+      "text",
+      "createdAt",
+      "deliveryEventId",
+    ],
     blocks: ["profileId", "createdAt"],
     reports: ["id", "profileId", "reason", "details", "status", "createdAt"],
     exportMetadata: ["exportedAt"],

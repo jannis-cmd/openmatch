@@ -484,6 +484,7 @@ export function createApp(
         if (tokenHash && expiresAt) demoSessions.delete(tokenHash);
         return send(response, 401, { error: "session_required" });
       }
+      if (accountSession && accounts) accounts.flushDeliveryEvents();
       const store = accountSession?.store ?? demoStore;
       const operationClientKey =
         accountSession?.accountId ?? tokenHash ?? "missing-session";
@@ -1150,29 +1151,50 @@ export function createApp(
           accountSession && mutual
             ? pairConnectionId(accountSession.accountId, decision[1])
             : `connection-${decision[1]}`;
+        const observation = {
+          factors: Object.fromEntries(
+            introduction.explanation.factorsForA.map((factor) => [
+              factor.id,
+              factor.compatibility,
+            ]),
+          ),
+          selectionProbability: introduction.explanation.selectionProbability,
+        };
+        if (accountSession && accounts) {
+          const createdAt = new Date().toISOString();
+          accounts.deliverPairEvent(
+            accountSession.accountId,
+            {
+              kind: "decision",
+              profileId: decision[1],
+              decision: body.decision,
+              observation,
+              mutual,
+              connectionId,
+            },
+            mutual ? decision[1] : undefined,
+            mutual
+              ? {
+                  kind: "ensure_connection",
+                  connectionId,
+                  profileId: accountSession.accountId,
+                  createdAt,
+                }
+              : undefined,
+          );
+          return send(response, 200, {
+            profileId: decision[1],
+            decision: body.decision,
+            mutual,
+          });
+        }
         const result = store.decide(
           decision[1],
           body.decision,
-          {
-            factors: Object.fromEntries(
-              introduction.explanation.factorsForA.map((factor) => [
-                factor.id,
-                factor.compatibility,
-              ]),
-            ),
-            selectionProbability: introduction.explanation.selectionProbability,
-          },
+          observation,
           mutual,
           connectionId,
         );
-        if (mutual && accountSession && peerStore) {
-          const createdAt = new Date().toISOString();
-          peerStore.ensureConnection(
-            connectionId,
-            accountSession.accountId,
-            createdAt,
-          );
-        }
         return send(response, 200, result);
       }
       if (request.method === "GET" && url.pathname === "/v1/connections")
@@ -1212,17 +1234,36 @@ export function createApp(
             error: "message_safety_confirmation_required",
             flags: safetyFlags,
           });
-        const message = store.sendMessage(messages[1], text);
         if (accountSession && accounts) {
           const peer = accounts.accountStore(activeConnection.profileId);
-          if (peer?.connection(messages[1]))
-            peer.sendMessage(
-              messages[1],
+          if (!peer?.connection(messages[1]))
+            return send(response, 409, {
+              error: "peer_connection_unavailable",
+            });
+          const createdAt = new Date().toISOString();
+          const eventId = accounts.deliverPairEvent(
+            accountSession.accountId,
+            {
+              kind: "message",
+              connectionId: messages[1],
               text,
-              accountSession.accountId,
-              message.createdAt,
-            );
+              senderId: "me",
+              createdAt,
+            },
+            activeConnection.profileId,
+            {
+              kind: "message",
+              connectionId: messages[1],
+              text,
+              senderId: accountSession.accountId,
+              createdAt,
+            },
+          );
+          const message = store.messageForDeliveryEvent(eventId);
+          if (!message) throw new Error("account_message_delivery_failed");
+          return send(response, 201, message);
         }
+        const message = store.sendMessage(messages[1], text);
         return send(response, 201, message);
       }
       const connection = url.pathname.match(/^\/v1\/connections\/([^/]+)$/);
@@ -1269,22 +1310,39 @@ export function createApp(
       }
       if (request.method === "POST" && politeClose) {
         const activeConnection = store.connection(politeClose[1]);
+        if (activeConnection && accountSession && accounts) {
+          const peer = accounts.accountStore(activeConnection.profileId);
+          if (!peer?.connection(politeClose[1]))
+            return send(response, 409, {
+              error: "peer_connection_unavailable",
+            });
+          const createdAt = new Date().toISOString();
+          const eventId = accounts.deliverPairEvent(
+            accountSession.accountId,
+            {
+              kind: "polite_close",
+              connectionId: politeClose[1],
+              text: POLITE_CLOSE_MESSAGE,
+              senderId: "me",
+              createdAt,
+            },
+            activeConnection.profileId,
+            {
+              kind: "polite_close",
+              connectionId: politeClose[1],
+              text: POLITE_CLOSE_MESSAGE,
+              senderId: accountSession.accountId,
+              createdAt,
+            },
+          );
+          const message = store.messageForDeliveryEvent(eventId);
+          if (!message) throw new Error("account_close_delivery_failed");
+          return send(response, 200, { message, closed: true });
+        }
         const result = store.closePolitely(
           politeClose[1],
           POLITE_CLOSE_MESSAGE,
         );
-        if (result && activeConnection && accountSession && accounts) {
-          const peer = accounts.accountStore(activeConnection.profileId);
-          if (peer?.connection(politeClose[1])) {
-            peer.sendMessage(
-              politeClose[1],
-              POLITE_CLOSE_MESSAGE,
-              accountSession.accountId,
-              result.message.createdAt,
-            );
-            peer.closeConnection(politeClose[1]);
-          }
-        }
         return result
           ? send(response, 200, result)
           : send(response, 404, { error: "connection_not_found" });
@@ -1292,24 +1350,49 @@ export function createApp(
       if (request.method === "DELETE" && connection) {
         const activeConnection = store.connection(connection[1]);
         if (!activeConnection) return send(response, 404, null);
-        store.closeConnection(connection[1]);
-        if (accountSession && accounts)
-          accounts
-            .accountStore(activeConnection.profileId)
-            ?.closeConnection(connection[1]);
+        if (accountSession && accounts) {
+          const closedAt = new Date().toISOString();
+          accounts.deliverPairEvent(
+            accountSession.accountId,
+            {
+              kind: "close_connection",
+              connectionId: connection[1],
+              closedAt,
+            },
+            activeConnection.profileId,
+            {
+              kind: "close_connection",
+              connectionId: connection[1],
+              closedAt,
+            },
+          );
+        } else store.closeConnection(connection[1]);
         return send(response, 204, null);
       }
       const block = url.pathname.match(/^\/v1\/profiles\/([^/]+)\/block$/);
       if (request.method === "POST" && block) {
         if (!knownProfile(block[1]))
           return send(response, 404, { error: "profile_not_found" });
+        if (accountSession && accounts) {
+          accounts.deliverPairEvent(
+            accountSession.accountId,
+            { kind: "block", profileId: block[1] },
+            block[1],
+            {
+              kind: "close_connection",
+              connectionId: pairConnectionId(
+                accountSession.accountId,
+                block[1],
+              ),
+              closedAt: new Date().toISOString(),
+            },
+          );
+          return send(response, 200, {
+            profileId: block[1],
+            blocked: true,
+          });
+        }
         const result = store.block(block[1]);
-        if (accountSession && accounts)
-          accounts
-            .accountStore(block[1])
-            ?.closeConnection(
-              pairConnectionId(accountSession.accountId, block[1]),
-            );
         return send(response, 200, result);
       }
       if (request.method === "GET" && url.pathname === "/v1/reports")

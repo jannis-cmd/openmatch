@@ -109,7 +109,9 @@ city/region text matches exactly. One-sided interest stays private; reciprocal
 interest creates a shared connection and text messages are copied to each
 account store. The UI labels this “Same approximate region” and never claims a
 distance. This proves the cross-platform flow, not geographic safety, pool
-viability, transactional delivery, moderation readiness, or pilot consent.
+viability, distributed delivery operations, moderation readiness, or pilot
+consent. A local durable journal now replays interrupted cross-account actions
+idempotently, but it is not a production message service.
 
 ### 4.5 Messaging and meeting
 
