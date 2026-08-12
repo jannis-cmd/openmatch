@@ -1,0 +1,292 @@
+# OpenMatch product specification
+
+Status: Draft 0.1 — 12 August 2026
+
+## 1. Product definition
+
+OpenMatch is a nonprofit public-interest introduction service for adults. It provides a small, understandable set of reciprocal introductions, safe communication, and an easy path to meeting offline. It deliberately avoids infinite browsing, advertisements, premium visibility, streaks, coins, boosts, popularity scores, and engagement notifications.
+
+The app does **not** promise to predict love. Evidence shows that pre-meeting romantic desire is difficult to predict from self-report traits and that relationship-specific dynamics become more informative only after a relationship exists. The product therefore calls results “introductions,” never “scientific compatibility guarantees.”
+
+### North-star outcome
+
+The primary outcome is the consented, aggregate rate of **mutually positive introductions per eligible active person**, followed by an optional hierarchy:
+
+1. both people wanted to talk;
+2. a substantive reciprocal conversation occurred;
+3. both report an offline/video date;
+4. both report wanting another date;
+5. both voluntarily report an ongoing relationship at 1, 3, 6, or 12 months;
+6. either pauses/leaves because they met someone.
+
+No individual outcome is inferred from private message text. Metrics are never optimized for time, sessions, swipes, messages sent, notification opens, or subscription conversion.
+
+### Non-goals
+
+- predicting a soulmate;
+- maximizing daily active users or time in app;
+- selling access, attention, data, or ranking;
+- gamified swiping or public desirability;
+- replacing human judgment, consent, or chemistry;
+- diagnosing personality, attachment, mental health, or relationship fitness;
+- launching globally before local density and safety operations are adequate.
+
+## 2. Intended users and scope
+
+Initial launch: consenting adults 18+ seeking dates or relationships in one pilot region. All genders, sexual orientations, and consensual relationship structures must be representable without forcing binary assumptions. Launch cohorts and geographic scope require community research and safety capacity.
+
+The system must distinguish:
+
+- identity: how I describe myself;
+- visibility: what I choose to disclose and when;
+- eligibility: whom I am open to meeting;
+- intention: relationship type and current readiness;
+- preference: a soft preference, not a requirement;
+- boundary: a mutual hard constraint.
+
+## 3. Experience principles (“Apple-like,” operationalized)
+
+- One purpose per screen; one visually dominant action.
+- Native platform conventions, high-quality typography, generous whitespace.
+- No more than five primary tabs: Today, Connections, Messages, Profile, About.
+- Plain nouns and verbs. No casino language, urgency, scarcity, or variable rewards.
+- No endless feed. A finite daily/weekly set has a visible end.
+- Progressive disclosure: a concise profile first, detail by deliberate action.
+- Every introduction answers “Why am I seeing this?” with the exact factors and weights.
+- Accessibility: WCAG 2.2 AA on web and equivalent mobile semantics, dynamic type, screen-reader labels, reduced-motion support, non-color cues, 44×44 pt minimum targets.
+
+## 4. MVP feature set
+
+### 4.1 Account and consent
+
+- Email/passkey sign-in; phone number optional and never public.
+- Age gate and region eligibility.
+- Short, versioned consent screens for service processing, research participation, and optional verification—never bundled.
+- Export, pause, hide, and delete controls available from Profile without contacting support.
+- The executable prototype implements local JSON export and deletion/reset; pause and hide remain required before any multi-user pilot.
+- Research consent defaults off and can be withdrawn prospectively at any time.
+
+The first-run product setup is intentionally short: public name, adult age, short biography, mutual age/distance boundaries, and four named priority levels (Off, Low, Medium, High). It does not use a personality test or claim that questionnaire length improves relationship outcomes. Identity, inclusion, consent, and safety fields required for a real pilot must be added through focused research rather than inferred from this demo.
+
+### 4.2 Profile
+
+Required: display name/pseudonym, age, approximate region, gender description, people sought, relationship intention, short biography, at least one current representative photo, availability/readiness.
+
+Optional structured fields: languages, accessibility needs, children/current parenting, desire for children, religion/importance, politics/importance, smoking, alcohol, other substances, pets, schedule, distance/mobility, relationship structure, and selected values/prompts.
+
+Sensitive fields are private-by-default and independently visibility-controlled. Exact location, income, employer, legal name, contacts, and immigration/health status are not requested for matching.
+
+Identity, eligibility, and disclosure must be technically independent. A person may need the service to process an identity or accessibility need without revealing it to every candidate. The app must support neutral notifications, rapid profile concealment, and graduated photo/detail visibility for users at risk of outing, stalking, fetishization, or workplace/family discovery.
+
+### 4.3 Preferences and boundaries
+
+Users configure mutual hard constraints first: age range, distance/region, gender eligibility, intention/relationship structure, smoking/substance boundaries, and child-related incompatibilities. The UI warns that every hard constraint reduces the pool and previews its effect without pressuring users to relax it.
+
+Soft priorities are capped at five and weighted by the user as Low, Medium, or High. A user can turn every soft signal off. Preference changes take effect immediately and appear in the explanation.
+
+### 4.4 Introductions
+
+- Default batch: up to five introductions twice per week; configurable down to one or paused.
+- Each card shows photos without beauty scoring, core information, biography, intention, shared/compatible factors, known differences, and exact score explanation.
+- Actions: Interested, Pass, Save until batch expiry, Report/Block.
+- Pass is private and has no penalty. No undo monetization.
+- A connection opens only after mutual interest.
+- If fewer eligible people exist, show that honestly; never insert incompatible or inactive accounts.
+
+The batch size is a testable starting hypothesis—not settled science. Users may select a finite alternative, and research must evaluate wellbeing and outcomes.
+
+### 4.5 Messaging and meeting
+
+- Text messages after mutual connection; image attachments disabled at MVP to reduce unsolicited sexual content and moderation burden.
+- Optional profile-specific conversation prompts, never AI-written impersonation.
+- Mute, unmatch, block, and report remain one tap away.
+- Optional “Would you like to meet?” card after reciprocal activity. It suggests public-place safety practices but never exposes location.
+- Optional video-date path may be tested before in-person planning. No beauty, emotion, deception, disability, or safety inference is performed on video.
+- Users can close a conversation politely with a standard message; silence is never penalized.
+
+### 4.6 Safety
+
+- Block/report from every profile and conversation.
+- Evidence-preserving report flow, severity triage, published response targets, status tracking, human appeal, and anti-retaliation controls.
+- Rate limits, device/account abuse signals, duplicate-account checks, and optional privacy-preserving liveness/photo verification.
+- Every verification badge states exactly what was checked and what it cannot establish. Photo/liveness verification must never imply background safety or good intent.
+- Scam defenses include risky-link and payment-request friction, contextual education, fast escalation, evidence preservation, trained human support, and a non-blaming recovery path. Automated suspicion never silently lowers dating visibility.
+- Location is stored at coarse regional/geohash precision; public distance is bucketed and never continuously updated.
+- No read receipts, online status, precise last-active time, contact discovery, or screenshot alerts in MVP.
+- Crisis and local support resources are accessible without filing a report.
+- Safety advisory council includes women, LGBTQIA+ people, disabled people, racialized communities, and survivors; contributors are compensated.
+
+### 4.7 Transparency center
+
+Available in-app and publicly on web:
+
+- current matching source and human-readable specification;
+- deployed commit hash, model/formula version, and change log;
+- interactive score calculator using synthetic/local data;
+- every collected field, purpose, retention period, and access role;
+- aggregate funnel and outcome metrics with denominators and uncertainty;
+- exposure distribution and fairness audits;
+- moderation rules, volumes, response times, appeals, and reversals;
+- incidents, vulnerabilities after remediation, uptime, budget, donors, compensation, vendors, and conflicts of interest;
+- research protocols, preregistrations, instruments, null results, withdrawals, and publication status;
+- board minutes and algorithm-change proposals.
+
+Small cells are suppressed and privacy budgets used where necessary. Transparency reports must not enable re-identification.
+
+## 5. Matching v0
+
+The algorithm is deliberately a deterministic, auditable introduction score—not machine learning.
+
+1. **Mutual eligibility:** exclude pairs when either person’s hard boundary is unmet, either has blocked/reported the other, accounts are inactive/paused, or the pair has already resolved.
+2. **Per-person fit:** for each enabled soft factor `f`, convert compatibility to `[0,1]`; calculate `fit(A→B) = Σ(weight_A,f × compatibility_f(A,B)) / Σ(weight_A,f)`.
+3. **Reciprocity:** `reciprocalFit = harmonicMean(fit(A→B), fit(B→A))`. The harmonic mean penalizes one-sided fit and is fully explained.
+4. **Opportunity:** apply a bounded, published exposure factor only to reduce large exposure disparities; it must never use protected characteristics as a negative signal or alter hard boundaries.
+5. **Exploration:** reserve a published fraction of slots for randomly ordered eligible candidates so new or historically underexposed people can be seen and causal evaluation remains possible. Show when an introduction is exploratory.
+6. **Ordering:** order by final score, then deterministic lottery seeded from the public weekly seed. Never use attractiveness, predicted engagement, spending, or message-content sentiment.
+
+The exact executable formula and explanation format live in `packages/matching` and `docs/MATCHING.md`.
+
+### Initial factors
+
+Only user-configured, interpretable factors enter v0:
+
+- relationship intention alignment;
+- child/parenting plans where not a hard boundary;
+- relationship-structure alignment;
+- distance or mobility preference;
+- lifestyle compatibility explicitly selected by each user;
+- user-selected values or issues they mark important;
+- schedule/availability overlap;
+- shared language when relevant.
+
+Big Five similarity, attachment style, “love languages,” MBTI, inferred attractiveness, income proxies, race-based similarity, text embeddings, facial analysis, and opaque behavioral prediction are excluded from v0. They require ethical review and prospective evidence before even an experiment.
+
+## 6. Outcome measurement and anti-engagement safeguards
+
+### Public product metrics
+
+- eligible users receiving at least one introduction;
+- mutual-interest rate per reciprocal exposure;
+- substantive-conversation rate using metadata-only definitions;
+- mutually confirmed date and second-date intention rates;
+- voluntary relationship/healthy-exit reports;
+- median time to useful introduction and healthy exit;
+- safety reports and upheld reports per exposure/conversation;
+- exposure and outcome distributions across audited groups;
+- loneliness/wellbeing measures only in separately consented research.
+
+Every metric includes cohort, period, numerator, denominator, missingness, confidence interval where suitable, and whether it was preregistered.
+
+The analytics funnel must never collapse distinct stages. Exposure, profile interest, mutual interest, reply, conversation, video/offline date, desired second date, relationship, satisfaction, duration, safety, and wellbeing remain separate outcomes. A change cannot be declared successful by improving an earlier proxy while harming or failing to measure later outcomes.
+
+### Prohibited optimization and design
+
+- no ads, premium tier, boosts, paid filters, affiliate lead sales, or data brokerage;
+- no streaks, loot-box mechanics, artificial scarcity, infinite scroll, auto-play, or deceptive notifications;
+- no ranking based on likelihood to pay, open, reply, remain single, or spend time;
+- no withholding compatible people to increase retention;
+- no secret A/B tests;
+- no employee access to private data outside audited least-privilege workflows.
+
+## 7. Research-backed rationale
+
+The evidence register is normative for claims. Current high-level conclusions:
+
+- Online access expands the pool, but commercial compatibility claims historically exceed their evidence.
+- Individual romantic desire toward a particular person was not predictably captured by hundreds of pre-date traits in a multi-study machine-learning analysis.
+- Across 43 longitudinal couple datasets, relationship-specific perceptions predicted current relationship quality more robustly than individual traits, but those variables largely do not exist before two people meet.
+- Personality similarity should not be treated as a compatibility engine; large couple analyses find little or no incremental relationship-satisfaction effect.
+- Dating is reciprocal, so both people’s boundaries and preferences matter; one-sided item recommendation is structurally wrong.
+- Large choice sets and repeated rejection can worsen selection satisfaction in some experiments, although choice-overload effects are context-dependent and newer findings may conflict. Finite batches must therefore be tested, not asserted as fact.
+- Harassment and unwanted sexual behavior are common and unevenly distributed, making safety a core matching outcome.
+- Exact location and intimate profile fields create concrete re-identification and physical-safety risks.
+
+## 8. Release plan
+
+### Phase 0 — discovery and governance (3–6 months)
+
+Form the nonprofit, independent safety and research boards, conduct participatory research, publish threat model/data map, select a pilot community, preregister success metrics, and prototype without real profiles.
+
+Exit criteria: governance operating; ethics pathway approved; at least 40 diverse qualitative participants across underserved groups; accessibility and safety review; no unresolved critical threat.
+
+### Phase 1 — closed research pilot
+
+200–500 adults in one dense region, invite-only, manual safety coverage, deterministic v0 matching, conservative feature set. Measure operational feasibility—not efficacy marketing.
+
+Exit criteria: support targets met, critical abuse mitigations tested, deletion/export verified, sufficient reciprocal opportunity for pilot groups, independent review permits expansion.
+
+### Phase 2 — prospective validation
+
+Preregister comparison of transparent variants using outcome metrics and equitable exposure. No engagement objective. Publish negative and null findings.
+
+### Phase 3 — public local launch
+
+Expand one locality at a time only when safety operations and pool composition pass published thresholds. Federation is a research track, not MVP.
+
+## 9. Acceptance criteria for MVP
+
+- One codebase produces Android and iOS apps; essential flows work on accessible web.
+- A user can understand why every introduction appeared and reproduce the score.
+- No network request is needed for the local score calculator.
+- Hard boundaries are verified with property-based and adversarial tests.
+- All data fields appear in a machine-readable public data inventory.
+- Account deletion completes within the published window and is integration-tested.
+- Report, block, and appeal workflows pass survivor-informed review.
+- No analytics event measures dwell time or scrolling.
+- Reproducible transparency report generated from privacy-reviewed aggregate queries.
+- Independent security assessment completed before open registration.
+
+## 10. Open questions
+
+### Mission and governance
+
+1. Which jurisdiction and nonprofit form best prevents acquisition or demutualization?
+2. Should users elect board seats, and how are vulnerable/minority users protected from simple-majority governance?
+3. What funding sources and donation concentration limits prevent influence?
+4. Who has emergency authority to change matching or moderation, and how is it reviewed?
+
+### Population and inclusion
+
+5. Which single pilot region and initial relationship intentions provide adequate density?
+6. How should the app support monogamous, non-monogamous, asexual, disabled, trans, and nonbinary users without unsafe disclosure or fragmented pools?
+7. Which languages and cultural adaptations are necessary before launch?
+8. Should age minimum be 18 everywhere or higher in some regions/cohorts?
+
+### Matching and evidence
+
+9. What exactly counts as success: date, desired second date, relationship, wellbeing, or user-defined goal?
+10. What batch size and cadence balance agency, opportunity, and overload for different users?
+11. Which compatibility constructs have prospective, out-of-sample predictive validity before meeting?
+12. How should stated preferences be balanced with evidence that stated and revealed choices can diverge—without covert inference?
+13. What exposure-fairness definition is legitimate in a reciprocal, heterogeneous market?
+14. How can exploration be understandable and consensual without reducing dignity to an experiment?
+15. When should a formula change require a vote, expert approval, or both?
+
+### Safety, privacy, and moderation
+
+16. Is identity or photo verification net-beneficial after considering exclusion, biometric risk, false confidence, and stalking?
+17. Which data can moderators access, under what threshold, and for how long?
+18. How can cross-account repeat abuse be detected while honoring deletion and avoiding permanent biometric identifiers?
+19. What reporting SLA is feasible 24/7, and what launch size can safely be supported?
+20. How should credible off-platform harm reports, legal orders, and appeals be handled across jurisdictions?
+21. Can research outcomes be collected without creating a sensitive relationship-history database?
+
+### Product
+
+22. Are photos shown first, alongside context, or after selected compatibility information?
+23. Should messaging be unlimited, rate-limited, or intentionally moved toward an offline/video meeting?
+24. Which notifications are genuinely useful and non-coercive?
+25. Should users browse/search in addition to finite introductions, and how would that affect exposure fairness?
+26. How are inactive, traveling, or intermittently available people represented honestly?
+
+### Engineering and operations
+
+27. Native apps versus shared Expo UI after accessibility/performance prototypes?
+28. Centralized service versus federation; who carries moderation responsibility across servers?
+29. Which minimal analytics system can publish outcomes without surveillance?
+30. What is the sustainable per-user operating cost and reserve requirement?
+31. Which app-store policies constrain donation prompts, account deletion, moderation, or research consent?
+
+## 11. Decisions required before coding beyond prototype
+
+Pilot jurisdiction/region, nonprofit legal form, target relationship scope, verification stance, research ethics partner, moderation coverage model, success outcome hierarchy, data-retention schedule, initial batch experiment, and governance ratification process.

@@ -1,0 +1,235 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  createIntroductions,
+  defaultPreferences,
+  demoCandidates,
+  demoUser,
+  explainMatch,
+  nearestPriority,
+  priorityLabel,
+  proximityCompatibility,
+  suggestPreferenceWeights,
+  validatePreferences,
+  validateProfile,
+} from "../src/index.ts";
+
+test("a failed boundary makes a pair ineligible", () => {
+  const result = explainMatch({
+    boundaries: [
+      {
+        id: "intent",
+        label: "Relationship intention",
+        satisfiedForA: true,
+        satisfiedForB: false,
+      },
+    ],
+    factors: [],
+  });
+  assert.equal(result.eligible, false);
+  assert.equal(result.finalScore, 0);
+  assert.deepEqual(result.failedBoundaries, ["Relationship intention"]);
+});
+
+test("the harmonic mean represents reciprocal fit", () => {
+  const result = explainMatch({
+    boundaries: [],
+    factors: [
+      {
+        id: "values",
+        label: "Selected values",
+        compatibilityA: 0.5,
+        compatibilityB: 0.5,
+        weightA: 1,
+        weightB: 0,
+      },
+    ],
+  });
+  assert.equal(result.directedFitA, 0.5);
+  assert.equal(result.directedFitB, 1);
+  assert.ok(Math.abs(result.reciprocalFit - 2 / 3) < 1e-12);
+  assert.equal(result.hiddenFactors, false);
+});
+
+test("invalid or excessive exposure adjustment is rejected", () => {
+  assert.throws(
+    () => explainMatch({ boundaries: [], factors: [], exposureFactor: 1.11 }),
+    RangeError,
+  );
+});
+
+test("proximity is full inside ideal radius and declines to the maximum", () => {
+  assert.equal(
+    proximityCompatibility({ kilometers: 5, idealWithinKm: 10, maximumKm: 50 }),
+    1,
+  );
+  assert.equal(
+    proximityCompatibility({
+      kilometers: 30,
+      idealWithinKm: 10,
+      maximumKm: 50,
+    }),
+    0.5,
+  );
+  assert.equal(
+    proximityCompatibility({
+      kilometers: 50,
+      idealWithinKm: 10,
+      maximumKm: 50,
+    }),
+    0,
+  );
+});
+
+test("preference learning only suggests and requires enough mixed feedback", () => {
+  const observations = Array.from({ length: 20 }, (_, index) => ({
+    interested: index < 10,
+    factors: { outdoors: index < 10 ? 0.9 : 0.2 },
+    selectionProbability: 1,
+  }));
+  const [suggestion] = suggestPreferenceWeights({
+    observations,
+    currentWeights: { outdoors: 0.5 },
+  });
+  assert.equal(suggestion.factorId, "outdoors");
+  assert.ok(suggestion.suggestedWeight > suggestion.currentWeight);
+  assert.equal(suggestion.confidence, "low");
+  assert.match(suggestion.caveat, /Nothing changes unless you accept/);
+  assert.deepEqual(
+    suggestPreferenceWeights({
+      observations: observations.slice(0, 10),
+      currentWeights: {},
+    }),
+    [],
+  );
+});
+
+test("candidate generation excludes hard-boundary failures and orders eligible profiles", () => {
+  const introductions = createIntroductions(
+    demoUser,
+    demoCandidates,
+    defaultPreferences,
+  );
+  assert.deepEqual(
+    introductions.map((item) => item.profile.id),
+    ["mara", "noah", "lea"],
+  );
+  assert.ok(introductions.every((item) => item.explanation.eligible));
+  assert.ok(
+    introductions[0].explanation.finalScore >=
+      introductions[1].explanation.finalScore,
+  );
+  assert.equal(introductions[0].profile.distanceBand, "Within 5 km");
+  assert.equal("distanceKm" in introductions[0].profile, false);
+});
+
+test("candidate-side boundaries are real inputs, not assumed true", () => {
+  const candidate = structuredClone(demoCandidates[0]);
+  candidate.preferences.ageMin = demoUser.age + 1;
+  const [introduction] = createIntroductions(
+    demoUser,
+    [candidate],
+    defaultPreferences,
+  );
+  assert.equal(introduction, undefined);
+});
+
+test("candidate-side weights change only their directed fit", () => {
+  const lowValues = structuredClone(demoCandidates[1]);
+  const highValues = structuredClone(demoCandidates[1]);
+  lowValues.preferences.weights.values = 0;
+  highValues.preferences.weights.values = 1;
+  const low = createIntroductions(demoUser, [lowValues], defaultPreferences)[0]
+    .explanation;
+  const high = createIntroductions(
+    demoUser,
+    [highValues],
+    defaultPreferences,
+  )[0].explanation;
+  assert.equal(low.directedFitA, high.directedFitA);
+  assert.notEqual(low.directedFitB, high.directedFitB);
+});
+
+test("candidate trace sharing changes disclosure, never the score", () => {
+  const privateCandidate = {
+    ...structuredClone(demoCandidates[0]),
+    explanationSharing: "private" as const,
+  };
+  const sharedCandidate = {
+    ...structuredClone(demoCandidates[0]),
+    explanationSharing: "shared" as const,
+  };
+  const hidden = createIntroductions(
+    demoUser,
+    [privateCandidate],
+    defaultPreferences,
+  )[0].explanation;
+  const visible = createIntroductions(
+    demoUser,
+    [sharedCandidate],
+    defaultPreferences,
+  )[0].explanation;
+  assert.equal(hidden.candidateTrace, "private");
+  assert.equal(hidden.factorsForB, null);
+  assert.equal(visible.candidateTrace, "shared");
+  assert.ok(visible.factorsForB?.length);
+  assert.equal(hidden.finalScore, visible.finalScore);
+  assert.equal(hidden.directedFitB, visible.directedFitB);
+});
+
+test("swapping both people preserves reciprocal fit", () => {
+  const candidate = demoCandidates[1];
+  const forward = createIntroductions(
+    demoUser,
+    [candidate],
+    defaultPreferences,
+  )[0].explanation;
+  const reverseCandidate = {
+    profile: { ...demoUser, distanceKm: candidate.profile.distanceKm },
+    preferences: defaultPreferences,
+  };
+  const reverse = createIntroductions(
+    candidate.profile,
+    [reverseCandidate],
+    candidate.preferences,
+  )[0].explanation;
+  assert.ok(Math.abs(forward.reciprocalFit - reverse.reciprocalFit) < 1e-12);
+});
+
+test("invalid preferences are rejected before scoring or persistence", () => {
+  assert.throws(
+    () =>
+      validatePreferences({ ...defaultPreferences, ageMin: 40, ageMax: 30 }),
+    /age range/,
+  );
+  assert.throws(
+    () =>
+      validatePreferences({
+        ...defaultPreferences,
+        idealDistanceKm: 50,
+        maximumDistanceKm: 20,
+      }),
+    /distance range/,
+  );
+  assert.throws(
+    () =>
+      validatePreferences({
+        ...defaultPreferences,
+        weights: { ...defaultPreferences.weights, values: 1.1 },
+      }),
+    /values weight/,
+  );
+});
+
+test("invalid public profile fields are rejected", () => {
+  assert.throws(() => validateProfile({ ...demoUser, name: "" }), /name/);
+  assert.throws(() => validateProfile({ ...demoUser, age: 17 }), /age/);
+  assert.throws(() => validateProfile({ ...demoUser, bio: "" }), /biography/);
+});
+
+test("the public priority scale has four understandable levels", () => {
+  assert.equal(priorityLabel(0), "Off");
+  assert.equal(priorityLabel(0.34), "Low");
+  assert.equal(priorityLabel(0.7), "Medium");
+  assert.equal(nearestPriority(0.95), 1);
+});

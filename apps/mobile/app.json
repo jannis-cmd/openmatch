@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "OpenMatch",
+    "slug": "openmatch",
+    "version": "0.1.0",
+    "scheme": "openmatch",
+    "icon": "./assets/icon.png",
+    "plugins": ["expo-router"],
+    "ios": {
+      "bundleIdentifier": "org.openmatch.app",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "OpenMatch connects to your development Mac to load the private test service.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "org.openmatch.app"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a5c1bb2c-19ef-43bb-831e-a812f876ee87"
+      }
+    }
+  }
+}

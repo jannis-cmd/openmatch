@@ -1,0 +1,1024 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  createApiClient,
+  type Connection,
+  type Message,
+} from "@openmatch/api-client";
+import {
+  ALGORITHM_VERSION,
+  defaultPreferences,
+  demoUser,
+  nearestPriority,
+  PRIORITY_LEVELS,
+  priorityLabel,
+  type Introduction,
+  type Preferences,
+  type Profile,
+  type WeightSuggestion,
+} from "@openmatch/matching";
+
+type Tab = "Today" | "Connections" | "Preferences" | "Profile" | "Method";
+
+export default function App() {
+  const api = useMemo(
+    () =>
+      createApiClient(
+        process.env.EXPO_PUBLIC_OPENMATCH_API_URL ?? "http://127.0.0.1:4000",
+      ),
+    [],
+  );
+  const [tab, setTab] = useState<Tab>("Today");
+  const [preferences, setPreferences] = useState<Preferences>(
+    structuredClone(defaultPreferences),
+  );
+  const [profile, setProfile] = useState<Profile>(demoUser);
+  const [introductions, setIntroductions] = useState<Introduction[]>([]);
+  const [showMath, setShowMath] = useState(false);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [bio, setBio] = useState(demoUser.bio);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [safetyNotice, setSafetyNotice] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [onboarded, setOnboarded] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
+  const current = introductions[0];
+  const connection = connections[0];
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [
+        nextProfile,
+        nextPreferences,
+        nextIntroductions,
+        nextConnections,
+        onboarding,
+        nextSuggestions,
+      ] = await Promise.all([
+        api.profile(),
+        api.preferences(),
+        api.introductions(),
+        api.connections(),
+        api.onboarding(),
+        api.preferenceSuggestions(),
+      ]);
+      setProfile(nextProfile);
+      setBio(nextProfile.bio);
+      setPreferences(nextPreferences);
+      setIntroductions(nextIntroductions.items);
+      setConnections(nextConnections.items);
+      setOnboarded(onboarding.complete);
+      setSuggestions(nextSuggestions.items);
+      setMessages(
+        nextConnections.items[0]
+          ? (await api.messages(nextConnections.items[0].id)).items
+          : [],
+      );
+    } catch {
+      setError(
+        "Cannot reach the local API. Check EXPO_PUBLIC_OPENMATCH_API_URL and retry.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [api]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const savePreferences = async (next: Preferences) => {
+    setPreferences(next);
+    try {
+      await api.updatePreferences(next);
+      setIntroductions((await api.introductions()).items);
+      setSuggestions((await api.preferenceSuggestions()).items);
+    } catch {
+      setError("Preferences could not be saved.");
+    }
+  };
+  const decide = async (value: "interested" | "passed") => {
+    if (!current) return;
+    try {
+      await api.decide(current.profile.id, value);
+      setShowMath(false);
+      await load();
+    } catch {
+      setError("Your decision could not be saved.");
+    }
+  };
+
+  if (loading)
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.empty}>
+          <Text style={styles.subtle}>Loading your private local data…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  if (error)
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.empty}>
+          <Text style={styles.name}>Couldn’t connect</Text>
+          <Text style={styles.subtle}>{error}</Text>
+          <Action label="Retry" onPress={() => void load()} />
+        </View>
+      </SafeAreaView>
+    );
+  if (!onboarded)
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.header}>
+          <Text style={styles.brand}>OpenMatch</Text>
+          <Text style={styles.nonprofit}>Nonprofit · Open</Text>
+        </View>
+        <ScrollView contentContainerStyle={styles.page}>
+          <Text style={styles.eyebrow}>A small, honest beginning</Text>
+          <Text style={styles.title}>Set your boundaries.</Text>
+          <Text style={styles.subtle}>
+            Only explicit information affects your introductions. Every input
+            remains editable.
+          </Text>
+          <View style={styles.scoreCard}>
+            <Text style={styles.name}>Your public profile</Text>
+            <Text style={styles.setting}>Name</Text>
+            <TextInput
+              accessibilityLabel="Name"
+              value={profile.name}
+              maxLength={50}
+              onChangeText={(name) => setProfile({ ...profile, name })}
+              style={styles.bioInput}
+            />
+            <Text style={styles.setting}>Age · {profile.age}</Text>
+            <View style={styles.adjust}>
+              <Action
+                label="−"
+                secondary
+                onPress={() =>
+                  setProfile({ ...profile, age: Math.max(18, profile.age - 1) })
+                }
+              />
+              <Action
+                label="+"
+                secondary
+                onPress={() =>
+                  setProfile({
+                    ...profile,
+                    age: Math.min(120, profile.age + 1),
+                  })
+                }
+              />
+            </View>
+            <Text style={styles.setting}>About you</Text>
+            <TextInput
+              accessibilityLabel="About you"
+              multiline
+              value={profile.bio}
+              maxLength={500}
+              onChangeText={(nextBio) =>
+                setProfile({ ...profile, bio: nextBio })
+              }
+              style={styles.bioInput}
+            />
+          </View>
+          <PreferencesScreen value={preferences} onChange={setPreferences} />
+          <View style={styles.scoreCard}>
+            <Text style={styles.scoreNote}>
+              These settings filter and order mutually eligible people. They do
+              not predict chemistry or measure anyone’s worth.
+            </Text>
+            <Action
+              label="See my introductions"
+              disabled={!profile.name.trim() || !profile.bio.trim()}
+              onPress={() =>
+                void api
+                  .updateProfile({
+                    name: profile.name.trim(),
+                    age: profile.age,
+                    bio: profile.bio.trim(),
+                  })
+                  .then(() => api.updatePreferences(preferences))
+                  .then(() => api.completeOnboarding())
+                  .then(load)
+                  .catch(() => setError("Setup could not be saved."))
+              }
+            />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Text style={styles.brand}>OpenMatch</Text>
+        <Text style={styles.nonprofit}>Nonprofit · Open</Text>
+      </View>
+      <ScrollView contentContainerStyle={styles.page}>
+        <>
+          {tab === "Today" &&
+            (current ? (
+              <>
+                <Text style={styles.eyebrow}>Your introductions</Text>
+                <Text accessibilityRole="header" style={styles.title}>
+                  {introductions.length} remaining
+                </Text>
+                <Text style={styles.subtle}>A finite set. Take your time.</Text>
+                <View style={styles.card}>
+                  <View
+                    style={[
+                      styles.portrait,
+                      { backgroundColor: current.profile.color },
+                    ]}
+                  >
+                    <Text style={styles.initial}>
+                      {current.profile.name[0]}
+                    </Text>
+                    <Text style={styles.distance}>
+                      {current.profile.distanceBand}
+                    </Text>
+                  </View>
+                  <View style={styles.cardBody}>
+                    <Text style={styles.name}>
+                      {current.profile.name}, {current.profile.age}
+                    </Text>
+                    <Text style={styles.meta}>
+                      {current.profile.pronouns} · {current.profile.city}
+                    </Text>
+                    <Text style={styles.intent}>{current.profile.intent}</Text>
+                    <Text style={styles.bio}>{current.profile.bio}</Text>
+                    <View style={styles.prompt}>
+                      <Text style={styles.promptLabel}>
+                        {current.profile.prompt}
+                      </Text>
+                      <Text style={styles.promptAnswer}>
+                        {current.profile.promptAnswer}
+                      </Text>
+                    </View>
+                    <View style={styles.chips}>
+                      {current.profile.values.map((value) => (
+                        <Text style={styles.chip} key={value}>
+                          {value}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+                <View style={styles.scoreCard}>
+                  <Text style={styles.eyebrow}>Why this introduction</Text>
+                  <Text style={styles.score}>
+                    {Math.round(current.explanation.finalScore * 100)}%
+                  </Text>
+                  <Text style={styles.scoreNote}>
+                    Fit with explicit preferences you both control—not predicted
+                    chemistry.
+                  </Text>
+                  {current.reasons.map((reason) => (
+                    <Text style={styles.reason} key={reason}>
+                      ✓ {reason}
+                    </Text>
+                  ))}
+                  <Pressable onPress={() => setShowMath(!showMath)}>
+                    <Text style={styles.link}>
+                      {showMath
+                        ? "Hide calculation"
+                        : "See the full calculation"}
+                    </Text>
+                  </Pressable>
+                  {showMath && (
+                    <View style={styles.math}>
+                      <Text style={styles.mathNote}>
+                        Your directed fit ·{" "}
+                        {Math.round(current.explanation.directedFitA * 100)}%
+                      </Text>
+                      {current.explanation.factorsForA.map((factor) => (
+                        <View style={styles.mathRow} key={`a-${factor.id}`}>
+                          <Text>{factor.label}</Text>
+                          <Text style={styles.mathValue}>
+                            {Math.round(factor.compatibility * 100)}% ×{" "}
+                            {Math.round(factor.weight * 100)}%
+                          </Text>
+                        </View>
+                      ))}
+                      <Text style={styles.mathNote}>
+                        Their directed fit ·{" "}
+                        {Math.round(current.explanation.directedFitB * 100)}%
+                      </Text>
+                      {current.explanation.factorsForB ? (
+                        current.explanation.factorsForB.map((factor) => (
+                          <View style={styles.mathRow} key={`b-${factor.id}`}>
+                            <Text>{factor.label}</Text>
+                            <Text style={styles.mathValue}>
+                              {Math.round(factor.compatibility * 100)}% ×{" "}
+                              {Math.round(factor.weight * 100)}%
+                            </Text>
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.mathNote}>
+                          Their factor weights are private personal inputs. The
+                          score uses the published formula and no undocumented
+                          system factors.
+                        </Text>
+                      )}
+                      <Text style={styles.mathNote}>
+                        Harmonic mean{" "}
+                        {Math.round(current.explanation.reciprocalFit * 100)}% ·
+                        Algorithm {ALGORITHM_VERSION} · No undocumented system
+                        factors.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.actions}>
+                  <Action
+                    label="Pass"
+                    secondary
+                    onPress={() => void decide("passed")}
+                  />
+                  <Action
+                    label="Interested"
+                    onPress={() => void decide("interested")}
+                  />
+                </View>
+                <Text style={styles.private}>
+                  Private unless interest is mutual.
+                </Text>
+              </>
+            ) : (
+              <View style={styles.empty}>
+                <Text style={styles.check}>✓</Text>
+                <Text style={styles.name}>You’re all caught up.</Text>
+                <Text style={styles.subtle}>
+                  No endless feed. New introductions arrive Thursday.
+                </Text>
+                <Action
+                  label="Start over"
+                  onPress={() => void api.reset().then(load)}
+                />
+              </View>
+            ))}
+          {tab === "Preferences" && (
+            <PreferencesScreen
+              value={preferences}
+              suggestions={suggestions}
+              onChange={(next) => void savePreferences(next)}
+            />
+          )}
+          {tab === "Connections" &&
+            (connection ? (
+              <>
+                <Text style={styles.eyebrow}>Connection</Text>
+                <Text style={styles.title}>
+                  {connection.profile?.name ?? "Connection"}
+                </Text>
+                <Text style={styles.subtle}>
+                  You both expressed interest. Text only, with no read receipts.
+                </Text>
+                <View style={styles.scoreCard}>
+                  {safetyNotice && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.scoreNote}
+                    >
+                      {safetyNotice}
+                    </Text>
+                  )}
+                  {messages.length === 0 ? (
+                    <Text style={styles.scoreNote}>
+                      Start with something from their profile—not a generated
+                      line.
+                    </Text>
+                  ) : (
+                    messages.map((message) => (
+                      <Text style={styles.mobileBubble} key={message.id}>
+                        {message.text}
+                      </Text>
+                    ))
+                  )}
+                  <Action
+                    label="Send a thoughtful hello"
+                    onPress={() =>
+                      void api
+                        .sendMessage(
+                          connection.id,
+                          "Hi — your answer about making room for people resonated with me.",
+                        )
+                        .then((message) =>
+                          setMessages((previous) => [...previous, message]),
+                        )
+                        .catch(() => setError("Message could not be sent."))
+                    }
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => void api.unmatch(connection.id).then(load)}
+                  >
+                    <Text style={styles.safetyLink}>Unmatch</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      void api.block(connection.profileId).then(load)
+                    }
+                  >
+                    <Text style={styles.safetyLink}>Block</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      void api
+                        .report(
+                          connection.profileId,
+                          "other",
+                          "Submitted from the mobile prototype.",
+                        )
+                        .then((result) =>
+                          setSafetyNotice(
+                            `Report received. Reference status: .`,
+                          ),
+                        )
+                    }
+                  >
+                    <Text style={styles.safetyLink}>Report</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <View style={styles.empty}>
+                <Text style={styles.check}>○</Text>
+                <Text style={styles.name}>No connections yet</Text>
+                <Text style={styles.subtle}>
+                  Connections appear only after mutual interest.
+                </Text>
+              </View>
+            ))}
+          {tab === "Profile" && (
+            <>
+              <Text style={styles.eyebrow}>Your profile</Text>
+              <Text style={styles.title}>
+                {profile.name}, {profile.age}
+              </Text>
+              <Text style={styles.subtle}>
+                What mutually eligible people see.
+              </Text>
+              <View style={styles.scoreCard}>
+                {editingProfile ? (
+                  <TextInput
+                    accessibilityLabel="Profile bio"
+                    multiline
+                    value={bio}
+                    onChangeText={setBio}
+                    style={styles.bioInput}
+                  />
+                ) : (
+                  <Text style={styles.bio}>{bio}</Text>
+                )}
+                <View style={styles.prompt}>
+                  <Text style={styles.promptLabel}>{profile.prompt}</Text>
+                  <Text style={styles.promptAnswer}>
+                    {profile.promptAnswer}
+                  </Text>
+                </View>
+                <View style={styles.chips}>
+                  {profile.values.map((value) => (
+                    <Text style={styles.chip} key={value}>
+                      {value}
+                    </Text>
+                  ))}
+                </View>
+                <Action
+                  label={editingProfile ? "Done" : "Edit profile"}
+                  secondary
+                  onPress={() => {
+                    if (editingProfile)
+                      void api
+                        .updateProfile({ bio })
+                        .then(setProfile)
+                        .catch(() => setError("Profile could not be saved."));
+                    setEditingProfile(!editingProfile);
+                  }}
+                />
+              </View>
+              <View style={styles.scoreCard}>
+                <Text style={styles.name}>Private by default</Text>
+                <Text style={styles.scoreNote}>
+                  Precise location, legal name, contacts, activity time, and
+                  decisions are never shown.
+                </Text>
+                <Action
+                  label="Export my data"
+                  secondary
+                  onPress={() =>
+                    void api
+                      .exportData()
+                      .then((data) =>
+                        Share.share({
+                          title: "OpenMatch data export",
+                          message: JSON.stringify(data, null, 2),
+                        }),
+                      )
+                      .catch(() =>
+                        setError("Data export could not be created."),
+                      )
+                  }
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    Alert.alert(
+                      "Delete local data?",
+                      "This permanently clears the OpenMatch demo on this service.",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Delete",
+                          style: "destructive",
+                          onPress: () =>
+                            void api.deleteAccountData().then(load),
+                        },
+                      ],
+                    )
+                  }
+                >
+                  <Text style={styles.safetyLink}>Delete local data</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+          {tab === "Method" && (
+            <>
+              <Text style={styles.eyebrow}>Public method</Text>
+              <Text style={styles.title}>Understand every introduction.</Text>
+              <Text style={styles.subtle}>
+                The score orders eligible people. It does not predict love.
+              </Text>
+              {[
+                [
+                  "1",
+                  "Boundaries first",
+                  "Age, distance, intention, and lifestyle boundaries must work for both people.",
+                ],
+                [
+                  "2",
+                  "Two visible scores",
+                  "Each person’s priorities create a score. Their harmonic mean makes one-sided fit visible.",
+                ],
+                [
+                  "3",
+                  "Human judgment",
+                  "Feedback may suggest an edit, but never changes preferences silently.",
+                ],
+              ].map(([n, h, p]) => (
+                <View style={styles.method} key={n}>
+                  <Text style={styles.methodNo}>{n}</Text>
+                  <View style={styles.methodText}>
+                    <Text style={styles.name}>{h}</Text>
+                    <Text style={styles.scoreNote}>{p}</Text>
+                  </View>
+                </View>
+              ))}
+              <Text style={styles.version}>
+                Algorithm {ALGORITHM_VERSION} · No hidden factors
+              </Text>
+            </>
+          )}
+        </>
+      </ScrollView>
+      <View style={styles.tabs}>
+        {(
+          ["Today", "Connections", "Preferences", "Profile", "Method"] as Tab[]
+        ).map((item) => (
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityState={{ selected: tab === item }}
+            style={styles.tab}
+            onPress={() => setTab(item)}
+            key={item}
+          >
+            <Text style={[styles.tabText, tab === item && styles.tabActive]}>
+              {item}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function PreferencesScreen({
+  value,
+  onChange,
+  suggestions,
+}: {
+  value: Preferences;
+  onChange: (value: Preferences) => void;
+  suggestions?: WeightSuggestion[];
+}) {
+  const bump = (key: keyof Preferences["weights"], delta: -1 | 1) => {
+    const current = nearestPriority(value.weights[key]);
+    const index = PRIORITY_LEVELS.indexOf(current);
+    const next =
+      PRIORITY_LEVELS[
+        Math.max(0, Math.min(PRIORITY_LEVELS.length - 1, index + delta))
+      ];
+    onChange({ ...value, weights: { ...value.weights, [key]: next } });
+  };
+  return (
+    <>
+      <Text style={styles.eyebrow}>Preferences</Text>
+      <Text style={styles.title}>What matters to you</Text>
+      <Text style={styles.subtle}>
+        Boundaries filter. Priorities order. Every change is yours.
+      </Text>
+      <View style={styles.scoreCard}>
+        <Text style={styles.name}>Distance</Text>
+        <Text style={styles.setting}>
+          Ideal{" "}
+          <Text style={styles.settingValue}>{value.idealDistanceKm} km</Text>
+        </Text>
+        <View style={styles.adjust}>
+          <Action
+            label="−"
+            secondary
+            onPress={() =>
+              onChange({
+                ...value,
+                idealDistanceKm: Math.max(1, value.idealDistanceKm - 5),
+              })
+            }
+          />
+          <Action
+            label="+"
+            secondary
+            onPress={() =>
+              onChange({
+                ...value,
+                idealDistanceKm: Math.min(
+                  value.maximumDistanceKm,
+                  value.idealDistanceKm + 5,
+                ),
+              })
+            }
+          />
+        </View>
+        <Text style={styles.setting}>
+          Maximum{" "}
+          <Text style={styles.settingValue}>{value.maximumDistanceKm} km</Text>
+        </Text>
+        <View style={styles.adjust}>
+          <Action
+            label="−"
+            secondary
+            onPress={() =>
+              onChange({
+                ...value,
+                maximumDistanceKm: Math.max(
+                  value.idealDistanceKm,
+                  value.maximumDistanceKm - 5,
+                ),
+              })
+            }
+          />
+          <Action
+            label="+"
+            secondary
+            onPress={() =>
+              onChange({
+                ...value,
+                maximumDistanceKm: Math.min(100, value.maximumDistanceKm + 5),
+              })
+            }
+          />
+        </View>
+      </View>
+      {suggestions && (
+        <View style={styles.scoreCard}>
+          <Text style={styles.name}>Preference suggestions</Text>
+          {suggestions.length === 0 ? (
+            <Text style={styles.scoreNote}>
+              Nothing suggested yet. The learner waits for at least 20 explicit
+              decisions, including five Interested and five Pass choices.
+            </Text>
+          ) : (
+            suggestions.map((suggestion) => (
+              <View style={styles.weightRow} key={suggestion.factorId}>
+                <View style={styles.methodText}>
+                  <Text style={styles.capitalize}>{suggestion.factorId}</Text>
+                  <Text style={styles.scoreNote}>
+                    {priorityLabel(suggestion.currentWeight)} →{" "}
+                    {priorityLabel(suggestion.suggestedWeight)} ·{" "}
+                    {suggestion.sampleSize} decisions · {suggestion.confidence}
+                  </Text>
+                  <Text style={styles.mathNote}>{suggestion.caveat}</Text>
+                  <Action
+                    label="Accept suggestion"
+                    secondary
+                    onPress={() =>
+                      onChange({
+                        ...value,
+                        weights: {
+                          ...value.weights,
+                          [suggestion.factorId]: nearestPriority(
+                            suggestion.suggestedWeight,
+                          ),
+                        },
+                      })
+                    }
+                  />
+                </View>
+              </View>
+            ))
+          )}
+          <Text style={styles.mathNote}>
+            Decisions only. Messages, dwell time, taps, and photos are never
+            learning inputs. Nothing changes automatically.
+          </Text>
+        </View>
+      )}
+      <View style={styles.scoreCard}>
+        <Text style={styles.name}>Order eligible people</Text>
+        {Object.entries(value.weights).map(([key, weight]) => (
+          <View style={styles.weightRow} key={key}>
+            <View>
+              <Text style={styles.capitalize}>{key}</Text>
+              <Text style={styles.settingValue}>{priorityLabel(weight)}</Text>
+            </View>
+            <View style={styles.adjustSmall}>
+              <Pressable
+                accessibilityLabel={`Lower ${key} priority`}
+                style={styles.smallButton}
+                onPress={() => bump(key as keyof Preferences["weights"], -1)}
+              >
+                <Text>−</Text>
+              </Pressable>
+              <Pressable
+                accessibilityLabel={`Raise ${key} priority`}
+                style={styles.smallButton}
+                onPress={() => bump(key as keyof Preferences["weights"], 1)}
+              >
+                <Text>+</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
+        <Text style={styles.mathNote}>
+          Off, Low, Medium, or High—relative priorities, not judgments of
+          anyone’s worth.
+        </Text>
+      </View>
+    </>
+  );
+}
+function Action({
+  label,
+  onPress,
+  secondary = false,
+  disabled = false,
+}: {
+  label: string;
+  onPress: () => void;
+  secondary?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={[
+        styles.button,
+        secondary && styles.buttonSecondary,
+        disabled && styles.buttonDisabled,
+      ]}
+    >
+      <Text
+        style={[styles.buttonText, secondary && styles.buttonTextSecondary]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: "#F5F5F1" },
+  header: {
+    height: 58,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderColor: "#DFDFD8",
+  },
+  brand: { fontSize: 19, fontWeight: "700", letterSpacing: -0.6 },
+  nonprofit: { marginLeft: "auto", fontSize: 11, color: "#757970" },
+  page: { padding: 20, paddingBottom: 110, gap: 12 },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: "#39715A",
+    marginTop: 10,
+  },
+  title: {
+    fontSize: 40,
+    fontWeight: "700",
+    letterSpacing: -1.8,
+    lineHeight: 43,
+  },
+  subtle: { fontSize: 16, lineHeight: 23, color: "#686C64", marginBottom: 12 },
+  card: {
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E2E2DC",
+  },
+  portrait: { height: 300, alignItems: "center", justifyContent: "center" },
+  initial: { fontSize: 110, fontWeight: "700", color: "rgba(255,255,255,.7)" },
+  distance: {
+    position: "absolute",
+    left: 16,
+    bottom: 16,
+    backgroundColor: "rgba(255,255,255,.9)",
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 20,
+    fontSize: 12,
+  },
+  cardBody: { padding: 23 },
+  name: { fontSize: 24, fontWeight: "700", letterSpacing: -0.7 },
+  meta: { color: "#74786F", marginTop: 3 },
+  intent: { color: "#5B665E", marginTop: 10, marginBottom: 16 },
+  bio: { fontSize: 17, lineHeight: 25 },
+  bioInput: {
+    fontSize: 17,
+    lineHeight: 25,
+    minHeight: 110,
+    textAlignVertical: "top",
+    borderWidth: 1,
+    borderColor: "#CED1CA",
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: "#FAFAF7",
+  },
+  prompt: {
+    marginTop: 22,
+    paddingTop: 18,
+    borderTopWidth: 1,
+    borderColor: "#ECECE7",
+  },
+  promptLabel: {
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    color: "#777B73",
+  },
+  promptAnswer: { fontSize: 17, lineHeight: 24, marginTop: 7 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 18 },
+  chip: {
+    fontSize: 12,
+    color: "#395144",
+    backgroundColor: "#F0F2ED",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  scoreCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 22,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: "#E2E2DC",
+    marginTop: 6,
+  },
+  score: {
+    fontSize: 60,
+    fontWeight: "700",
+    letterSpacing: -3,
+    marginVertical: 8,
+  },
+  scoreNote: { color: "#646860", fontSize: 15, lineHeight: 22 },
+  reason: { paddingTop: 11, fontSize: 15, color: "#334A3E" },
+  link: { color: "#286249", fontWeight: "600", paddingTop: 20 },
+  math: {
+    backgroundColor: "#F4F5F1",
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 12,
+  },
+  mathRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 5,
+  },
+  mathValue: { fontWeight: "600", fontSize: 12 },
+  mathNote: { fontSize: 11, color: "#757970", lineHeight: 16, marginTop: 8 },
+  actions: { flexDirection: "row", gap: 10, marginTop: 8 },
+  button: {
+    flex: 1,
+    backgroundColor: "#173F32",
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 28,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#173F32",
+    marginTop: 12,
+  },
+  buttonSecondary: { backgroundColor: "#FFF", borderColor: "#CED1CA" },
+  buttonDisabled: { opacity: 0.45 },
+  buttonText: { color: "#FFF", fontWeight: "700" },
+  buttonTextSecondary: { color: "#32352F" },
+  private: { fontSize: 11, color: "#858981", textAlign: "center" },
+  empty: { alignItems: "center", gap: 16, paddingVertical: 90 },
+  check: {
+    fontSize: 24,
+    color: "#286249",
+    backgroundColor: "#DFEAE3",
+    width: 58,
+    height: 58,
+    textAlign: "center",
+    paddingTop: 13,
+    borderRadius: 30,
+  },
+  tabs: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 68,
+    backgroundColor: "#FAFAF7",
+    borderTopWidth: 1,
+    borderColor: "#DDD",
+    flexDirection: "row",
+    paddingBottom: 8,
+  },
+  tab: { flex: 1, alignItems: "center", justifyContent: "center" },
+  tabText: { fontSize: 9.5, color: "#777B73" },
+  tabActive: { color: "#24513E", fontWeight: "700" },
+  setting: { fontSize: 16, marginTop: 22 },
+  settingValue: { color: "#39715A", fontWeight: "700" },
+  adjust: { flexDirection: "row", gap: 8, marginTop: 10 },
+  weightRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 17,
+    borderBottomWidth: 1,
+    borderColor: "#ECECE7",
+  },
+  capitalize: { fontSize: 16, textTransform: "capitalize" },
+  adjustSmall: { flexDirection: "row", gap: 8 },
+  smallButton: {
+    width: 42,
+    height: 38,
+    borderWidth: 1,
+    borderColor: "#CED1CA",
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF",
+  },
+  method: {
+    flexDirection: "row",
+    gap: 14,
+    borderTopWidth: 1,
+    borderColor: "#DADCD5",
+    paddingVertical: 22,
+  },
+  methodNo: { color: "#39715A", fontWeight: "700", fontSize: 16 },
+  methodText: { flex: 1, gap: 4 },
+  version: {
+    fontFamily: "monospace",
+    fontSize: 11,
+    color: "#365043",
+    backgroundColor: "#E7EBE5",
+    padding: 15,
+    borderRadius: 12,
+  },
+  mobileBubble: {
+    alignSelf: "flex-end",
+    backgroundColor: "#DFEAE3",
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 12,
+    maxWidth: "85%",
+  },
+  safetyLink: { color: "#8A4040", textAlign: "center", paddingTop: 20 },
+});

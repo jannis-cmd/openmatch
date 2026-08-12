@@ -1,0 +1,16 @@
+node_modules
+.expo
+.next
+dist
+coverage
+playwright-report
+test-results
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.DS_Store

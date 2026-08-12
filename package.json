@@ -1,0 +1,17 @@
+{
+  "name": "openmatch",
+  "private": true,
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "build:packages": "pnpm --filter @openmatch/matching build && pnpm --filter @openmatch/api-client build",
+    "build": "pnpm -r build",
+    "dev": "pnpm --parallel --filter './apps/*' --filter @openmatch/api dev",
+    "format": "prettier --write . --ignore-unknown",
+    "format:check": "prettier --check . --ignore-unknown",
+    "test": "pnpm build:packages && pnpm -r test",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
+}
