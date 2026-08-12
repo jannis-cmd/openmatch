@@ -59,11 +59,15 @@ test("first run through a persistent connection and safety action", async ({
   await expectAccessible(page);
   await page.getByRole("button", { name: "Sign in" }).first().click();
   await expect(
-    page.getByText("Account authentication is not connected yet."),
+    page.getByText(/keeps its profile and conversations separate/),
   ).toBeVisible();
   await expectAccessible(page);
+  await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByRole("textbox", { name: "Email" }).fill("taylor@example.com");
-  await page.getByRole("button", { name: "Continue to the demo" }).click();
+  await page
+    .getByLabel("Passphrase")
+    .fill("a repeatable browser test passphrase");
+  await page.getByRole("button", { name: "Create account" }).click();
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
   ).toBeVisible();
@@ -108,6 +112,9 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   expect(
     publicApiRequests.filter((url) => url.endsWith("/v1/demo/session")),
+  ).toHaveLength(0);
+  expect(
+    publicApiRequests.filter((url) => url.endsWith("/v1/accounts")),
   ).toHaveLength(1);
   await page.getByRole("button", { name: "Your profile" }).click();
   await page.getByRole("button", { name: "Edit" }).click();
@@ -357,7 +364,7 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "Known limits" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/temporary bearer token only gates/),
+    page.getByText(/This account uses an isolated application-data store/),
   ).toBeVisible();
   await expect(
     page.getByText("Deployed code: unpinned development build"),

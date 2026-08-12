@@ -16,6 +16,7 @@ import {
   toPublicProfile,
 } from "@openmatch/matching";
 import { Store } from "./store.js";
+import { AccountError, Accounts } from "./accounts.js";
 
 const send = (response: ServerResponse, status: number, body: unknown) => {
   response.writeHead(status, {
@@ -111,9 +112,18 @@ export function createApp(
     deployedCommit?: string | null;
     demoSessionsEnabled?: boolean;
     demoSessionTtlMs?: number;
+    accounts?: Accounts | false;
+    authRateLimit?: { maximum: number; windowMs: number };
   } = {},
 ) {
-  const store = options.store ?? new Store();
+  const demoStore = options.store ?? new Store();
+  const accounts =
+    options.accounts === false
+      ? null
+      : (options.accounts ??
+        (process.env.OPENMATCH_ENABLE_ACCOUNTS === "true"
+          ? new Accounts()
+          : null));
   const demoSessionsEnabled =
     options.demoSessionsEnabled ??
     process.env.OPENMATCH_ENABLE_DEMO_SESSIONS === "true";
@@ -145,6 +155,12 @@ export function createApp(
     maximum: Number(process.env.OPENMATCH_RATE_LIMIT_MAX ?? 600),
     windowMs: Number(process.env.OPENMATCH_RATE_LIMIT_WINDOW_MS ?? 60_000),
   };
+  const authRateLimit = options.authRateLimit ?? {
+    maximum: Number(process.env.OPENMATCH_AUTH_RATE_LIMIT_MAX ?? 10),
+    windowMs: Number(
+      process.env.OPENMATCH_AUTH_RATE_LIMIT_WINDOW_MS ?? 15 * 60_000,
+    ),
+  };
   const configuredCommit =
     options.deployedCommit === undefined
       ? (process.env.OPENMATCH_COMMIT_SHA ?? null)
@@ -164,7 +180,18 @@ export function createApp(
     rateLimit.windowMs < 1000
   )
     throw new RangeError("invalid rate limit configuration");
+  if (
+    !Number.isInteger(authRateLimit.maximum) ||
+    authRateLimit.maximum < 1 ||
+    !Number.isInteger(authRateLimit.windowMs) ||
+    authRateLimit.windowMs < 1000
+  )
+    throw new RangeError("invalid authentication rate limit configuration");
   const requestWindows = new Map<
+    string,
+    { startedAt: number; count: number }
+  >();
+  const authenticationWindows = new Map<
     string,
     { startedAt: number; count: number }
   >();
@@ -220,15 +247,89 @@ export function createApp(
           authentication: false,
         });
       }
+      if (
+        request.method === "POST" &&
+        ["/v1/accounts", "/v1/sessions"].includes(url.pathname)
+      ) {
+        if (!accounts)
+          return send(response, 404, { error: "accounts_disabled" });
+        const previousAuth = authenticationWindows.get(key);
+        const authWindow =
+          !previousAuth ||
+          now - previousAuth.startedAt >= authRateLimit.windowMs
+            ? { startedAt: now, count: 0 }
+            : previousAuth;
+        authWindow.count += 1;
+        authenticationWindows.set(key, authWindow);
+        if (authWindow.count > authRateLimit.maximum) {
+          response.setHeader(
+            "retry-after",
+            String(
+              Math.max(
+                1,
+                Math.ceil(
+                  (authRateLimit.windowMs - (now - authWindow.startedAt)) /
+                    1000,
+                ),
+              ),
+            ),
+          );
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        }
+        const body = (await readJson(request)) as {
+          email?: unknown;
+          password?: unknown;
+        };
+        try {
+          const session =
+            url.pathname === "/v1/accounts"
+              ? accounts.register(body.email, body.password)
+              : accounts.signIn(body.email, body.password);
+          return send(response, url.pathname === "/v1/accounts" ? 201 : 200, {
+            token: session.token,
+            expiresAt: session.expiresAt,
+            authentication: true,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
       const authorization = request.headers.authorization;
       const token = authorization?.startsWith("Bearer ")
         ? authorization.slice("Bearer ".length)
         : null;
       const tokenHash = token ? sessionHash(token) : null;
       const expiresAt = tokenHash ? demoSessions.get(tokenHash) : undefined;
-      if (!token || !expiresAt || expiresAt <= now) {
+      const accountSession =
+        token && accounts ? accounts.authenticate(token) : undefined;
+      const demoSessionValid = Boolean(expiresAt && expiresAt > now);
+      if (!token || (!accountSession && !demoSessionValid)) {
         if (tokenHash && expiresAt) demoSessions.delete(tokenHash);
-        return send(response, 401, { error: "demo_session_required" });
+        return send(response, 401, { error: "session_required" });
+      }
+      const store = accountSession?.store ?? demoStore;
+      if (request.method === "DELETE" && url.pathname === "/v1/session") {
+        if (accountSession && accounts) accounts.revoke(token);
+        else if (tokenHash) demoSessions.delete(tokenHash);
+        return send(response, 204, null);
+      }
+      if (request.method === "DELETE" && url.pathname === "/v1/account") {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        accounts.deleteAccount(accountSession.accountId);
+        return send(response, 200, {
+          deleted: true,
+          completedAt: new Date().toISOString(),
+          credentialsDeleted: true,
+          sessionsRevoked: true,
+          applicationBackups: "none",
+        });
       }
       if (request.method === "GET" && url.pathname === "/v1/me")
         return send(response, 200, store.profile());
@@ -616,6 +717,9 @@ export function createApp(
       });
     }
   });
-  server.on("close", () => store.close());
+  server.on("close", () => {
+    demoStore.close();
+    accounts?.close();
+  });
   return server;
 }

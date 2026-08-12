@@ -8,6 +8,7 @@ import {
   type Profile,
 } from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
+import { Accounts } from "../src/accounts.ts";
 import { Store } from "../src/store.ts";
 
 const sessionHeaders = async (base: string) => {
@@ -26,6 +27,189 @@ const sessionHeaders = async (base: string) => {
     authorization: `Bearer ${body.token}`,
   };
 };
+
+const accountSession = async (
+  base: string,
+  path: "/v1/accounts" | "/v1/sessions",
+  email: string,
+  password: string,
+) => {
+  const response = await fetch(base + path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const body = (await response.json()) as {
+    token?: string;
+    authentication?: boolean;
+    error?: string;
+  };
+  return { response, body };
+};
+
+test("authenticated accounts have hashed credentials and isolated application data", async () => {
+  const accounts = new Accounts(":memory:", { dataDirectory: null });
+  const server = createApp({
+    store: new Store(":memory:"),
+    accounts,
+    demoSessionsEnabled: false,
+    authRateLimit: { maximum: 5, windowMs: 60_000 },
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  const password = "a-correct-horse-battery-staple";
+  try {
+    const first = await accountSession(
+      base,
+      "/v1/accounts",
+      " First@Example.org ",
+      password,
+    );
+    assert.equal(first.response.status, 201);
+    assert.equal(first.body.authentication, true);
+    assert.ok(first.body.token);
+    const second = await accountSession(
+      base,
+      "/v1/accounts",
+      "second@example.org",
+      "another-secure-passphrase",
+    );
+    assert.equal(second.response.status, 201);
+    assert.ok(second.body.token);
+    const stored = accounts.db
+      .prepare(
+        "SELECT email,password_hash AS passwordHash,password_salt AS passwordSalt FROM accounts WHERE email=?",
+      )
+      .get("first@example.org") as {
+      email: string;
+      passwordHash: string;
+      passwordSalt: string;
+    };
+    assert.equal(stored.email, "first@example.org");
+    assert.notEqual(stored.passwordHash, password);
+    assert.ok(stored.passwordHash.length >= 80);
+    assert.ok(stored.passwordSalt.length >= 20);
+
+    const auth = (token: string) => ({
+      "content-type": "application/json",
+      authorization: `Bearer ${token}`,
+    });
+    await fetch(base + "/v1/me", {
+      method: "PATCH",
+      headers: auth(first.body.token!),
+      body: JSON.stringify({ name: "First account" }),
+    });
+    const firstProfile = (await (
+      await fetch(base + "/v1/me", { headers: auth(first.body.token!) })
+    ).json()) as Profile;
+    const secondProfile = (await (
+      await fetch(base + "/v1/me", { headers: auth(second.body.token!) })
+    ).json()) as Profile;
+    assert.equal(firstProfile.name, "First account");
+    assert.equal(secondProfile.name, "Alex");
+    const introductions = (await (
+      await fetch(base + "/v1/introductions", {
+        headers: auth(first.body.token!),
+      })
+    ).json()) as { items: Array<{ profile: { id: string } }> };
+    assert.ok(introductions.items.some(({ profile }) => profile.id === "mara"));
+    await fetch(base + "/v1/introductions/mara/decision", {
+      method: "POST",
+      headers: auth(first.body.token!),
+      body: JSON.stringify({ decision: "interested" }),
+    });
+    const firstConnections = (await (
+      await fetch(base + "/v1/connections", {
+        headers: auth(first.body.token!),
+      })
+    ).json()) as { items: unknown[] };
+    const secondConnections = (await (
+      await fetch(base + "/v1/connections", {
+        headers: auth(second.body.token!),
+      })
+    ).json()) as { items: unknown[] };
+    assert.equal(firstConnections.items.length, 1);
+    assert.equal(secondConnections.items.length, 0);
+
+    const wrong = await accountSession(
+      base,
+      "/v1/sessions",
+      "first@example.org",
+      "not-the-password",
+    );
+    assert.equal(wrong.response.status, 401);
+    assert.equal(wrong.body.error, "invalid_credentials");
+    const signedIn = await accountSession(
+      base,
+      "/v1/sessions",
+      "FIRST@example.org",
+      password,
+    );
+    assert.equal(signedIn.response.status, 200);
+    assert.ok(signedIn.body.token);
+    assert.notEqual(signedIn.body.token, first.body.token);
+    await fetch(base + "/v1/session", {
+      method: "DELETE",
+      headers: auth(signedIn.body.token!),
+    });
+    assert.equal(
+      (
+        await fetch(base + "/v1/me", {
+          headers: auth(signedIn.body.token!),
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await accountSession(
+          base,
+          "/v1/accounts",
+          "first@example.org",
+          password,
+        )
+      ).response.status,
+      409,
+    );
+    const throttled = await accountSession(
+      base,
+      "/v1/sessions",
+      "first@example.org",
+      password,
+    );
+    assert.equal(throttled.response.status, 429);
+    assert.equal(throttled.body.error, "authentication_rate_limit_exceeded");
+    assert.equal(throttled.response.headers.get("retry-after"), "60");
+    const deletion = await fetch(base + "/v1/account", {
+      method: "DELETE",
+      headers: auth(first.body.token!),
+    });
+    assert.equal(deletion.status, 200);
+    const deletionReceipt = (await deletion.json()) as {
+      deleted: boolean;
+      completedAt: string;
+      credentialsDeleted: boolean;
+      sessionsRevoked: boolean;
+      applicationBackups: string;
+    };
+    assert.equal(deletionReceipt.deleted, true);
+    assert.ok(Date.parse(deletionReceipt.completedAt));
+    assert.equal(deletionReceipt.credentialsDeleted, true);
+    assert.equal(deletionReceipt.sessionsRevoked, true);
+    assert.equal(deletionReceipt.applicationBackups, "none");
+    assert.equal(
+      (await fetch(base + "/v1/me", { headers: auth(first.body.token!) }))
+        .status,
+      401,
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
 
 test("account reset is atomic when storage rejects a deletion", () => {
   const store = new Store(":memory:");
@@ -69,6 +253,8 @@ test("the public data inventory covers every current storage and export field", 
     }>;
   };
   const expected: Record<string, string[]> = {
+    accounts: ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
+    accountSessions: ["tokenHash", "accountId", "expiresAt", "createdAt"],
     demoSessions: ["tokenHash", "expiresAt"],
     profile: [
       "id",

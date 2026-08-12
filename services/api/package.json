@@ -7,7 +7,7 @@
     "@openmatch/matching": "workspace:*"
   },
   "scripts": {
-    "dev": "OPENMATCH_ENABLE_DEMO_SESSIONS=true node --import tsx --watch src/index.ts",
+    "dev": "OPENMATCH_ENABLE_DEMO_SESSIONS=true OPENMATCH_ENABLE_ACCOUNTS=true node --import tsx --watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.ts"

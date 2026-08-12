@@ -36,14 +36,16 @@ The development API uses Node's built-in SQLite interface directly, with schema 
 
 The release gate is intentionally layered: pure matching invariants, API/client contract tests, a native component journey under `jest-expo`, and one Chromium journey that exercises the durable vertical slice and runs WCAG 2.2 A/AA rules at setup, explanation, and conversation states. Device-level assistive-technology and native end-to-end testing remain required before a pilot.
 
-The development API has no universal credential. When explicitly enabled, it
-issues a random 256-bit bearer token with a 12-hour default lifetime, retains
-only its SHA-256 hash in process memory, and lets the clients renew after an API
-restart or expiry. This prevents a reusable secret from shipping in every app,
-but all tokens still reach one shared demo identity and datastore. It is session
-gating—not authentication, authorization, or user isolation—and must be
-replaced by passkey/email authentication and account-partitioned storage before
-any networked pilot.
+The development API has no universal credential. Its explicitly enabled local
+demo mode issues random 256-bit bearer tokens but still targets one shared demo
+identity. Separately enabled prototype accounts normalize email, use a
+per-account salted scrypt passphrase hash, persist only SHA-256 session-token
+hashes, and route requests to account-specific SQLite stores. Web and production
+mobile builds expose create/sign-in flows; native session persistence is not yet
+implemented. Synchronous account deletion removes credentials, sessions, and
+the isolated application store. This boundary is covered by cross-account
+isolation tests but is not pilot-ready authentication: verification, recovery,
+device/session management, migrations, and independent review remain open.
 
 Native development may explicitly target a local HTTP origin. EAS development,
 preview, and production builds instead read a plain HTTPS origin from their
@@ -64,7 +66,7 @@ Release builds set `OPENMATCH_COMMIT_SHA` to the exact 7–40 character hexadeci
 
 ## Core API surface
 
-`POST /v1/accounts`, `GET/PATCH/DELETE /v1/me`, `GET/PATCH /v1/account/status`, `GET/PATCH /v1/profile`, `GET/PATCH /v1/preferences`, `GET /v1/introductions`, `POST /v1/introductions/{id}/decision`, `GET/POST /v1/connections`, `GET/POST /v1/connections/{id}/messages`, `POST /v1/reports`, `POST /v1/blocks`, `GET/PATCH /v1/consents`, `POST /v1/export`, `GET /v1/transparency/version`. The local prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete; it is not research consent or a substitute for pilot legal review.
+`POST /v1/accounts`, `POST /v1/sessions`, `DELETE /v1/session`, `GET/PATCH/DELETE /v1/me`, `GET/PATCH /v1/account/status`, `GET/PATCH /v1/preferences`, `GET /v1/introductions`, `POST /v1/introductions/{id}/decision`, `GET /v1/connections`, `GET/POST /v1/connections/{id}/messages`, `POST /v1/reports`, `POST /v1/profiles/{id}/block`, `GET/PATCH /v1/consents`, `GET /v1/me/export`, `GET /v1/transparency/version`. The prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete; it is not research consent or a substitute for pilot legal review.
 
 All list endpoints use opaque pagination. Error schemas are public. Authorization and rate limits are explicit in OpenAPI before implementation.
 

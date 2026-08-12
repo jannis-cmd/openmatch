@@ -2,10 +2,10 @@
   "schemaVersion": "1.0.0",
   "status": "local-prototype",
   "updated": "2026-08-12",
-  "scope": "Fields persisted by the local OpenMatch API, held temporarily for an enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
+  "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
-    "accountDeletion": "DELETE /v1/me synchronously removes every user record and restores only non-personal demo defaults.",
+    "accountDeletion": "DELETE /v1/me synchronously resets only the current account's application data. For an authenticated account, DELETE /v1/account synchronously removes credentials, all sessions, and its application-data file. Neither path retains a server-side receipt.",
     "backups": "The prototype does not create application-managed backups. Host-level backups are outside this prototype and must be resolved before a pilot."
   },
   "accessRoles": {
@@ -14,6 +14,24 @@
     "operator": "A person with filesystem access to the development machine. There is no production staff role model yet."
   },
   "collections": [
+    {
+      "id": "accounts",
+      "storage": "accounts table in the authentication SQLite database",
+      "purpose": "Identify a private account and verify a supplied passphrase without storing that passphrase.",
+      "retention": "Until the person deletes the authenticated account or the operator removes the authentication database.",
+      "access": ["service", "operator"],
+      "fields": ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
+      "disclosure": "Email is normalized to lowercase. Passphrases are processed with scrypt and a random per-account salt; plaintext passphrases and raw session tokens are never persisted. Credentials are excluded from the application-data export."
+    },
+    {
+      "id": "accountSessions",
+      "storage": "account_sessions table in the authentication SQLite database",
+      "purpose": "Authorize one account-specific client session and route every protected operation to that account's isolated store.",
+      "retention": "At most 12 hours by default, until sign-out, or until the account record is removed.",
+      "access": ["service", "operator"],
+      "fields": ["tokenHash", "accountId", "expiresAt", "createdAt"],
+      "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. Session records and credentials are not included in the application-data export."
+    },
     {
       "id": "demoSessions",
       "storage": "API process memory only",

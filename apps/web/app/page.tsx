@@ -44,12 +44,18 @@ export default function Home() {
     [],
   );
   const [siteView, setSiteView] = useState<SiteView>("landing");
+  const [authToken, setAuthToken] = useState<string | null>(null);
   useEffect(() => {
+    const storedToken = window.sessionStorage.getItem("openmatch-auth-token");
     const storedDemo = window.sessionStorage.getItem("openmatch-demo-session");
-    if (demoConfiguration.url && storedDemo === "active") {
+    if (demoConfiguration.url && storedToken) {
+      setAuthToken(storedToken);
       setSiteView("app");
-    } else if (!demoConfiguration.url && storedDemo) {
+    } else if (demoConfiguration.url && storedDemo === "active") {
+      setSiteView("app");
+    } else if (!demoConfiguration.url && (storedDemo || storedToken)) {
       window.sessionStorage.removeItem("openmatch-demo-session");
+      window.sessionStorage.removeItem("openmatch-auth-token");
     }
   }, [demoConfiguration.url]);
 
@@ -61,7 +67,16 @@ export default function Home() {
 
   const exitApp = () => {
     window.sessionStorage.removeItem("openmatch-demo-session");
+    window.sessionStorage.removeItem("openmatch-auth-token");
+    setAuthToken(null);
     setSiteView("landing");
+  };
+
+  const openAuthenticatedApp = (token: string) => {
+    window.sessionStorage.removeItem("openmatch-demo-session");
+    window.sessionStorage.setItem("openmatch-auth-token", token);
+    setAuthToken(token);
+    setSiteView("app");
   };
 
   if (siteView === "landing") {
@@ -78,14 +93,19 @@ export default function Home() {
     return (
       <SignInPage
         back={() => setSiteView("landing")}
-        continueToApp={openApp}
+        apiUrl={demoConfiguration.url}
+        continueToApp={openAuthenticatedApp}
         demoError={demoConfiguration.error}
       />
     );
   }
 
   return demoConfiguration.url ? (
-    <AppExperience exit={exitApp} apiUrl={demoConfiguration.url} />
+    <AppExperience
+      exit={exitApp}
+      apiUrl={demoConfiguration.url}
+      authToken={authToken}
+    />
   ) : (
     <LandingPage
       signIn={() => setSiteView("sign-in")}
@@ -95,8 +115,28 @@ export default function Home() {
   );
 }
 
-function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
-  const api = useMemo(() => createApiClient(apiUrl), [apiUrl]);
+function AppExperience({
+  exit,
+  apiUrl,
+  authToken,
+}: {
+  exit: () => void;
+  apiUrl: string;
+  authToken: string | null;
+}) {
+  const api = useMemo(
+    () =>
+      createApiClient(apiUrl, fetch, {
+        initialToken: authToken,
+        demoSessions: !authToken,
+        onTokenChange: (token) => {
+          if (token)
+            window.sessionStorage.setItem("openmatch-auth-token", token);
+          else window.sessionStorage.removeItem("openmatch-auth-token");
+        },
+      }),
+    [apiUrl, authToken],
+  );
   const [view, setView] = useState<View>("today");
   const [preferences, setPreferences] = useState<Preferences>(
     structuredClone(defaultPreferences),
@@ -240,7 +280,14 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <button className="brand" onClick={exit} aria-label="OpenMatch home">
+        <button
+          className="brand"
+          onClick={() => {
+            if (authToken) void api.signOut().finally(exit);
+            else exit();
+          }}
+          aria-label="OpenMatch home"
+        >
           OpenMatch
         </button>
         <span className="nonprofit">Nonprofit · Open source</span>
@@ -774,9 +821,28 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
                       await load();
                     }
                   }}
+                  deleteAccount={
+                    authToken
+                      ? async () => {
+                          if (
+                            window.confirm(
+                              "Delete this OpenMatch account, credentials, sessions, and all application data? This cannot be undone.",
+                            )
+                          ) {
+                            await api.deleteAccount();
+                            exit();
+                          }
+                        }
+                      : undefined
+                  }
                 />
               )}
-              {view === "about" && <AboutView transparency={transparency} />}
+              {view === "about" && (
+                <AboutView
+                  transparency={transparency}
+                  authenticated={Boolean(authToken)}
+                />
+              )}
             </>
           )}
         </section>
@@ -1092,14 +1158,25 @@ function AlgorithmGraphic() {
 
 function SignInPage({
   back,
+  apiUrl,
   continueToApp,
   demoError,
 }: {
   back: () => void;
-  continueToApp: () => void;
+  apiUrl: string | null;
+  continueToApp: (token: string) => void;
   demoError: string | null;
 }) {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"sign-in" | "create">("sign-in");
+  const [submitting, setSubmitting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const api = useMemo(
+    () =>
+      apiUrl ? createApiClient(apiUrl, fetch, { demoSessions: false }) : null,
+    [apiUrl],
+  );
 
   return (
     <main className="sign-in-shell">
@@ -1108,16 +1185,39 @@ function SignInPage({
       </button>
       <form
         className="sign-in-card"
-        onSubmit={(event) => {
+        onSubmit={async (event) => {
           event.preventDefault();
-          continueToApp();
+          if (!api) return;
+          setSubmitting(true);
+          setAuthError(null);
+          try {
+            const session =
+              mode === "create"
+                ? await api.createAccount(email, password)
+                : await api.signIn(email, password);
+            continueToApp(session.token);
+          } catch (error) {
+            const code = error instanceof Error ? error.message : "";
+            setAuthError(
+              code.includes("account_exists")
+                ? "An account already uses that email. Sign in instead."
+                : code.includes("invalid_email")
+                  ? "Enter a valid email address."
+                  : code.includes("invalid_password")
+                    ? "Use a passphrase between 12 and 128 characters."
+                    : "Email or passphrase was not accepted.",
+            );
+          } finally {
+            setSubmitting(false);
+          }
         }}
       >
-        <p className="landing-eyebrow">Private prototype</p>
-        <h1>Welcome back.</h1>
+        <p className="landing-eyebrow">Private account</p>
+        <h1>{mode === "create" ? "Create your account." : "Welcome back."}</h1>
         <p>
-          Account authentication is not connected yet. Your email stays in this
-          browser and opens the local demonstration only.
+          Your account keeps its profile and conversations separate from every
+          other account. OpenMatch stores a protected passphrase hash—not your
+          passphrase.
         </p>
         {demoError && (
           <p role="status">{demoError} No connection was attempted.</p>
@@ -1132,12 +1232,40 @@ function SignInPage({
           placeholder="you@example.com"
           required
         />
+        <label htmlFor="sign-in-password">Passphrase</label>
+        <input
+          id="sign-in-password"
+          type="password"
+          autoComplete={mode === "create" ? "new-password" : "current-password"}
+          minLength={12}
+          maxLength={128}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+        />
+        {authError && <p role="alert">{authError}</p>}
         <button
           className="primary-action"
           type="submit"
-          disabled={Boolean(demoError)}
+          disabled={Boolean(demoError) || submitting}
         >
-          Continue to the demo
+          {submitting
+            ? "Please wait…"
+            : mode === "create"
+              ? "Create account"
+              : "Sign in"}
+        </button>
+        <button
+          className="back-action"
+          type="button"
+          onClick={() => {
+            setAuthError(null);
+            setMode(mode === "create" ? "sign-in" : "create");
+          }}
+        >
+          {mode === "create"
+            ? "I already have an account"
+            : "Create an account"}
         </button>
         <button className="back-action" type="button" onClick={back}>
           Back to the website
@@ -1793,6 +1921,7 @@ function ProfileView({
   setAccountStatus,
   exportData,
   deleteData,
+  deleteAccount,
 }: {
   profile: Profile;
   saveProfile: (patch: Partial<Profile>) => Promise<void>;
@@ -1803,6 +1932,7 @@ function ProfileView({
   setAccountStatus: (status: AccountStatus) => Promise<void>;
   exportData: () => Promise<void>;
   deleteData: () => Promise<void>;
+  deleteAccount?: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(profile);
@@ -2036,6 +2166,11 @@ function ProfileView({
           <button className="danger" onClick={() => void deleteData()}>
             Delete local data
           </button>
+          {deleteAccount && (
+            <button className="danger" onClick={() => void deleteAccount()}>
+              Delete account permanently
+            </button>
+          )}
         </div>
       </section>
     </div>
@@ -2368,8 +2503,10 @@ function ConnectionsView({
 
 function AboutView({
   transparency,
+  authenticated,
 }: {
   transparency: TransparencyVersion | null;
+  authenticated: boolean;
 }) {
   return (
     <div className="narrow">
@@ -2474,11 +2611,21 @@ function AboutView({
           effectiveness. Those claims require prospective and independent
           evaluation.
         </p>
-        <p>
-          The temporary bearer token only gates this shared local demo. It does
-          not verify identity or isolate one person’s data from another client.
-          Do not use this API with real profiles.
-        </p>
+        {authenticated ? (
+          <p>
+            This account uses an isolated application-data store, a random
+            expiring session, and a scrypt-protected passphrase. Email
+            verification, recovery, durable mobile session storage, and an
+            independent security review are still required before any
+            real-person pilot.
+          </p>
+        ) : (
+          <p>
+            The temporary bearer token only gates this shared local demo. It
+            does not verify identity or isolate one person’s data from another
+            client. Do not use this demo with real profiles.
+          </p>
+        )}
       </section>
       <section className="transparency-links settings-card">
         <h2>Safer dating</h2>

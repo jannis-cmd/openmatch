@@ -61,6 +61,13 @@ export type DeletionReceipt = {
   mode: "synchronous-local-prototype";
   applicationBackups: "none";
 };
+export type AccountDeletionReceipt = {
+  deleted: true;
+  completedAt: string;
+  credentialsDeleted: true;
+  sessionsRevoked: true;
+  applicationBackups: "none";
+};
 export type TransparencyVersion = {
   matching: string;
   hiddenFactors: false;
@@ -69,6 +76,16 @@ export type TransparencyVersion = {
   objective: "useful introductions, not engagement";
   deployedCommit: string | null;
   buildStatus: "pinned" | "development-unpinned";
+};
+export type AuthSession = {
+  token: string;
+  expiresAt: string;
+  authentication: boolean;
+};
+export type ApiClientOptions = {
+  initialToken?: string | null;
+  demoSessions?: boolean;
+  onTokenChange?: (token: string | null) => void;
 };
 
 export class ApiError extends Error {
@@ -83,9 +100,12 @@ export class ApiError extends Error {
 export function createApiClient(
   baseUrl: string,
   fetcher: typeof fetch = fetch,
+  options: ApiClientOptions = {},
 ) {
   const origin = baseUrl.replace(/\/$/, "");
-  let sessionPromise: Promise<string> | null = null;
+  let sessionPromise: Promise<string> | null = options.initialToken
+    ? Promise.resolve(options.initialToken)
+    : null;
   const createDemoSession = async () => {
     const response = await fetcher(`${origin}/v1/demo/session`, {
       method: "POST",
@@ -105,11 +125,41 @@ export function createApiClient(
       throw new ApiError(500, "invalid_demo_session");
     return body.token;
   };
-  const sessionToken = () =>
-    (sessionPromise ??= createDemoSession().catch((error) => {
+  const sessionToken = () => {
+    if (sessionPromise) return sessionPromise;
+    if (options.demoSessions === false)
+      return Promise.reject(new ApiError(401, "session_required"));
+    return (sessionPromise = createDemoSession().catch((error) => {
       sessionPromise = null;
       throw error;
     }));
+  };
+  const authenticate = async (
+    path: "/v1/accounts" | "/v1/sessions",
+    email: string,
+    password: string,
+  ) => {
+    const response = await fetcher(`${origin}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const body = (await response
+      .json()
+      .catch(() => ({}))) as Partial<AuthSession> & {
+      error?: string;
+    };
+    if (!response.ok)
+      throw new ApiError(
+        response.status,
+        body.error ?? "authentication_failed",
+      );
+    if (typeof body.token !== "string" || typeof body.expiresAt !== "string")
+      throw new ApiError(500, "invalid_session");
+    sessionPromise = Promise.resolve(body.token);
+    options.onTokenChange?.(body.token);
+    return body as AuthSession;
+  };
   const request = async <T>(
     path: string,
     init: RequestInit = {},
@@ -126,6 +176,8 @@ export function createApiClient(
       });
       if (response.status === 401 && retry) {
         sessionPromise = null;
+        options.onTokenChange?.(null);
+        if (options.demoSessions === false) return response;
         return perform(false);
       }
       return response;
@@ -147,11 +199,28 @@ export function createApiClient(
   });
 
   return {
+    createAccount: (email: string, password: string) =>
+      authenticate("/v1/accounts", email, password),
+    signIn: (email: string, password: string) =>
+      authenticate("/v1/sessions", email, password),
+    signOut: async () => {
+      if (sessionPromise) {
+        const token = await sessionPromise;
+        await fetcher(`${origin}/v1/session`, {
+          method: "DELETE",
+          headers: { authorization: `Bearer ${token}` },
+        });
+      }
+      sessionPromise = null;
+      options.onTokenChange?.(null);
+    },
     profile: () => request<Profile>("/v1/me"),
     updateProfile: (patch: Partial<Profile>) =>
       request<Profile>("/v1/me", json("PATCH", patch)),
     exportData: () => request<Record<string, unknown>>("/v1/me/export"),
     deleteAccountData: () => request<DeletionReceipt>("/v1/me", json("DELETE")),
+    deleteAccount: () =>
+      request<AccountDeletionReceipt>("/v1/account", json("DELETE")),
     preferences: () => request<Preferences>("/v1/preferences"),
     updatePreferences: (patch: Partial<Preferences>) =>
       request<Preferences>("/v1/preferences", json("PATCH", patch)),

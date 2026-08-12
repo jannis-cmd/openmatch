@@ -52,6 +52,48 @@ test("bootstraps an opaque demo session and sends a bearer token", async () => {
   assert.equal(result.mutual, true);
 });
 
+test("creates an authenticated account, reuses its token, and signs out", async () => {
+  const token = "a".repeat(43);
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const tokenChanges: Array<string | null> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async (url, init) => {
+      requests.push({ url: String(url), init });
+      if (String(url).endsWith("/v1/accounts"))
+        return new Response(
+          JSON.stringify({
+            token,
+            expiresAt: "2026-08-13T00:00:00.000Z",
+            authentication: true,
+          }),
+          { status: 201 },
+        );
+      if (String(url).endsWith("/v1/session"))
+        return new Response(null, { status: 204 });
+      return new Response(JSON.stringify({ complete: false }), { status: 200 });
+    }) as typeof fetch,
+    { demoSessions: false, onTokenChange: (value) => tokenChanges.push(value) },
+  );
+  const session = await client.createAccount(
+    "person@example.org",
+    "a sufficiently long passphrase",
+  );
+  assert.equal(session.authentication, true);
+  assert.deepEqual(JSON.parse(String(requests[0].init?.body)), {
+    email: "person@example.org",
+    password: "a sufficiently long passphrase",
+  });
+  await client.onboarding();
+  assert.equal(
+    new Headers(requests[1].init?.headers).get("authorization"),
+    `Bearer ${token}`,
+  );
+  await client.signOut();
+  assert.deepEqual(tokenChanges, [token, null]);
+  assert.equal(requests[2].init?.method, "DELETE");
+});
+
 test("turns API failures into inspectable errors", async () => {
   const client = createApiClient(
     "http://example.test",

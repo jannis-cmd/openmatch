@@ -9,7 +9,8 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: "OPENMATCH_DB=:memory: pnpm --filter @openmatch/api dev",
+      command:
+        "OPENMATCH_DB=:memory: OPENMATCH_ACCOUNTS_DB=:memory: pnpm --filter @openmatch/api dev",
       cwd: "../..",
       url: "http://127.0.0.1:4000/health",
       reuseExistingServer: false,

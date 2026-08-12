@@ -65,10 +65,11 @@ The repository now contains a thin, local-first vertical slice:
 - genuine two-sided eligibility and directed fit from both people's explicit demo preferences;
 - profile and privacy views;
 - self-service JSON export and synchronous local demo-data deletion with a non-retained completion receipt;
+- optional email/passphrase accounts with scrypt-protected credentials, expiring opaque sessions, and account-isolated SQLite data;
 - the same shared matching package on web, iOS, Android, and API;
 - a SQLite development API with profile, preferences, introductions, decisions, reset, and transparency endpoints.
 
-Run `pnpm dev`, then open the web app at `http://localhost:3000` or launch the Expo client. The web and mobile clients both use the API at `http://127.0.0.1:4000` by default. The API stores local demo state in `openmatch.sqlite`; `POST /v1/demo/reset` restores the sample state.
+Run `pnpm dev`, then open the web app at `http://localhost:3000` or launch the Expo client. The web and mobile clients both use the API at `http://127.0.0.1:4000` by default. The API stores shared demo state in `openmatch.sqlite`, account credentials in `openmatch-accounts.sqlite`, and each account's application data in `openmatch-account-data/`; `POST /v1/demo/reset` restores only the shared sample state.
 
 For Android Emulator, start with `EXPO_PUBLIC_OPENMATCH_API_URL=http://10.0.2.2:4000 pnpm --filter @openmatch/mobile android`. For a physical device, set `HOST=0.0.0.0` for the API and point `EXPO_PUBLIC_OPENMATCH_API_URL` at the development computer's LAN address. These settings are development-only. Each client obtains a random, expiring in-memory bearer token, but that gates one shared demo identity and is not production authentication.
 
@@ -84,7 +85,7 @@ visitor's localhost. See `docs/WEB_DEPLOYMENT.md`. Do not configure a hosted
 interactive demo until the shared demo identity has been replaced by production
 authentication and user-partitioned storage.
 
-Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, text-only messages, unmatch, block, structured reports, and opt-in expiring local demo sessions. Production authentication, user-partitioned storage, real photos, moderation staffing/tools, encryption key management, and deployment remain future milestones.
+Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, text-only messages, unmatch, block, structured reports, opt-in expiring local demo sessions, and a minimal account-isolation foundation with synchronous account deletion. The latter is intentionally incomplete: verified email/passkeys, recovery, durable secure native token storage, migration tooling, production database authorization, moderation staffing/tools, encryption key management, and deployment remain future milestones.
 
 ## License
 

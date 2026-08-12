@@ -29,6 +29,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let connectionActive = false;
   let meetingPreference = "not_asked";
   let demoSessionRequests = 0;
+  let accountRequests = 0;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -42,6 +43,19 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         authentication: false,
       });
     }
+    if (path === "/v1/accounts" && init.method === "POST") {
+      accountRequests += 1;
+      return response(
+        {
+          token: "a".repeat(43),
+          expiresAt: "2026-08-13T00:00:00.000Z",
+          authentication: true,
+        },
+        201,
+      );
+    }
+    if (path === "/v1/session" && init.method === "DELETE")
+      return response(null, 204);
     if (path === "/v1/me" && init.method === "DELETE") {
       onboardingComplete = false;
       consentAccepted = false;
@@ -432,4 +446,25 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   expect(screen.getByText(/No application-managed backups exist/)).toBeTruthy();
   alertSpy.mockRestore();
+  await fireEvent.press(screen.getByText("See my introductions"));
+  await waitFor(() =>
+    expect(screen.getByText("Use a private account")).toBeTruthy(),
+  );
+  await fireEvent.press(screen.getByText("Use a private account"));
+  await waitFor(() => expect(screen.getByText("Welcome back.")).toBeTruthy());
+  expect(screen.getByLabelText("Email")).toBeTruthy();
+  expect(screen.getByLabelText("Passphrase")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Create an account"));
+  expect(screen.getByText("Create your account.")).toBeTruthy();
+  await fireEvent.changeText(
+    screen.getByLabelText("Email"),
+    "native@example.org",
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText("Passphrase"),
+    "a native test passphrase",
+  );
+  await fireEvent.press(screen.getByText("Create account"));
+  await waitFor(() => expect(accountRequests).toBe(1));
+  await waitFor(() => expect(screen.getByText("Sign out")).toBeTruthy());
 });

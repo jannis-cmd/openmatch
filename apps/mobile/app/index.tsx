@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { resolveApiConfiguration } from "../lib/api-configuration";
 import {
+  ApiError,
   createApiClient,
   type AccountStatus,
   type Connection,
@@ -53,10 +54,22 @@ export default function App() {
       ),
     [],
   );
+  const [accessMode, setAccessMode] = useState<
+    "signed-out" | "demo" | "account"
+  >(__DEV__ ? "demo" : "signed-out");
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const api = useMemo(
     () =>
-      createApiClient(apiConfiguration.url ?? "https://unconfigured.invalid"),
-    [apiConfiguration.url],
+      createApiClient(
+        apiConfiguration.url ?? "https://unconfigured.invalid",
+        fetch,
+        {
+          initialToken: authToken,
+          demoSessions: accessMode === "demo",
+          onTokenChange: setAuthToken,
+        },
+      ),
+    [accessMode, apiConfiguration.url, authToken],
   );
   const [tab, setTab] = useState<Tab>("Today");
   const [preferences, setPreferences] = useState<Preferences>(
@@ -102,7 +115,7 @@ export default function App() {
   const connection =
     connections.find(({ id }) => id === selectedConnectionId) ?? connections[0];
   const load = useCallback(async () => {
-    if (!apiConfiguration.url) {
+    if (!apiConfiguration.url || accessMode === "signed-out") {
       setLoading(false);
       return;
     }
@@ -157,7 +170,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [api, apiConfiguration.url]);
+  }, [accessMode, api, apiConfiguration.url]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -224,6 +237,25 @@ export default function App() {
           </Text>
         </View>
       </SafeAreaView>
+    );
+  if (accessMode === "signed-out")
+    return (
+      <MobileAuthentication
+        api={api}
+        onAuthenticated={(token) => {
+          setAuthToken(token);
+          setAccessMode("account");
+          setLoading(true);
+        }}
+        tryDemo={
+          __DEV__
+            ? () => {
+                setAccessMode("demo");
+                setLoading(true);
+              }
+            : undefined
+        }
+      />
     );
   if (loading)
     return (
@@ -1314,6 +1346,51 @@ export default function App() {
                 >
                   <Text style={styles.safetyLink}>Delete local data</Text>
                 </Pressable>
+                <Action
+                  label={
+                    accessMode === "account"
+                      ? "Sign out"
+                      : "Use a private account"
+                  }
+                  secondary
+                  onPress={() =>
+                    void api.signOut().finally(() => {
+                      setAuthToken(null);
+                      setAccessMode("signed-out");
+                      setConnections([]);
+                      setMessages([]);
+                      setIntroductions([]);
+                      setSavedIntroductions([]);
+                    })
+                  }
+                />
+                {accessMode === "account" && (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      Alert.alert(
+                        "Delete account permanently?",
+                        "This removes credentials, sessions, and all OpenMatch application data. It cannot be undone.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Delete account",
+                            style: "destructive",
+                            onPress: () =>
+                              void api.deleteAccount().then(() => {
+                                setAuthToken(null);
+                                setAccessMode("signed-out");
+                              }),
+                          },
+                        ],
+                      )
+                    }
+                  >
+                    <Text style={styles.safetyLink}>
+                      Delete account permanently
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             </>
           )}
@@ -1427,9 +1504,9 @@ export default function App() {
                   and independent evaluation.
                 </Text>
                 <Text style={styles.scoreNote}>
-                  The temporary bearer token only gates this shared local demo.
-                  It does not verify identity or isolate one person’s data from
-                  another client. Do not use this API with real profiles.
+                  {accessMode === "account"
+                    ? "This account has isolated application data, an expiring random session, and a scrypt-protected passphrase. Email verification, recovery, credential deletion, durable mobile session storage, and an independent security review are still required before a real-person pilot."
+                    : "The temporary bearer token only gates this shared local demo. It does not verify identity or isolate one person’s data from another client. Do not use this demo with real profiles."}
                 </Text>
               </View>
               <View style={styles.scoreCard}>
@@ -1532,6 +1609,116 @@ export default function App() {
           </Pressable>
         ))}
       </View>
+    </SafeAreaView>
+  );
+}
+
+function MobileAuthentication({
+  api,
+  onAuthenticated,
+  tryDemo,
+}: {
+  api: ReturnType<typeof createApiClient>;
+  onAuthenticated: (token: string) => void;
+  tryDemo?: () => void;
+}) {
+  const [mode, setMode] = useState<"sign-in" | "create">("sign-in");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const submit = async () => {
+    setSubmitting(true);
+    setAuthError(null);
+    try {
+      const session =
+        mode === "create"
+          ? await api.createAccount(email, password)
+          : await api.signIn(email, password);
+      onAuthenticated(session.token);
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : "";
+      setAuthError(
+        code === "account_exists"
+          ? "An account already uses that email. Sign in instead."
+          : code === "invalid_email"
+            ? "Enter a valid email address."
+            : code === "invalid_password"
+              ? "Use a passphrase between 12 and 128 characters."
+              : "Email or passphrase was not accepted.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.authPage}>
+        <Text style={styles.brand}>OpenMatch</Text>
+        <Text style={styles.eyebrow}>Private account</Text>
+        <Text style={styles.title}>
+          {mode === "create" ? "Create your account." : "Welcome back."}
+        </Text>
+        <Text style={styles.subtle}>
+          Your profile and conversations stay separate from every other account.
+          OpenMatch stores a protected passphrase hash—not your passphrase.
+        </Text>
+        <Text style={styles.setting}>Email</Text>
+        <TextInput
+          accessibilityLabel="Email"
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+          style={styles.textField}
+        />
+        <Text style={styles.setting}>Passphrase</Text>
+        <TextInput
+          accessibilityLabel="Passphrase"
+          autoCapitalize="none"
+          autoComplete={mode === "create" ? "new-password" : "current-password"}
+          secureTextEntry
+          value={password}
+          onChangeText={setPassword}
+          style={styles.textField}
+        />
+        {authError && (
+          <Text accessibilityRole="alert" style={styles.errorText}>
+            {authError}
+          </Text>
+        )}
+        <Action
+          label={
+            submitting
+              ? "Please wait…"
+              : mode === "create"
+                ? "Create account"
+                : "Sign in"
+          }
+          disabled={submitting || !email.trim() || password.length < 12}
+          onPress={() => void submit()}
+        />
+        <Action
+          label={
+            mode === "create"
+              ? "I already have an account"
+              : "Create an account"
+          }
+          secondary
+          onPress={() => {
+            setAuthError(null);
+            setMode(mode === "create" ? "sign-in" : "create");
+          }}
+        />
+        {tryDemo && (
+          <Action label="Use local demo" secondary onPress={tryDemo} />
+        )}
+        <Text style={styles.mathNote}>
+          Account sessions currently last up to 12 hours. Password recovery and
+          verified email are not implemented, so do not use a valuable password.
+        </Text>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -2205,6 +2392,8 @@ function Action({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F5F5F1" },
+  authPage: { padding: 24, gap: 14, justifyContent: "center", flexGrow: 1 },
+  errorText: { color: "#8A2727", lineHeight: 21 },
   header: {
     height: 58,
     paddingHorizontal: 20,
