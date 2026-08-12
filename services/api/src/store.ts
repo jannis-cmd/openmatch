@@ -303,6 +303,13 @@ export class Store {
       createdAt: now,
     };
   }
+  reports() {
+    return this.db
+      .prepare(
+        "SELECT id,profile_id AS profileId,reason,details,status,created_at AS createdAt FROM reports ORDER BY id DESC",
+      )
+      .all();
+  }
 
   exportData() {
     return {

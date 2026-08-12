@@ -134,6 +134,11 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByRole("button", { name: "Your profile" }).click();
   await expectAccessible(page);
+  await expect(
+    page.getByRole("heading", { name: "Your safety reports" }),
+  ).toBeVisible();
+  await expect(page.getByText("Report #2")).toBeVisible();
+  await expect(page.getByText(/offline safety · received/i)).toBeVisible();
   await expect(page.getByText(/she\/her · Winterthur/)).toBeVisible();
   await page.getByRole("button", { name: "Edit" }).click();
   await page.getByRole("textbox", { name: "Display name" }).fill("Taylor Two");

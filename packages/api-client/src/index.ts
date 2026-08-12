@@ -23,6 +23,14 @@ export type Message = {
 };
 export type ReportReason =
   "harassment" | "scam" | "impersonation" | "offline_safety" | "other";
+export type ReportRecord = {
+  id: number;
+  profileId: string;
+  reason: ReportReason;
+  details: string;
+  status: "received";
+  createdAt: string;
+};
 export type AccountStatus = "active" | "paused" | "hidden";
 export type ConsentReceipt = {
   adultConfirmed: true;
@@ -160,6 +168,7 @@ export function createApiClient(
         "/v1/reports",
         json("POST", { profileId, reason, details }),
       ),
+    reports: () => request<{ items: ReportRecord[] }>("/v1/reports"),
     reset: () => request<{ reset: true }>("/v1/demo/reset", json("POST")),
   };
 }

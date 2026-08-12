@@ -639,6 +639,20 @@ input {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
 }
+.report-history {
+  display: grid;
+  gap: 10px;
+}
+.report-history div {
+  background: #f4f5f1;
+  border-radius: 14px;
+  padding: 14px;
+}
+.report-history span {
+  display: block;
+  margin-top: 4px;
+  text-transform: capitalize;
+}
 textarea {
   font: inherit;
   width: 100%;

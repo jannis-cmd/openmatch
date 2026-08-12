@@ -291,6 +291,8 @@ export function createApp(
           return send(response, 404, { error: "profile_not_found" });
         return send(response, 200, store.block(block[1]));
       }
+      if (request.method === "GET" && url.pathname === "/v1/reports")
+        return send(response, 200, { items: store.reports() });
       if (request.method === "POST" && url.pathname === "/v1/reports") {
         const body = (await readJson(request)) as {
           profileId?: string;

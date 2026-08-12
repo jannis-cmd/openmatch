@@ -22,6 +22,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let consentAccepted = false;
   const savedIds = new Set<string>();
   let reportPayload: { reason?: string; details?: string } | null = null;
+  const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
     const body = init.body ? JSON.parse(String(init.body)) : {};
@@ -97,8 +98,17 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     if (path === "/v1/connections") return response({ items: [] });
     if (path === "/v1/reports" && init.method === "POST") {
       reportPayload = body;
+      reportRecords.unshift({
+        id: reportRecords.length + 1,
+        profileId: body.profileId,
+        reason: body.reason,
+        details: body.details,
+        status: "received",
+        createdAt: "2026-08-12T12:00:00.000Z",
+      });
       return response({ id: 1, status: "received" }, 201);
     }
+    if (path === "/v1/reports") return response({ items: reportRecords });
     if (path === "/v1/onboarding/complete") {
       onboardingComplete = true;
       return response({ complete: true });
@@ -160,6 +170,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     expect(preferences.intents).toContain("Still figuring it out"),
   );
   await fireEvent.press(screen.getByText("Profile"));
+  expect(screen.getByText("Your safety reports")).toBeTruthy();
+  expect(screen.getByText("Report #1")).toBeTruthy();
   await fireEvent.press(screen.getByText("Edit profile"));
   await fireEvent.changeText(
     screen.getByLabelText("Profile display name"),

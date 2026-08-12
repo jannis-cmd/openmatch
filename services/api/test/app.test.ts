@@ -317,6 +317,21 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       }),
     });
     assert.equal(report.status, 201);
+    const reportHistory = (await (await request("/v1/reports")).json()) as {
+      items: Array<{ id: number; reason: string; status: string }>;
+    };
+    assert.equal(reportHistory.items.length, 2);
+    assert.deepEqual(
+      reportHistory.items.map(({ id, reason, status }) => ({
+        id,
+        reason,
+        status,
+      })),
+      [
+        { id: 2, reason: "other", status: "received" },
+        { id: 1, reason: "scam", status: "received" },
+      ],
+    );
     await request("/v1/profiles/mara/block", { method: "POST" });
     const after = (await (await request("/v1/connections")).json()) as {
       items: unknown[];

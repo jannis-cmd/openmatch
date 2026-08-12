@@ -17,6 +17,7 @@ import {
   type AccountStatus,
   type Connection,
   type Message,
+  type ReportRecord,
   type ReportReason,
   type TransparencyVersion,
 } from "@openmatch/api-client";
@@ -60,6 +61,7 @@ export default function App() {
   const [bio, setBio] = useState(demoUser.bio);
   const [editingProfile, setEditingProfile] = useState(false);
   const [safetyNotice, setSafetyNotice] = useState<string | null>(null);
+  const [reports, setReports] = useState<ReportRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export default function App() {
         nextSuggestions,
         nextAccountStatus,
         nextTransparency,
+        nextReports,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -100,6 +103,7 @@ export default function App() {
         api.preferenceSuggestions(),
         api.accountStatus(),
         api.transparencyVersion(),
+        api.reports(),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -111,6 +115,7 @@ export default function App() {
       setSuggestions(nextSuggestions.items);
       setAccountStatus(nextAccountStatus.status);
       setTransparency(nextTransparency);
+      setReports(nextReports.items);
       setMessages(
         nextConnections.items[0]
           ? (await api.messages(nextConnections.items[0].id)).items
@@ -563,6 +568,7 @@ export default function App() {
                         setSafetyNotice(
                           `Report received. Reference status: ${result.status}.`,
                         );
+                        setReports((await api.reports()).items);
                         setIntroductionReportOpen(false);
                       } catch {
                         setSafetyNotice("Report could not be sent. Retry.");
@@ -716,6 +722,7 @@ export default function App() {
                           setSafetyNotice(
                             `Report received. Reference status: ${result.status}.`,
                           );
+                          setReports((await api.reports()).items);
                           setConnectionReportOpen(false);
                         } catch {
                           setSafetyNotice("Report could not be sent. Retry.");
@@ -861,6 +868,31 @@ export default function App() {
                     setEditingProfile(!editingProfile);
                   }}
                 />
+              </View>
+              <View style={styles.scoreCard}>
+                <Text style={styles.name}>Your safety reports</Text>
+                <Text style={styles.scoreNote}>
+                  Reports are private. This prototype records receipts but has
+                  no staffed review operation, response-time promise, or appeal
+                  process.
+                </Text>
+                {reports.length ? (
+                  reports.map((report) => (
+                    <View style={styles.method} key={report.id}>
+                      <View style={styles.methodText}>
+                        <Text style={styles.name}>Report #{report.id}</Text>
+                        <Text style={styles.scoreNote}>
+                          {report.reason.replaceAll("_", " ")} · {report.status}
+                        </Text>
+                        <Text style={styles.mathNote}>
+                          {new Date(report.createdAt).toLocaleString()}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.scoreNote}>No reports submitted.</Text>
+                )}
               </View>
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Private by default</Text>

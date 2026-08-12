@@ -6,6 +6,7 @@ import {
   type AccountStatus,
   type Connection,
   type Message,
+  type ReportRecord,
   type ReportReason,
   type TransparencyVersion,
 } from "@openmatch/api-client";
@@ -85,6 +86,7 @@ function AppExperience({ exit }: { exit: () => void }) {
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [reports, setReports] = useState<ReportRecord[]>([]);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
@@ -108,6 +110,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         nextSuggestions,
         nextAccountStatus,
         nextTransparency,
+        nextReports,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -118,6 +121,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         api.preferenceSuggestions(),
         api.accountStatus(),
         api.transparencyVersion(),
+        api.reports(),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -128,6 +132,7 @@ function AppExperience({ exit }: { exit: () => void }) {
       setSuggestions(nextSuggestions.items);
       setAccountStatus(nextAccountStatus.status);
       setTransparency(nextTransparency);
+      setReports(nextReports.items);
       if (nextConnections.items[0])
         setMessages((await api.messages(nextConnections.items[0].id)).items);
       else setMessages([]);
@@ -480,6 +485,7 @@ function AppExperience({ exit }: { exit: () => void }) {
                             setNotice(
                               `Report received. Reference status: ${result.status}.`,
                             );
+                            setReports((await api.reports()).items);
                           }}
                         />
                       </aside>
@@ -561,6 +567,7 @@ function AppExperience({ exit }: { exit: () => void }) {
                       setNotice(
                         `Report received. Reference status: ${result.status}.`,
                       );
+                      setReports((await api.reports()).items);
                     }
                   }}
                 />
@@ -573,6 +580,7 @@ function AppExperience({ exit }: { exit: () => void }) {
                     setProfile(saved);
                   }}
                   accountStatus={accountStatus}
+                  reports={reports}
                   setAccountStatus={async (status) => {
                     const result = await api.updateAccountStatus(status);
                     setAccountStatus(result.status);
@@ -1362,6 +1370,7 @@ function ProfileView({
   profile,
   saveProfile,
   accountStatus,
+  reports,
   setAccountStatus,
   exportData,
   deleteData,
@@ -1369,6 +1378,7 @@ function ProfileView({
   profile: Profile;
   saveProfile: (patch: Partial<Profile>) => Promise<void>;
   accountStatus: AccountStatus;
+  reports: ReportRecord[];
   setAccountStatus: (status: AccountStatus) => Promise<void>;
   exportData: () => Promise<void>;
   deleteData: () => Promise<void>;
@@ -1505,6 +1515,28 @@ function ProfileView({
             <span key={value}>{value}</span>
           ))}
         </div>
+      </section>
+      <section className="settings-card">
+        <h2>Your safety reports</h2>
+        <p>
+          Reports are private. This prototype records receipts but has no
+          staffed review operation, response-time promise, or appeal process.
+        </p>
+        {reports.length ? (
+          <div className="report-history">
+            {reports.map((report) => (
+              <div key={report.id}>
+                <strong>Report #{report.id}</strong>
+                <span>
+                  {report.reason.replaceAll("_", " ")} · {report.status} ·{" "}
+                  {new Date(report.createdAt).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>No reports submitted.</p>
+        )}
       </section>
       <section className="settings-card">
         <h2>Privacy</h2>
