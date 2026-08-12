@@ -437,10 +437,17 @@ export class Store {
   }
 
   reset() {
-    this.db.exec(
-      "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM state;",
-    );
-    this.seed();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.exec(
+        "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM state;",
+      );
+      this.seed();
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
   }
   close() {
     this.db.close();

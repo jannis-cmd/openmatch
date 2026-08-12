@@ -10,6 +10,32 @@ const headers = {
   "x-demo-session": "openmatch-local-demo",
 };
 
+test("account reset is atomic when storage rejects a deletion", () => {
+  const store = new Store(":memory:");
+  try {
+    store.db.exec(`
+      INSERT INTO decisions(profile_id,decision,created_at)
+      VALUES ('mara','interested','2026-08-12T12:00:00.000Z');
+      CREATE TEMP TRIGGER reject_decision_deletion
+      BEFORE DELETE ON decisions
+      BEGIN
+        SELECT RAISE(ABORT, 'simulated storage failure');
+      END;
+    `);
+    assert.throws(() => store.reset(), /simulated storage failure/);
+    const decisionCount = store.db
+      .prepare("SELECT COUNT(*) AS count FROM decisions")
+      .get() as { count: number };
+    const stateCount = store.db
+      .prepare("SELECT COUNT(*) AS count FROM state")
+      .get() as { count: number };
+    assert.equal(decisionCount.count, 1);
+    assert.equal(stateCount.count, 7);
+  } finally {
+    store.close();
+  }
+});
+
 test("the public data inventory covers every current storage and export field", () => {
   const inventory = JSON.parse(
     readFileSync(
