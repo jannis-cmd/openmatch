@@ -14,6 +14,7 @@ import {
   nextWeeklyBatchAt,
   publicWeeklySeed,
   toPublicProfile,
+  type Candidate,
 } from "@openmatch/matching";
 import { Store } from "./store.js";
 import { AccountError, Accounts } from "./accounts.js";
@@ -47,7 +48,12 @@ const introductionOptions = (store: Store) => ({
   explorationSlots: store.deliverySettings().batchSize === 5 ? 1 : 0,
   limit: store.deliverySettings().batchSize,
 });
-const currentBatchIntroductions = (store: Store, excluded: Set<string>) => {
+const currentBatchIntroductions = (
+  store: Store,
+  excluded: Set<string>,
+  candidates: Candidate[] = demoCandidates,
+  accountDirectory = false,
+) => {
   const weeklySeed = publicWeeklySeed();
   const batchSize = store.deliverySettings().batchSize;
   let batch = store.introductionBatch();
@@ -63,7 +69,7 @@ const currentBatchIntroductions = (store: Store, excluded: Set<string>) => {
     ]);
     const items = createIntroductions(
       store.profile(),
-      demoCandidates.filter(({ profile }) => !unavailable.has(profile.id)),
+      candidates.filter(({ profile }) => !unavailable.has(profile.id)),
       store.preferences(),
       introductionOptions(store),
     );
@@ -80,7 +86,7 @@ const currentBatchIntroductions = (store: Store, excluded: Set<string>) => {
   }
   return batch.entries.flatMap((entry) => {
     if (excluded.has(entry.profileId)) return [];
-    const candidate = demoCandidates.find(
+    const candidate = candidates.find(
       ({ profile }) => profile.id === entry.profileId,
     );
     if (!candidate) return [];
@@ -93,6 +99,9 @@ const currentBatchIntroductions = (store: Store, excluded: Set<string>) => {
     return [
       {
         ...item,
+        profile: accountDirectory
+          ? { ...item.profile, distanceBand: "Same approximate region" }
+          : item.profile,
         explanation: {
           ...item.explanation,
           selectionMode: entry.selectionMode,
@@ -103,6 +112,12 @@ const currentBatchIntroductions = (store: Store, excluded: Set<string>) => {
     ];
   });
 };
+
+const pairConnectionId = (left: string, right: string) =>
+  `connection-${createHash("sha256")
+    .update([left, right].sort().join(":"))
+    .digest("base64url")
+    .slice(0, 22)}`;
 
 export function createApp(
   options: {
@@ -143,14 +158,6 @@ export function createApp(
         .map((origin) => origin.trim())
         .filter(Boolean),
   );
-  const knownProfile = (id: string) =>
-    demoCandidates.some((candidate) => candidate.profile.id === id);
-  const publicCandidateProfile = (id: string) => {
-    const profile = demoCandidates.find(
-      (candidate) => candidate.profile.id === id,
-    )?.profile;
-    return profile ? toPublicProfile(profile) : undefined;
-  };
   const rateLimit = options.rateLimit ?? {
     maximum: Number(process.env.OPENMATCH_RATE_LIMIT_MAX ?? 600),
     windowMs: Number(process.env.OPENMATCH_RATE_LIMIT_WINDOW_MS ?? 60_000),
@@ -313,6 +320,22 @@ export function createApp(
         return send(response, 401, { error: "session_required" });
       }
       const store = accountSession?.store ?? demoStore;
+      const accountDirectory = Boolean(accountSession && accounts);
+      const candidates =
+        accountSession && accounts
+          ? accounts.candidatesFor(accountSession.accountId)
+          : demoCandidates;
+      const knownProfile = (id: string) =>
+        accountSession && accounts
+          ? accounts.hasAccount(id) && id !== accountSession.accountId
+          : demoCandidates.some((candidate) => candidate.profile.id === id);
+      const publicCandidateProfile = (id: string) => {
+        if (accountSession && accounts) return accounts.publicProfile(id);
+        const profile = demoCandidates.find(
+          (candidate) => candidate.profile.id === id,
+        )?.profile;
+        return profile ? toPublicProfile(profile) : undefined;
+      };
       if (request.method === "DELETE" && url.pathname === "/v1/session") {
         if (accountSession && accounts) accounts.revoke(token);
         else if (tokenHash) demoSessions.delete(tokenHash);
@@ -449,6 +472,10 @@ export function createApp(
         return send(response, 200, {
           receipt: store.researchConsentReceipt(),
         });
+      if (request.method === "GET" && url.pathname === "/v1/consents/directory")
+        return send(response, 200, {
+          receipt: store.directoryConsentReceipt(),
+        });
       if (
         request.method === "PATCH" &&
         url.pathname === "/v1/consents/research"
@@ -460,6 +487,19 @@ export function createApp(
           response,
           200,
           store.updateResearchConsent(body.participating),
+        );
+      }
+      if (
+        request.method === "PATCH" &&
+        url.pathname === "/v1/consents/directory"
+      ) {
+        const body = (await readJson(request)) as { participating?: unknown };
+        if (typeof body.participating !== "boolean")
+          return send(response, 400, { error: "invalid_directory_consent" });
+        return send(
+          response,
+          200,
+          store.updateDirectoryConsent(body.participating),
         );
       }
       if (request.method === "PATCH" && url.pathname === "/v1/consents") {
@@ -489,7 +529,12 @@ export function createApp(
           ...store.hiddenIds(),
           ...store.savedIds(),
         ]);
-        const items = currentBatchIntroductions(store, hidden);
+        const items = currentBatchIntroductions(
+          store,
+          hidden,
+          candidates,
+          accountDirectory,
+        );
         return send(response, 200, {
           items,
           finite: true,
@@ -515,12 +560,24 @@ export function createApp(
         return send(response, 200, {
           items: createIntroductions(
             store.profile(),
-            demoCandidates,
+            candidates,
             store.preferences(),
-          ).filter(
-            (item) =>
-              saved.has(item.profile.id) && !unavailable.has(item.profile.id),
-          ),
+          )
+            .filter(
+              (item) =>
+                saved.has(item.profile.id) && !unavailable.has(item.profile.id),
+            )
+            .map((item) =>
+              accountDirectory
+                ? {
+                    ...item,
+                    profile: {
+                      ...item.profile,
+                      distanceBand: "Same approximate region",
+                    },
+                  }
+                : item,
+            ),
         });
       }
       const savedIntroduction = url.pathname.match(
@@ -537,7 +594,7 @@ export function createApp(
           return send(response, 409, { error: "profile_not_available" });
         const eligible = createIntroductions(
           store.profile(),
-          demoCandidates,
+          candidates,
           store.preferences(),
         ).some((item) => item.profile.id === profileId);
         if (!eligible)
@@ -561,15 +618,16 @@ export function createApp(
           ...store.hiddenIds(),
         ]);
         const introduction =
-          currentBatchIntroductions(store, unavailable).find(
-            (item) => item.profile.id === decision[1],
-          ) ??
+          currentBatchIntroductions(
+            store,
+            unavailable,
+            candidates,
+            accountDirectory,
+          ).find((item) => item.profile.id === decision[1]) ??
           (store.savedIds().has(decision[1])
             ? createIntroductions(
                 store.profile(),
-                demoCandidates.filter(
-                  ({ profile }) => profile.id === decision[1],
-                ),
+                candidates.filter(({ profile }) => profile.id === decision[1]),
                 store.preferences(),
               )[0]
             : undefined);
@@ -578,10 +636,23 @@ export function createApp(
         const body = (await readJson(request)) as { decision?: string };
         if (body.decision !== "interested" && body.decision !== "passed")
           return send(response, 400, { error: "invalid_decision" });
-        return send(
-          response,
-          200,
-          store.decide(decision[1], body.decision, {
+        const peerStore =
+          accountSession && accounts
+            ? accounts.accountStore(decision[1])
+            : undefined;
+        const mutual = accountSession
+          ? body.decision === "interested" &&
+            peerStore?.decisionFor(accountSession.accountId) === "interested"
+          : body.decision === "interested" &&
+            ["mara", "noah"].includes(decision[1]);
+        const connectionId =
+          accountSession && mutual
+            ? pairConnectionId(accountSession.accountId, decision[1])
+            : `connection-${decision[1]}`;
+        const result = store.decide(
+          decision[1],
+          body.decision,
+          {
             factors: Object.fromEntries(
               introduction.explanation.factorsForA.map((factor) => [
                 factor.id,
@@ -589,8 +660,19 @@ export function createApp(
               ]),
             ),
             selectionProbability: introduction.explanation.selectionProbability,
-          }),
+          },
+          mutual,
+          connectionId,
         );
+        if (mutual && accountSession && peerStore) {
+          const createdAt = new Date().toISOString();
+          peerStore.ensureConnection(
+            connectionId,
+            accountSession.accountId,
+            createdAt,
+          );
+        }
+        return send(response, 200, result);
       }
       if (request.method === "GET" && url.pathname === "/v1/connections")
         return send(response, 200, {
@@ -608,7 +690,8 @@ export function createApp(
         return send(response, 200, { items: store.messages(messages[1]) });
       }
       if (request.method === "POST" && messages) {
-        if (!store.connection(messages[1]))
+        const activeConnection = store.connection(messages[1]);
+        if (!activeConnection)
           return send(response, 404, { error: "connection_not_found" });
         const body = (await readJson(request)) as {
           text?: string;
@@ -623,7 +706,18 @@ export function createApp(
             error: "message_safety_confirmation_required",
             flags: safetyFlags,
           });
-        return send(response, 201, store.sendMessage(messages[1], text));
+        const message = store.sendMessage(messages[1], text);
+        if (accountSession && accounts) {
+          const peer = accounts.accountStore(activeConnection.profileId);
+          if (peer?.connection(messages[1]))
+            peer.sendMessage(
+              messages[1],
+              text,
+              accountSession.accountId,
+              message.createdAt,
+            );
+        }
+        return send(response, 201, message);
       }
       const connection = url.pathname.match(/^\/v1\/connections\/([^/]+)$/);
       const politeClose = url.pathname.match(
@@ -668,25 +762,49 @@ export function createApp(
           : send(response, 404, { error: "connection_not_found" });
       }
       if (request.method === "POST" && politeClose) {
+        const activeConnection = store.connection(politeClose[1]);
         const result = store.closePolitely(
           politeClose[1],
           POLITE_CLOSE_MESSAGE,
         );
+        if (result && activeConnection && accountSession && accounts) {
+          const peer = accounts.accountStore(activeConnection.profileId);
+          if (peer?.connection(politeClose[1])) {
+            peer.sendMessage(
+              politeClose[1],
+              POLITE_CLOSE_MESSAGE,
+              accountSession.accountId,
+              result.message.createdAt,
+            );
+            peer.closeConnection(politeClose[1]);
+          }
+        }
         return result
           ? send(response, 200, result)
           : send(response, 404, { error: "connection_not_found" });
       }
-      if (request.method === "DELETE" && connection)
-        return send(
-          response,
-          store.closeConnection(connection[1]) ? 204 : 404,
-          null,
-        );
+      if (request.method === "DELETE" && connection) {
+        const activeConnection = store.connection(connection[1]);
+        if (!activeConnection) return send(response, 404, null);
+        store.closeConnection(connection[1]);
+        if (accountSession && accounts)
+          accounts
+            .accountStore(activeConnection.profileId)
+            ?.closeConnection(connection[1]);
+        return send(response, 204, null);
+      }
       const block = url.pathname.match(/^\/v1\/profiles\/([^/]+)\/block$/);
       if (request.method === "POST" && block) {
         if (!knownProfile(block[1]))
           return send(response, 404, { error: "profile_not_found" });
-        return send(response, 200, store.block(block[1]));
+        const result = store.block(block[1]);
+        if (accountSession && accounts)
+          accounts
+            .accountStore(block[1])
+            ?.closeConnection(
+              pairConnectionId(accountSession.accountId, block[1]),
+            );
+        return send(response, 200, result);
       }
       if (request.method === "GET" && url.pathname === "/v1/reports")
         return send(response, 200, { items: store.reports() });

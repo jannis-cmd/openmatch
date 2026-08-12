@@ -137,11 +137,53 @@ test("authenticated accounts have hashed credentials and isolated application da
       "content-type": "application/json",
       authorization: `Bearer ${token}`,
     });
-    await fetch(base + "/v1/me", {
-      method: "PATCH",
-      headers: auth(first.body.token!),
-      body: JSON.stringify({ name: "First account" }),
-    });
+    const incompleteIntroductions = (await (
+      await fetch(base + "/v1/introductions", {
+        headers: auth(first.body.token!),
+      })
+    ).json()) as { items: unknown[] };
+    assert.equal(incompleteIntroductions.items.length, 0);
+    const completeAccount = async (token: string, name: string) => {
+      await fetch(base + "/v1/me", {
+        method: "PATCH",
+        headers: auth(token),
+        body: JSON.stringify({ name, city: "Zürich" }),
+      });
+      assert.equal(
+        (
+          await fetch(base + "/v1/consents", {
+            method: "PATCH",
+            headers: auth(token),
+            body: JSON.stringify({
+              adultConfirmed: true,
+              prototypeDataUseAccepted: true,
+            }),
+          })
+        ).status,
+        200,
+      );
+      assert.equal(
+        (
+          await fetch(base + "/v1/onboarding/complete", {
+            method: "POST",
+            headers: auth(token),
+          })
+        ).status,
+        200,
+      );
+      assert.equal(
+        (
+          await fetch(base + "/v1/consents/directory", {
+            method: "PATCH",
+            headers: auth(token),
+            body: JSON.stringify({ participating: true }),
+          })
+        ).status,
+        200,
+      );
+    };
+    await completeAccount(first.body.token!, "First account");
+    await completeAccount(second.body.token!, "Second account");
     const firstProfile = (await (
       await fetch(base + "/v1/me", { headers: auth(first.body.token!) })
     ).json()) as Profile;
@@ -149,30 +191,151 @@ test("authenticated accounts have hashed credentials and isolated application da
       await fetch(base + "/v1/me", { headers: auth(second.body.token!) })
     ).json()) as Profile;
     assert.equal(firstProfile.name, "First account");
-    assert.equal(secondProfile.name, "Alex");
+    assert.equal(secondProfile.name, "Second account");
+    const accountRows = accounts.db
+      .prepare("SELECT id,email FROM accounts")
+      .all() as Array<{ id: string; email: string }>;
+    const firstId = accountRows.find(
+      ({ email }) => email === "first@example.org",
+    )?.id;
+    const secondId = accountRows.find(
+      ({ email }) => email === "second@example.org",
+    )?.id;
+    assert.ok(firstId && secondId);
+    await fetch(base + "/v1/consents/directory", {
+      method: "PATCH",
+      headers: auth(second.body.token!),
+      body: JSON.stringify({ participating: false }),
+    });
+    const withdrawnIntroductions = (await (
+      await fetch(base + "/v1/introductions", {
+        headers: auth(first.body.token!),
+      })
+    ).json()) as { items: unknown[] };
+    assert.equal(withdrawnIntroductions.items.length, 0);
+    await fetch(base + "/v1/consents/directory", {
+      method: "PATCH",
+      headers: auth(second.body.token!),
+      body: JSON.stringify({ participating: true }),
+    });
+    await fetch(base + "/v1/preferences", {
+      method: "PATCH",
+      headers: auth(first.body.token!),
+      body: JSON.stringify({ idealDistanceKm: 13 }),
+    });
     const introductions = (await (
       await fetch(base + "/v1/introductions", {
         headers: auth(first.body.token!),
       })
     ).json()) as { items: Array<{ profile: { id: string } }> };
-    assert.ok(introductions.items.some(({ profile }) => profile.id === "mara"));
-    await fetch(base + "/v1/introductions/mara/decision", {
-      method: "POST",
-      headers: auth(first.body.token!),
-      body: JSON.stringify({ decision: "interested" }),
-    });
+    assert.deepEqual(
+      introductions.items.map(({ profile }) => profile.id),
+      [secondId],
+    );
+    const firstDecision = await fetch(
+      base + `/v1/introductions/${secondId}/decision`,
+      {
+        method: "POST",
+        headers: auth(first.body.token!),
+        body: JSON.stringify({ decision: "interested" }),
+      },
+    );
+    assert.equal(firstDecision.status, 200);
+    assert.equal(
+      ((await firstDecision.json()) as { mutual: boolean }).mutual,
+      false,
+    );
+    const secondIntroductions = (await (
+      await fetch(base + "/v1/introductions", {
+        headers: auth(second.body.token!),
+      })
+    ).json()) as {
+      items: Array<{ profile: { id: string; distanceBand: string } }>;
+    };
+    assert.equal(secondIntroductions.items[0]?.profile.id, firstId);
+    assert.equal(
+      secondIntroductions.items[0]?.profile.distanceBand,
+      "Same approximate region",
+    );
+    const secondDecision = await fetch(
+      base + `/v1/introductions/${firstId}/decision`,
+      {
+        method: "POST",
+        headers: auth(second.body.token!),
+        body: JSON.stringify({ decision: "interested" }),
+      },
+    );
+    assert.equal(
+      ((await secondDecision.json()) as { mutual: boolean }).mutual,
+      true,
+    );
     const firstConnections = (await (
       await fetch(base + "/v1/connections", {
         headers: auth(first.body.token!),
       })
-    ).json()) as { items: unknown[] };
+    ).json()) as {
+      items: Array<{ id: string; profile: { id: string; name: string } }>;
+    };
     const secondConnections = (await (
       await fetch(base + "/v1/connections", {
         headers: auth(second.body.token!),
       })
-    ).json()) as { items: unknown[] };
-    assert.equal(firstConnections.items.length, 1);
-    assert.equal(secondConnections.items.length, 0);
+    ).json()) as {
+      items: Array<{ id: string; profile: { id: string; name: string } }>;
+    };
+    assert.equal(firstConnections.items[0]?.profile.id, secondId);
+    assert.equal(firstConnections.items[0]?.profile.name, "Second account");
+    assert.equal(secondConnections.items[0]?.profile.id, firstId);
+    assert.equal(firstConnections.items[0]?.id, secondConnections.items[0]?.id);
+    const connectionId = firstConnections.items[0].id;
+    await fetch(base + "/v1/consents/directory", {
+      method: "PATCH",
+      headers: auth(second.body.token!),
+      body: JSON.stringify({ participating: false }),
+    });
+    const connectionAfterWithdrawal = (await (
+      await fetch(base + "/v1/connections", {
+        headers: auth(first.body.token!),
+      })
+    ).json()) as { items: Array<{ profile?: { name: string } }> };
+    assert.equal(
+      connectionAfterWithdrawal.items[0]?.profile?.name,
+      "Second account",
+    );
+    const sent = await fetch(
+      base + `/v1/connections/${connectionId}/messages`,
+      {
+        method: "POST",
+        headers: auth(first.body.token!),
+        body: JSON.stringify({ text: "A real account-to-account hello." }),
+      },
+    );
+    assert.equal(sent.status, 201);
+    const receivedMessages = (await (
+      await fetch(base + `/v1/connections/${connectionId}/messages`, {
+        headers: auth(second.body.token!),
+      })
+    ).json()) as { items: Array<{ senderId: string; text: string }> };
+    assert.equal(receivedMessages.items.length, 1);
+    assert.equal(receivedMessages.items[0].senderId, firstId);
+    assert.equal(
+      receivedMessages.items[0].text,
+      "A real account-to-account hello.",
+    );
+    await fetch(base + `/v1/connections/${connectionId}`, {
+      method: "DELETE",
+      headers: auth(second.body.token!),
+    });
+    assert.equal(
+      (
+        (await (
+          await fetch(base + "/v1/connections", {
+            headers: auth(first.body.token!),
+          })
+        ).json()) as { items: unknown[] }
+      ).items.length,
+      0,
+    );
 
     const wrong = await accountSession(
       base,
@@ -345,7 +508,7 @@ test("account reset is atomic when storage rejects a deletion", () => {
       .prepare("SELECT COUNT(*) AS count FROM state")
       .get() as { count: number };
     assert.equal(decisionCount.count, 1);
-    assert.equal(stateCount.count, 8);
+    assert.equal(stateCount.count, 9);
   } finally {
     store.close();
   }
@@ -426,6 +589,7 @@ test("the public data inventory covers every current storage and export field", 
       "acceptedAt",
     ],
     researchConsentReceipt: ["participating", "noticeVersion", "updatedAt"],
+    directoryConsentReceipt: ["participating", "noticeVersion", "updatedAt"],
     decisions: ["profileId", "decision", "createdAt"],
     preferenceObservations: [
       "profileId",

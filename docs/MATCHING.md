@@ -29,7 +29,16 @@ invalidates the current batch so explanations are recalculated.
 
 ### Proximity
 
-Proximity uses a coarse profile region, never live GPS. Each person chooses an ideal and maximum radius. Each directed compatibility is `1` inside that person's ideal radius, declines linearly and visibly, and reaches `0` at their maximum. Either maximum can make the pair ineligible. This reflects opportunity to meet, not a claim that closeness creates compatibility.
+Proximity uses a coarse profile region, never live GPS. Each person chooses an ideal and maximum radius. Each directed compatibility is 1 inside that person's ideal radius, declines linearly and visibly, and reaches 0 at their maximum. Either maximum can make the pair ineligible. This reflects opportunity to meet, not a claim that closeness creates compatibility.
+
+The fictional demo uses fixture distances to exercise that curve. The current
+non-production account directory has no geocoder and therefore does something
+narrower: it admits only accounts whose normalized self-entered approximate
+region text is identical, treats that test pair as co-regional for eligibility,
+and shows “Same approximate region” rather than a distance band. It does not
+infer kilometers. A pilot requires privacy-reviewed region identifiers and
+triangulation/opportunity testing before the radius formula can operate on
+accounts honestly.
 
 ### Limited preference learning
 

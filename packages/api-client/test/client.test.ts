@@ -215,6 +215,31 @@ test("accepts only an explicit versioned prototype consent request", async () =>
   assert.equal(receipt.noticeVersion, "prototype-0.1");
 });
 
+test("updates separate reversible account-directory consent", async () => {
+  let received: { url?: string; body?: unknown } = {};
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (url, init) => {
+      received = {
+        url: String(url),
+        body: JSON.parse(String(init?.body)),
+      };
+      return new Response(
+        JSON.stringify({
+          participating: true,
+          noticeVersion: "account-directory-prototype-0.1",
+          updatedAt: "2026-08-12T12:00:00.000Z",
+        }),
+        { status: 200 },
+      );
+    }),
+  );
+  const receipt = await client.updateDirectoryConsent(true);
+  assert.equal(received.url, "http://example.test/v1/consents/directory");
+  assert.deepEqual(received.body, { participating: true });
+  assert.equal(receipt.noticeVersion, "account-directory-prototype-0.1");
+});
+
 test("returns the server-confirmed deletion receipt", async () => {
   let receivedMethod: string | undefined;
   const client = createApiClient(

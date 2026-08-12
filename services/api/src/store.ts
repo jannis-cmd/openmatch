@@ -48,6 +48,11 @@ export type ResearchConsentReceipt = {
   noticeVersion: "research-prototype-0.1";
   updatedAt: string;
 };
+export type DirectoryConsentReceipt = {
+  participating: boolean;
+  noticeVersion: "account-directory-prototype-0.1";
+  updatedAt: string;
+};
 
 export class Store {
   readonly db: DatabaseSync;
@@ -92,6 +97,7 @@ export class Store {
     insert.run("introduction_batch", JSON.stringify(null));
     insert.run("consent_receipt", JSON.stringify(null));
     insert.run("research_consent_receipt", JSON.stringify(null));
+    insert.run("directory_consent_receipt", JSON.stringify(null));
     const profile = this.getState<Record<string, unknown>>("profile");
     if (!("readiness" in profile))
       this.setState("profile", {
@@ -172,6 +178,21 @@ export class Store {
     this.setState("research_consent_receipt", receipt);
     return receipt;
   }
+  directoryConsentReceipt() {
+    return this.getState<DirectoryConsentReceipt | null>(
+      "directory_consent_receipt",
+    );
+  }
+  updateDirectoryConsent(participating: boolean) {
+    const receipt: DirectoryConsentReceipt = {
+      participating,
+      noticeVersion: "account-directory-prototype-0.1",
+      updatedAt: new Date().toISOString(),
+    };
+    this.setState("directory_consent_receipt", receipt);
+    this.clearIntroductionBatch();
+    return receipt;
+  }
   accountStatus() {
     return this.getState<AccountStatus>("account_status");
   }
@@ -244,6 +265,8 @@ export class Store {
     profileId: string,
     decision: "interested" | "passed",
     observation: Omit<PreferenceObservation, "interested">,
+    mutual = decision === "interested" && ["mara", "noah"].includes(profileId),
+    connectionId = `connection-${profileId}`,
   ) {
     const now = new Date().toISOString();
     this.db
@@ -265,19 +288,33 @@ export class Store {
         observation.selectionProbability,
         now,
       );
-    const mutual =
-      decision === "interested" && ["mara", "noah"].includes(profileId);
-    if (mutual)
-      this.db
-        .prepare(
-          "INSERT OR IGNORE INTO connections(id,profile_id,created_at) VALUES (?,?,?)",
-        )
-        .run(`connection-${profileId}`, profileId, now);
+    if (mutual) this.ensureConnection(connectionId, profileId, now);
     return {
       profileId,
       decision,
       mutual,
     };
+  }
+
+  decisionFor(profileId: string) {
+    return (
+      this.db
+        .prepare("SELECT decision FROM decisions WHERE profile_id=?")
+        .get(profileId) as { decision: "interested" | "passed" } | undefined
+    )?.decision;
+  }
+
+  ensureConnection(
+    id: string,
+    profileId: string,
+    createdAt = new Date().toISOString(),
+  ) {
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO connections(id,profile_id,created_at) VALUES (?,?,?)",
+      )
+      .run(id, profileId, createdAt);
+    return this.connection(id);
   }
 
   preferenceSuggestions() {
@@ -331,19 +368,23 @@ export class Store {
       )
       .all(connectionId) as unknown as Message[];
   }
-  sendMessage(connectionId: string, text: string) {
-    const now = new Date().toISOString();
+  sendMessage(
+    connectionId: string,
+    text: string,
+    senderId = "me",
+    createdAt = new Date().toISOString(),
+  ) {
     const result = this.db
       .prepare(
         "INSERT INTO messages(connection_id,sender_id,text,created_at) VALUES (?,?,?,?)",
       )
-      .run(connectionId, "me", text, now);
+      .run(connectionId, senderId, text, createdAt);
     return {
       id: Number(result.lastInsertRowid),
       connectionId,
-      senderId: "me",
+      senderId,
       text,
-      createdAt: now,
+      createdAt,
     };
   }
   closeConnection(id: string) {
@@ -429,6 +470,7 @@ export class Store {
       onboardingComplete: this.onboardingComplete(),
       consentReceipt: this.consentReceipt(),
       researchConsentReceipt: this.researchConsentReceipt(),
+      directoryConsentReceipt: this.directoryConsentReceipt(),
       accountStatus: this.accountStatus(),
       deliverySettings: this.deliverySettings(),
       introductionBatch: this.introductionBatch(),

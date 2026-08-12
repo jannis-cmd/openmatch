@@ -9,6 +9,7 @@ import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "node:path";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { Store } from "./store.js";
+import type { Candidate, PublicProfile } from "@openmatch/matching";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MINIMUM = 12;
@@ -146,6 +147,71 @@ export class Accounts {
       this.stores.set(accountId, store);
     }
     return store;
+  }
+
+  hasAccount(accountId: string) {
+    return Boolean(
+      this.db.prepare("SELECT 1 FROM accounts WHERE id=?").get(accountId),
+    );
+  }
+
+  accountStore(accountId: string) {
+    return this.hasAccount(accountId) ? this.store(accountId) : undefined;
+  }
+
+  private sameRegion(left: string, right: string) {
+    const normalize = (value: string) =>
+      value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+    return normalize(left) === normalize(right);
+  }
+
+  candidate(accountId: string): Candidate | undefined {
+    const store = this.accountStore(accountId);
+    if (
+      !store ||
+      !store.onboardingComplete() ||
+      !store.consentReceipt() ||
+      store.directoryConsentReceipt()?.participating !== true
+    )
+      return undefined;
+    return {
+      profile: { ...store.profile(), id: accountId, distanceKm: 0 },
+      preferences: store.preferences(),
+      explanationSharing: "private",
+    };
+  }
+
+  candidatesFor(accountId: string): Candidate[] {
+    const viewer = this.accountStore(accountId);
+    if (!viewer) return [];
+    const accountIds = this.db
+      .prepare("SELECT id FROM accounts WHERE id<>? ORDER BY created_at,id")
+      .all(accountId) as Array<{ id: string }>;
+    return accountIds.flatMap(({ id }) => {
+      const candidateStore = this.accountStore(id);
+      const candidate = this.candidate(id);
+      if (
+        !candidateStore ||
+        !candidate ||
+        candidateStore.accountStatus() !== "active" ||
+        candidateStore.hiddenIds().has(accountId) ||
+        !this.sameRegion(viewer.profile().city, candidate.profile.city)
+      )
+        return [];
+      return [candidate];
+    });
+  }
+
+  publicProfile(accountId: string): PublicProfile | undefined {
+    const store = this.accountStore(accountId);
+    if (!store || !store.onboardingComplete() || !store.consentReceipt())
+      return undefined;
+    const { distanceKm: _distanceKm, ...profile } = store.profile();
+    return {
+      ...profile,
+      id: accountId,
+      distanceBand: "Same approximate region",
+    };
   }
 
   deleteAccount(accountId: string) {

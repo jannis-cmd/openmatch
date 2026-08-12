@@ -16,8 +16,50 @@ const expectAccessible = async (page: Page) => {
 
 test("first run through a persistent connection and safety action", async ({
   page,
+  request,
 }) => {
   test.setTimeout(60_000);
+  const apiBase = "http://127.0.0.1:4000";
+  const seedAccount = async (
+    name: string,
+    age: number,
+    readiness: "Prefer to chat first" | "Ready to meet in person",
+  ) => {
+    const created = await request.post(apiBase + "/v1/accounts", {
+      data: {
+        email: name.toLowerCase() + "@peer.example.org",
+        password: "a browser peer passphrase",
+        client: "web",
+      },
+    });
+    expect(created.status()).toBe(201);
+    const token = ((await created.json()) as { token: string }).token;
+    const headers = { authorization: "Bearer " + token };
+    expect(
+      (
+        await request.patch(apiBase + "/v1/me", {
+          headers,
+          data: { name, age, city: "Winterthur", readiness },
+        })
+      ).status(),
+    ).toBe(200);
+    await request.patch(apiBase + "/v1/consents", {
+      headers,
+      data: {
+        adultConfirmed: true,
+        prototypeDataUseAccepted: true,
+      },
+    });
+    await request.patch(apiBase + "/v1/consents/directory", {
+      headers,
+      data: { participating: true },
+    });
+    await request.post(apiBase + "/v1/onboarding/complete", { headers });
+    return { token, headers };
+  };
+  const maraAccount = await seedAccount("Mara", 30, "Ready to meet in person");
+  const noahAccount = await seedAccount("Noah", 34, "Prefer to chat first");
+  await seedAccount("Imani", 31, "Prefer to chat first");
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Made to help you leave." }),
@@ -59,7 +101,7 @@ test("first run through a persistent connection and safety action", async ({
   await expectAccessible(page);
   await page.getByRole("button", { name: "Sign in" }).first().click();
   await expect(
-    page.getByText(/keeps its profile and conversations separate/),
+    page.getByText(/private data and conversations stay isolated/),
   ).toBeVisible();
   await expectAccessible(page);
   await page.getByRole("button", { name: "Create an account" }).click();
@@ -102,7 +144,12 @@ test("first run through a persistent connection and safety action", async ({
     .check();
   await page
     .getByRole("checkbox", {
-      name: /I understand this local prototype stores/,
+      name: /I understand this prototype stores/,
+    })
+    .check();
+  await page
+    .getByRole("checkbox", {
+      name: /I separately choose to join account matching/,
     })
     .check();
   await page.getByRole("button", { name: "See my introductions" }).click();
@@ -110,6 +157,30 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "3 remaining" }),
   ).toBeVisible();
+  for (const peer of [maraAccount, noahAccount]) {
+    const peerIntroductions = (await (
+      await request.get(apiBase + "/v1/introductions", {
+        headers: peer.headers,
+      })
+    ).json()) as {
+      items: Array<{ profile: { id: string; name: string } }>;
+    };
+    const browserAccountId = peerIntroductions.items.find(
+      ({ profile }) => profile.name === "Taylor",
+    )?.profile.id;
+    expect(browserAccountId).toBeTruthy();
+    expect(
+      (
+        await request.post(
+          apiBase + "/v1/introductions/" + browserAccountId + "/decision",
+          {
+            headers: peer.headers,
+            data: { decision: "interested" },
+          },
+        )
+      ).status(),
+    ).toBe(200);
+  }
   expect(
     publicApiRequests.filter((url) => url.endsWith("/v1/demo/session")),
   ).toHaveLength(0);
@@ -117,6 +188,12 @@ test("first run through a persistent connection and safety action", async ({
     publicApiRequests.filter((url) => url.endsWith("/v1/accounts")),
   ).toHaveLength(1);
   await page.getByRole("button", { name: "Your profile" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Account matching" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Enabled under account-directory-prototype-0.1/),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Active sessions" }),
   ).toBeVisible();
@@ -161,9 +238,8 @@ test("first run through a persistent connection and safety action", async ({
       ).not.toBeVisible();
   }
   await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
-  await expect(page.getByText("Within 5 km")).toBeVisible();
+  await expect(page.getByText("Same approximate region")).toBeVisible();
   await expect(page.getByText("Ready to meet in person")).toBeVisible();
-  await expect(page.getByText("Public lottery slot")).toBeVisible();
   await page.getByRole("button", { name: "Safety options" }).click();
   await page.getByLabel("Reason").selectOption("other");
   await page

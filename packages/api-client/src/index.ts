@@ -55,6 +55,11 @@ export type ResearchConsentReceipt = {
   noticeVersion: "research-prototype-0.1";
   updatedAt: string;
 };
+export type DirectoryConsentReceipt = {
+  participating: boolean;
+  noticeVersion: "account-directory-prototype-0.1";
+  updatedAt: string;
+};
 export type DeletionReceipt = {
   deleted: true;
   completedAt: string;
@@ -265,6 +270,15 @@ export function createApiClient(
     updateResearchConsent: (participating: boolean) =>
       request<ResearchConsentReceipt>(
         "/v1/consents/research",
+        json("PATCH", { participating }),
+      ),
+    directoryConsent: () =>
+      request<{ receipt: DirectoryConsentReceipt | null }>(
+        "/v1/consents/directory",
+      ),
+    updateDirectoryConsent: (participating: boolean) =>
+      request<DirectoryConsentReceipt>(
+        "/v1/consents/directory",
         json("PATCH", { participating }),
       ),
     acceptPrototypeConsent: () =>

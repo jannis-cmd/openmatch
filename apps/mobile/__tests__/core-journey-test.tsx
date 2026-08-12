@@ -34,6 +34,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let batchSize: 1 | 2 | 3 | 4 | 5 = 5;
   let consentAccepted = false;
   let researchParticipating: boolean | null = null;
+  let directoryParticipating: boolean | null = null;
   const savedIds = new Set<string>();
   let reportPayload: { reason?: string; details?: string } | null = null;
   let connectionActive = false;
@@ -59,6 +60,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/accounts" && init.method === "POST") {
       accountRequests += 1;
+      onboardingComplete = false;
+      directoryParticipating = null;
       return response(
         {
           token: "a".repeat(43),
@@ -104,6 +107,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       onboardingComplete = false;
       consentAccepted = false;
       researchParticipating = null;
+      directoryParticipating = null;
       savedIds.clear();
       reportRecords.length = 0;
       return response({
@@ -169,6 +173,25 @@ test("first run uses explicit accessible controls and opens introductions", asyn
             : {
                 participating: researchParticipating,
                 noticeVersion: "research-prototype-0.1",
+                updatedAt: "2026-08-12T12:00:00.000Z",
+              },
+      });
+    if (path === "/v1/consents/directory" && init.method === "PATCH") {
+      directoryParticipating = body.participating;
+      return response({
+        participating: directoryParticipating,
+        noticeVersion: "account-directory-prototype-0.1",
+        updatedAt: "2026-08-12T12:00:00.000Z",
+      });
+    }
+    if (path === "/v1/consents/directory")
+      return response({
+        receipt:
+          directoryParticipating === null
+            ? null
+            : {
+                participating: directoryParticipating,
+                noticeVersion: "account-directory-prototype-0.1",
                 updatedAt: "2026-08-12T12:00:00.000Z",
               },
       });
@@ -330,7 +353,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByText("I confirm that I am at least 18 years old."),
   );
   await fireEvent.press(
-    screen.getByText(/I understand this local prototype stores what I enter/),
+    screen.getByText(/I understand this prototype stores what I enter/),
   );
   await fireEvent.press(screen.getByText("Ready to meet in person"));
   await fireEvent.press(screen.getByText("See my introductions"));
@@ -512,8 +535,20 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Create account"));
   await waitFor(() => expect(accountRequests).toBe(1));
   expect(persistSessionToken).toHaveBeenCalledWith("a".repeat(43));
+  await waitFor(() =>
+    expect(screen.getByText("Set your boundaries.")).toBeTruthy(),
+  );
+  await fireEvent.press(
+    screen.getByText(/I separately choose to join account matching/),
+  );
+  await fireEvent.press(screen.getByText("See my introductions"));
+  await waitFor(() => expect(directoryParticipating).toBe(true));
   await waitFor(() => expect(screen.getByText("Sign out")).toBeTruthy());
   await fireEvent.press(screen.getByText("Profile"));
+  expect(screen.getByText("Account matching")).toBeTruthy();
+  expect(
+    screen.getByText(/Enabled under account-directory-prototype-0.1/),
+  ).toBeTruthy();
   expect(screen.getByText("Active sessions")).toBeTruthy();
   expect(screen.getByText("iPhone or iPad app · This session")).toBeTruthy();
   expect(screen.getByText("Web browser")).toBeTruthy();

@@ -75,7 +75,7 @@
         "lifestyle.schedule",
         "color"
       ],
-      "disclosure": "distanceKm is converted to a public distance band; all other current prototype profile fields are public to eligible candidates."
+      "disclosure": "For fictional demo candidates, distanceKm is converted to a public distance band. For account-to-account testing, only accounts with exactly matching normalized self-entered city/region text are considered and the client receives 'Same approximate region'; no distance is calculated. The other chosen profile fields are public to eligible candidates after completed setup while Active. Preferences and decisions are not profile fields."
     },
     {
       "id": "preferences",
@@ -160,13 +160,22 @@
       "disclosure": "Defaults to no receipt and therefore no enrollment. No study is active in this prototype."
     },
     {
+      "id": "directoryConsentReceipt",
+      "storage": "state.directory_consent_receipt JSON",
+      "purpose": "Record a separate, reversible choice to let a completed Active account participate in account-to-account matching.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["participating", "noticeVersion", "updatedAt"],
+      "disclosure": "Defaults to no receipt and therefore no account-directory participation. It is separate from service data-use and research consent. Withdrawing excludes the account from new candidate sets without deleting existing connections or messages."
+    },
+    {
       "id": "decisions",
       "storage": "decisions table",
-      "purpose": "Record Interested or Pass, prevent resolved profiles from reappearing, and open a mutual demo connection.",
+      "purpose": "Record Interested or Pass, prevent resolved profiles from reappearing, and open a connection only after reciprocal interest.",
       "retention": "prototype",
       "access": ["person", "service", "operator"],
       "fields": ["profileId", "decision", "createdAt"],
-      "disclosure": "Pass is never disclosed to the other person."
+      "disclosure": "Pass is never disclosed. Interested is not disclosed unless the other person independently records Interested and a mutual connection opens."
     },
     {
       "id": "preferenceObservations",
@@ -197,7 +206,7 @@
         "muted",
         "meetingPreference"
       ],
-      "disclosure": "The meeting preference is private, reversible, not sent to the demo candidate, and is not evidence that a meeting occurred."
+      "disclosure": "For account pairs, the same deterministic connection identifier is stored in both isolated account stores and closure is mirrored on a best-effort basis. The meeting preference remains private and reversible, is not sent to the other account, and is not evidence that a meeting occurred."
     },
     {
       "id": "savedIntroductions",
@@ -215,6 +224,7 @@
       "retention": "prototype",
       "access": ["person", "service", "operator"],
       "fields": ["id", "connectionId", "senderId", "text", "createdAt"],
+      "disclosure": "For an account pair, a sent message is copied into both isolated account stores. This non-production cross-store write is not atomic and has no repair queue.",
       "excluded": ["read receipt", "online status", "typing status", "image attachment"]
     },
     {

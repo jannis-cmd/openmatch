@@ -27,6 +27,7 @@ import {
   type Connection,
   type DeletionReceipt,
   type DeliverySettings,
+  type DirectoryConsentReceipt,
   type Message,
   type ReportRecord,
   type ReportReason,
@@ -116,6 +117,8 @@ export default function App() {
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [researchConsent, setResearchConsent] =
     useState<ResearchConsentReceipt | null>(null);
+  const [directoryConsent, setDirectoryConsent] =
+    useState<DirectoryConsentReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +131,7 @@ export default function App() {
   const [draft, setDraft] = useState("");
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
+  const [directoryAccepted, setDirectoryAccepted] = useState(false);
   const [introductionReportOpen, setIntroductionReportOpen] = useState(false);
   const [connectionReportOpen, setConnectionReportOpen] = useState(false);
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
@@ -196,6 +200,7 @@ export default function App() {
         nextReports,
         nextResearchConsent,
         nextAccountSessions,
+        nextDirectoryConsent,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -210,6 +215,7 @@ export default function App() {
         api.reports(),
         api.researchConsent(),
         api.sessions(),
+        api.directoryConsent(),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -226,6 +232,7 @@ export default function App() {
       setReports(nextReports.items);
       setResearchConsent(nextResearchConsent.receipt);
       setAccountSessions(nextAccountSessions.items);
+      setDirectoryConsent(nextDirectoryConsent.receipt);
     } catch {
       setError(
         "Cannot reach the local API. Check EXPO_PUBLIC_OPENMATCH_API_URL and retry.",
@@ -473,10 +480,30 @@ export default function App() {
                 {dataUseAccepted ? "☑" : "☐"}
               </Text>
               <Text style={styles.consentCopy}>
-                I understand this local prototype stores what I enter so its
-                features can work. I can export or delete it from Profile.
+                I understand this prototype stores what I enter so its features
+                can work. I can export or delete it from Profile.
               </Text>
             </Pressable>
+            {accessMode === "account" && (
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: directoryAccepted }}
+                style={styles.consentRow}
+                onPress={() => setDirectoryAccepted(!directoryAccepted)}
+              >
+                <Text style={styles.radioMark}>
+                  {directoryAccepted ? "☑" : "☐"}
+                </Text>
+                <Text style={styles.consentCopy}>
+                  I separately choose to join account matching. After setup
+                  while Active, my chosen public profile can be shown to
+                  mutually eligible accounts whose approximate city or region
+                  text exactly matches mine. My private preferences and
+                  one-sided decisions are not shown. I can withdraw this from
+                  Profile.
+                </Text>
+              </Pressable>
+            )}
             <Text style={styles.mathNote}>
               Receipt version prototype-0.1. No research consent, advertising,
               contact uploads, or hidden tracking.
@@ -491,7 +518,8 @@ export default function App() {
                 !profile.promptAnswer.trim() ||
                 !profile.values.length ||
                 !adultConfirmed ||
-                !dataUseAccepted
+                !dataUseAccepted ||
+                (accessMode === "account" && !directoryAccepted)
               }
               onPress={() =>
                 void api
@@ -510,6 +538,11 @@ export default function App() {
                   })
                   .then(() => api.updatePreferences(preferences))
                   .then(() => api.acceptPrototypeConsent())
+                  .then(() =>
+                    accessMode === "account"
+                      ? api.updateDirectoryConsent(true)
+                      : undefined,
+                  )
                   .then(() => api.completeOnboarding())
                   .then(() => setDeletionReceipt(null))
                   .then(load)
@@ -1286,6 +1319,47 @@ export default function App() {
               </View>
               {accessMode === "account" && (
                 <View style={styles.scoreCard}>
+                  <Text style={styles.name}>Account matching</Text>
+                  <Text style={styles.scoreNote}>
+                    This is a separate, reversible choice. When enabled and your
+                    profile is Active, your chosen public profile can appear to
+                    mutually eligible accounts whose approximate region text
+                    exactly matches yours. Private preferences and one-sided
+                    decisions are not shown.
+                  </Text>
+                  <Action
+                    label={
+                      directoryConsent?.participating
+                        ? "Stop account matching"
+                        : "Enable account matching"
+                    }
+                    secondary
+                    onPress={() =>
+                      void api
+                        .updateDirectoryConsent(
+                          !(directoryConsent?.participating === true),
+                        )
+                        .then(setDirectoryConsent)
+                        .then(load)
+                    }
+                  />
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.mathNote}
+                  >
+                    {directoryConsent
+                      ? (directoryConsent.participating
+                          ? "Enabled"
+                          : "Disabled") +
+                        " under " +
+                        directoryConsent.noticeVersion +
+                        "."
+                      : "Disabled. No account-matching consent has been recorded."}
+                  </Text>
+                </View>
+              )}
+              {accessMode === "account" && (
+                <View style={styles.scoreCard}>
                   <Text style={styles.name}>Active sessions</Text>
                   <Text style={styles.scoreNote}>
                     See where your account is signed in and end sessions you no
@@ -1396,6 +1470,15 @@ export default function App() {
                   Precise location, legal name, contacts, activity time, and
                   decisions are never shown.
                 </Text>
+                {accessMode === "account" && (
+                  <Text style={styles.mathNote}>
+                    Active means your chosen public profile may be shown to
+                    mutually eligible people whose approximate city or region
+                    exactly matches yours. Paused or Hidden removes you from new
+                    introductions. The prototype does not geocode or claim an
+                    exact distance.
+                  </Text>
+                )}
                 {accountStatus === "active" ? (
                   <>
                     <Action
@@ -1635,7 +1718,7 @@ export default function App() {
                 </Text>
                 <Text style={styles.scoreNote}>
                   {accessMode === "account"
-                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Email verification, recovery, multi-device session management, and an independent security review are still required before a real-person pilot."
+                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Email verification, recovery, and an independent security review are still required before a real-person pilot."
                     : "The temporary bearer token only gates this shared local demo. It does not verify identity or isolate one person’s data from another client. Do not use this demo with real profiles."}
                 </Text>
               </View>
@@ -1799,8 +1882,10 @@ function MobileAuthentication({
           {mode === "create" ? "Create your account." : "Welcome back."}
         </Text>
         <Text style={styles.subtle}>
-          Your profile and conversations stay separate from every other account.
-          OpenMatch stores a protected passphrase hash—not your passphrase.
+          Your private data and conversations stay isolated. After setup, the
+          public profile you choose can appear to mutually eligible active
+          accounts in the same approximate region. OpenMatch stores a protected
+          passphrase hash—not your passphrase.
         </Text>
         {notice && <Text style={styles.mathNote}>{notice}</Text>}
         <Text style={styles.setting}>Email</Text>

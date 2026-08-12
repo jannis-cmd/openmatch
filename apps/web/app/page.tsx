@@ -9,6 +9,7 @@ import {
   type Connection,
   type DeletionReceipt,
   type DeliverySettings,
+  type DirectoryConsentReceipt,
   type Message,
   type ReportRecord,
   type ReportReason,
@@ -164,6 +165,8 @@ function AppExperience({
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [researchConsent, setResearchConsent] =
     useState<ResearchConsentReceipt | null>(null);
+  const [directoryConsent, setDirectoryConsent] =
+    useState<DirectoryConsentReceipt | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
@@ -197,6 +200,7 @@ function AppExperience({
         nextReports,
         nextResearchConsent,
         nextAccountSessions,
+        nextDirectoryConsent,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -211,6 +215,7 @@ function AppExperience({
         api.reports(),
         api.researchConsent(),
         api.sessions(),
+        api.directoryConsent(),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -226,6 +231,7 @@ function AppExperience({
       setReports(nextReports.items);
       setResearchConsent(nextResearchConsent.receipt);
       setAccountSessions(nextAccountSessions.items);
+      setDirectoryConsent(nextDirectoryConsent.receipt);
     } catch {
       setError(
         "The local API is unavailable. Start it with pnpm dev, then retry.",
@@ -361,6 +367,7 @@ function AppExperience({
                 </div>
               )}
               <OnboardingView
+                authenticated={Boolean(authToken)}
                 profile={profile}
                 preferences={preferences}
                 onProfile={setProfile}
@@ -382,6 +389,7 @@ function AppExperience({
                     });
                     await api.updatePreferences(preferences);
                     await api.acceptPrototypeConsent();
+                    if (authToken) await api.updateDirectoryConsent(true);
                     await api.completeOnboarding();
                     setDeletionReceipt(null);
                     setProfile(saved);
@@ -794,6 +802,13 @@ function AppExperience({
                   accountStatus={accountStatus}
                   reports={reports}
                   researchConsent={researchConsent}
+                  directoryConsent={directoryConsent}
+                  setDirectoryConsent={async (participating) => {
+                    setDirectoryConsent(
+                      await api.updateDirectoryConsent(participating),
+                    );
+                    await load();
+                  }}
                   sessions={authToken ? accountSessions : []}
                   revokeSession={async (sessionId) => {
                     await api.revokeSession(sessionId);
@@ -1231,9 +1246,10 @@ function SignInPage({
         <p className="landing-eyebrow">Private account</p>
         <h1>{mode === "create" ? "Create your account." : "Welcome back."}</h1>
         <p>
-          Your account keeps its profile and conversations separate from every
-          other account. OpenMatch stores a protected passphrase hash—not your
-          passphrase.
+          Your private data and conversations stay isolated. After setup, the
+          public profile you choose can appear to mutually eligible active
+          accounts in the same approximate region. OpenMatch stores a protected
+          passphrase hash—not your passphrase.
         </p>
         {demoError && (
           <p role="status">{demoError} No connection was attempted.</p>
@@ -1422,12 +1438,14 @@ function MatchingProfileFields({
 }
 
 function OnboardingView({
+  authenticated,
   profile,
   preferences,
   onProfile,
   onPreferences,
   complete,
 }: {
+  authenticated: boolean;
   profile: Profile;
   preferences: Preferences;
   onProfile: (value: Profile) => void;
@@ -1436,6 +1454,7 @@ function OnboardingView({
 }) {
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
+  const [directoryAccepted, setDirectoryAccepted] = useState(false);
   const valid =
     profile.name.trim().length > 0 &&
     profile.city.trim().length > 0 &&
@@ -1446,7 +1465,8 @@ function OnboardingView({
     profile.age >= 18 &&
     profile.age <= 120 &&
     adultConfirmed &&
-    dataUseAccepted;
+    dataUseAccepted &&
+    (!authenticated || directoryAccepted);
   return (
     <div className="narrow">
       <p className="eyebrow">A small, honest beginning</p>
@@ -1644,10 +1664,24 @@ function OnboardingView({
               checked={dataUseAccepted}
               onChange={(event) => setDataUseAccepted(event.target.checked)}
             />
-            I understand this local prototype stores the profile, preferences,
+            I understand this prototype stores the profile, preferences,
             decisions, messages, and safety actions I enter so its features can
             work. I can export or delete them from Profile.
           </label>
+          {authenticated && (
+            <label>
+              <input
+                type="checkbox"
+                checked={directoryAccepted}
+                onChange={(event) => setDirectoryAccepted(event.target.checked)}
+              />
+              I separately choose to join account matching. After setup while
+              Active, my chosen public profile can be shown to mutually eligible
+              accounts whose approximate city or region text exactly matches
+              mine. My private preferences and one-sided decisions are not
+              shown. I can withdraw this from Profile.
+            </label>
+          )}
           <p className="help">
             Receipt version prototype-0.1. This is not consent to research,
             advertising, contact uploads, or hidden tracking.
@@ -1940,6 +1974,8 @@ function ProfileView({
   accountStatus,
   reports,
   researchConsent,
+  directoryConsent,
+  setDirectoryConsent,
   sessions,
   revokeSession,
   setResearchConsent,
@@ -1953,6 +1989,8 @@ function ProfileView({
   accountStatus: AccountStatus;
   reports: ReportRecord[];
   researchConsent: ResearchConsentReceipt | null;
+  directoryConsent: DirectoryConsentReceipt | null;
+  setDirectoryConsent: (participating: boolean) => Promise<void>;
   sessions: AccountSession[];
   revokeSession: (sessionId: string) => Promise<void>;
   setResearchConsent: (participating: boolean) => Promise<void>;
@@ -2119,6 +2157,39 @@ function ProfileView({
           ))}
         </div>
       </section>
+      {deleteAccount && (
+        <section className="settings-card">
+          <h2>Account matching</h2>
+          <p>
+            This is a separate, reversible choice. When enabled and your profile
+            is Active, your chosen public profile can appear to mutually
+            eligible accounts whose approximate region text exactly matches
+            yours. Private preferences and one-sided decisions are not shown.
+          </p>
+          <div className="data-actions">
+            <button
+              aria-pressed={directoryConsent?.participating === true}
+              onClick={() =>
+                void setDirectoryConsent(
+                  !(directoryConsent?.participating === true),
+                )
+              }
+            >
+              {directoryConsent?.participating
+                ? "Stop account matching"
+                : "Enable account matching"}
+            </button>
+          </div>
+          <p className="help" role="status">
+            {directoryConsent
+              ? (directoryConsent.participating ? "Enabled" : "Disabled") +
+                " under " +
+                directoryConsent.noticeVersion +
+                "."
+              : "Disabled. No account-matching consent has been recorded."}
+          </p>
+        </section>
+      )}
       <section className="settings-card">
         <h2>Active sessions</h2>
         <p>
@@ -2211,6 +2282,14 @@ function ProfileView({
           Your precise location, legal name, contacts, activity time, and
           preference decisions are never displayed.
         </p>
+        {deleteAccount && (
+          <p className="help">
+            Active means your chosen public profile may be shown to mutually
+            eligible people whose approximate city or region exactly matches
+            yours. Paused or Hidden removes you from new introductions. The
+            prototype does not geocode or claim an exact distance.
+          </p>
+        )}
         <div className="data-actions">
           {accountStatus === "active" ? (
             <>
@@ -2678,8 +2757,10 @@ function AboutView({
         {authenticated ? (
           <p>
             This account uses an isolated application-data store, a random
-            expiring session, and a scrypt-protected passphrase. Email
-            verification, recovery, multi-device session management, and an
+            expiring session, and a scrypt-protected passphrase. Completed
+            active accounts can currently meet only when their self-entered
+            approximate region text matches exactly; the service does not
+            geocode or estimate distance. Email verification, recovery, and an
             independent security review are still required before any
             real-person pilot.
           </p>

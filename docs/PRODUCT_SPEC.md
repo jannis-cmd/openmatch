@@ -63,7 +63,7 @@ The system must distinguish:
 - Age gate and region eligibility.
 - Short, versioned consent screens for service processing, research participation, and optional verification—never bundled.
 - Export, pause, hide, and delete controls available from Profile without contacting support.
-- The executable prototype implements local JSON export and deletion/reset; pause and hide remain required before any multi-user pilot.
+- The executable prototype implements JSON export, deletion/reset, pause, and hide across web, iOS, and Android. These controls still require threat-model and assistive-technology review before any pilot.
 - Research consent defaults off and can be withdrawn prospectively at any time.
 
 The first-run product setup is intentionally short: public name, adult age, short biography, mutual age/distance boundaries, and four named priority levels (Off, Low, Medium, High). Because values, smoking/children compatibility, and schedule are active prototype factors, the executable clients also expose those profile-side inputs and the human-written conversation prompt during setup and later editing; no demo answer is silently treated as the user’s own. It does not use a personality test or claim that questionnaire length improves relationship outcomes. Identity, inclusion, consent, and safety fields required for a real pilot must be added through focused research rather than inferred from this demo.
@@ -96,6 +96,16 @@ Soft priorities are capped at five and weighted by the user as Low, Medium, or H
 
 The batch size is a testable starting hypothesis—not settled science. Users may select a finite alternative, and research must evaluate wellbeing and outcomes.
 
+The executable account service now includes a deliberately non-production
+multi-account path: after completed setup and a separate, versioned,
+reversible account-matching opt-in, Active accounts can
+appear to mutually eligible accounts only when normalized self-entered
+city/region text matches exactly. One-sided interest stays private; reciprocal
+interest creates a shared connection and text messages are copied to each
+account store. The UI labels this “Same approximate region” and never claims a
+distance. This proves the cross-platform flow, not geographic safety, pool
+viability, transactional delivery, moderation readiness, or pilot consent.
+
 ### 4.5 Messaging and meeting
 
 - Text messages after mutual connection; image attachments disabled at MVP to reduce unsolicited sexual content and moderation burden.
@@ -103,7 +113,7 @@ The batch size is a testable starting hypothesis—not settled science. Users ma
 - Optional profile-specific conversation prompts, never AI-written impersonation.
 - Mute, unmatch, block, and report remain one tap away.
 - Optional “Would you like to meet?” card after reciprocal activity. It suggests public-place safety practices but never exposes location.
-- The executable prototype implements this as a private, reversible planning preference rather than an outcome claim. It does not notify the static demo candidate or record that a meeting occurred.
+- The executable prototype implements this as a private, reversible planning preference rather than an outcome claim. It is not sent to a demo candidate or another account and does not record that a meeting occurred.
 - Optional video-date path may be tested before in-person planning. No beauty, emotion, deception, disability, or safety inference is performed on video.
 - Users can close a conversation politely with a standard message; silence is never penalized.
 

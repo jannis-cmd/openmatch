@@ -52,6 +52,19 @@ Cross-account tests cover application data and session authorization. This is
 still not pilot-ready authentication: verification, recovery, production
 migrations, and independent review remain open.
 
+For non-production account-flow testing, the account registry assembles
+candidates only from other completed, active accounts with a separate
+versioned account-directory opt-in whose
+normalized self-entered city/region text exactly matches. It substitutes a
+transparent “Same approximate region” label and does not geocode or calculate a
+distance. The matching package still applies both accounts' boundaries and
+private priorities. A reciprocal interest creates one deterministic pair
+connection identifier in both isolated stores; messages are written to each
+participant's store and connection closure is mirrored. This is deliberately a
+bridge for end-to-end testing, not a production transaction protocol: partial
+write recovery, durable queues, cross-store locking, moderation retention, and
+privacy-reviewed region identifiers remain unresolved.
+
 Native development may explicitly target a local HTTP origin. EAS development,
 preview, and production builds instead read a plain HTTPS origin from their
 separate EAS environments. A build hook rejects missing or unsafe values, and
@@ -71,7 +84,7 @@ Release builds set `OPENMATCH_COMMIT_SHA` to the exact 7–40 character hexadeci
 
 ## Core API surface
 
-`POST /v1/accounts`, `POST /v1/sessions`, `GET /v1/sessions`, `DELETE /v1/sessions/{id}`, `DELETE /v1/session`, `GET/PATCH/DELETE /v1/me`, `GET/PATCH /v1/account/status`, `GET/PATCH /v1/preferences`, `GET /v1/introductions`, `POST /v1/introductions/{id}/decision`, `GET /v1/connections`, `GET/POST /v1/connections/{id}/messages`, `POST /v1/reports`, `POST /v1/profiles/{id}/block`, `GET/PATCH /v1/consents`, `GET /v1/me/export`, `GET /v1/transparency/version`. The prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete; it is not research consent or a substitute for pilot legal review.
+Core routes include POST /v1/accounts, POST /v1/sessions, GET /v1/sessions, DELETE /v1/sessions/{id}, DELETE /v1/session, GET/PATCH/DELETE /v1/me, GET/PATCH /v1/account/status, GET/PATCH /v1/preferences, GET /v1/introductions, POST /v1/introductions/{id}/decision, GET /v1/connections, GET/POST /v1/connections/{id}/messages, POST /v1/reports, POST /v1/profiles/{id}/block, GET/PATCH /v1/consents, GET/PATCH /v1/consents/research, GET/PATCH /v1/consents/directory, GET /v1/me/export, and GET /v1/transparency/version. The prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete. Research and account-directory participation are separate, reversible receipts; none substitutes for pilot legal review.
 
 All list endpoints use opaque pagination. Error schemas are public. Authorization and rate limits are explicit in OpenAPI before implementation.
 
