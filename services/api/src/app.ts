@@ -18,6 +18,10 @@ import {
 } from "@openmatch/matching";
 import { Store } from "./store.js";
 import { AccountError, Accounts } from "./accounts.js";
+import {
+  smtpEmailVerificationSender,
+  type EmailVerificationSender,
+} from "./email-verification.js";
 
 const send = (response: ServerResponse, status: number, body: unknown) => {
   response.writeHead(status, {
@@ -129,6 +133,7 @@ export function createApp(
     demoSessionTtlMs?: number;
     accounts?: Accounts | false;
     authRateLimit?: { maximum: number; windowMs: number };
+    emailVerificationSender?: EmailVerificationSender | null;
   } = {},
 ) {
   const demoStore = options.store ?? new Store();
@@ -142,6 +147,10 @@ export function createApp(
   const demoSessionsEnabled =
     options.demoSessionsEnabled ??
     process.env.OPENMATCH_ENABLE_DEMO_SESSIONS === "true";
+  const emailVerificationSender =
+    options.emailVerificationSender === undefined
+      ? smtpEmailVerificationSender()
+      : options.emailVerificationSender;
   const demoSessionTtlMs = options.demoSessionTtlMs ?? 12 * 60 * 60 * 1000;
   if (!Number.isInteger(demoSessionTtlMs) || demoSessionTtlMs < 60_000)
     throw new RangeError("demo session lifetime must be at least one minute");
@@ -230,6 +239,17 @@ export function createApp(
     );
     return false;
   };
+  const deliverEmailVerification = async (accountId: string) => {
+    if (!accounts || !emailVerificationSender) return "not_configured" as const;
+    const verification = accounts.createEmailVerification(accountId);
+    try {
+      await emailVerificationSender(verification);
+      return "sent" as const;
+    } catch {
+      accounts.cancelEmailVerification(accountId);
+      return "failed" as const;
+    }
+  };
   const server = createServer(async (request, response) => {
     const origin = request.headers.origin;
     if (origin && !allowedOrigins.has(origin))
@@ -298,14 +318,23 @@ export function createApp(
           client?: unknown;
         };
         try {
-          const session =
-            url.pathname === "/v1/accounts"
-              ? accounts.register(body.email, body.password, body.client)
-              : accounts.signIn(body.email, body.password, body.client);
+          const creating = url.pathname === "/v1/accounts";
+          const session = creating
+            ? accounts.register(body.email, body.password, body.client)
+            : accounts.signIn(body.email, body.password, body.client);
+          const email = accounts.emailStatus(session.accountId);
+          const delivery = creating
+            ? await deliverEmailVerification(session.accountId)
+            : undefined;
           return send(response, url.pathname === "/v1/accounts" ? 201 : 200, {
             token: session.token,
             expiresAt: session.expiresAt,
             authentication: true,
+            emailVerification: {
+              ...email,
+              deliveryConfigured: Boolean(emailVerificationSender),
+              ...(delivery ? { delivery } : {}),
+            },
           });
         } catch (error) {
           if (error instanceof AccountError)
@@ -363,7 +392,16 @@ export function createApp(
       const accountDirectory = Boolean(accountSession && accounts);
       const candidates =
         accountSession && accounts
-          ? accounts.candidatesFor(accountSession.accountId)
+          ? emailVerificationSender &&
+            !accounts.emailStatus(accountSession.accountId).verifiedAt
+            ? []
+            : accounts
+                .candidatesFor(accountSession.accountId)
+                .filter(
+                  ({ profile }) =>
+                    !emailVerificationSender ||
+                    Boolean(accounts.emailStatus(profile.id).verifiedAt),
+                )
           : demoCandidates;
       const knownProfile = (id: string) =>
         accountSession && accounts
@@ -390,6 +428,73 @@ export function createApp(
             accountSession.sessionId,
           ),
         });
+      }
+      if (
+        request.method === "GET" &&
+        url.pathname === "/v1/account/email-verification"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        return send(response, 200, {
+          ...accounts.emailStatus(accountSession.accountId),
+          deliveryConfigured: Boolean(emailVerificationSender),
+        });
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/email-verification/request"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!emailVerificationSender)
+          return send(response, 503, {
+            error: "email_delivery_not_configured",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        try {
+          const delivery = await deliverEmailVerification(
+            accountSession.accountId,
+          );
+          return delivery === "sent"
+            ? send(response, 202, { sent: true })
+            : send(response, 503, { error: "email_delivery_failed" });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/email-verification/confirm"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as { code?: unknown };
+        try {
+          return send(
+            response,
+            200,
+            accounts.confirmEmail(accountSession.accountId, body.code),
+          );
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
       }
       const managedSession = url.pathname.match(/^\/v1\/sessions\/([^/]+)$/);
       if (request.method === "DELETE" && managedSession) {
@@ -601,6 +706,14 @@ export function createApp(
         const body = (await readJson(request)) as { participating?: unknown };
         if (typeof body.participating !== "boolean")
           return send(response, 400, { error: "invalid_directory_consent" });
+        if (
+          body.participating &&
+          accountSession &&
+          accounts &&
+          emailVerificationSender &&
+          !accounts.emailStatus(accountSession.accountId).verifiedAt
+        )
+          return send(response, 409, { error: "email_verification_required" });
         return send(
           response,
           200,
@@ -716,6 +829,13 @@ export function createApp(
         /^\/v1\/introductions\/([^/]+)\/decision$/,
       );
       if (request.method === "POST" && decision) {
+        if (
+          accountSession &&
+          accounts &&
+          emailVerificationSender &&
+          !accounts.emailStatus(accountSession.accountId).verifiedAt
+        )
+          return send(response, 409, { error: "email_verification_required" });
         if (!knownProfile(decision[1]))
           return send(response, 404, { error: "profile_not_found" });
         const unavailable = new Set([

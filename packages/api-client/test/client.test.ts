@@ -198,6 +198,45 @@ test("creates recovery codes and adopts a recovered session", async () => {
   assert.deepEqual(tokenChanges, [recoveredToken]);
 });
 
+test("reads, requests, and confirms email ownership without exposing a code", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async (url, init) => {
+      requests.push({ url: String(url), init });
+      if (String(url).endsWith("/request"))
+        return new Response(JSON.stringify({ sent: true }), { status: 202 });
+      if (String(url).endsWith("/confirm"))
+        return new Response(
+          JSON.stringify({
+            email: "person@example.org",
+            verifiedAt: "2026-08-12T12:00:00.000Z",
+          }),
+          { status: 200 },
+        );
+      return new Response(
+        JSON.stringify({
+          email: "person@example.org",
+          verifiedAt: null,
+          deliveryConfigured: true,
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch,
+    { initialToken: "v".repeat(43), demoSessions: false },
+  );
+  assert.equal((await client.emailVerification()).verifiedAt, null);
+  assert.equal((await client.requestEmailVerification()).sent, true);
+  const confirmed = await client.confirmEmail("12345678");
+  assert.ok(confirmed.verifiedAt);
+  assert.deepEqual(JSON.parse(String(requests[2]?.init?.body)), {
+    code: "12345678",
+  });
+  assert.ok(
+    requests.every(({ init }) => !String(init?.body).includes("email")),
+  );
+});
+
 test("turns API failures into inspectable errors", async () => {
   const client = createApiClient(
     "http://example.test",

@@ -1,6 +1,7 @@
 import {
   createHash,
   randomBytes,
+  randomInt,
   randomUUID,
   scryptSync,
   timingSafeEqual,
@@ -113,7 +114,22 @@ export class Accounts {
         account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS account_email_verifications (
+        account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+        code_hash TEXT NOT NULL,
+        code_salt TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        failed_attempts INTEGER NOT NULL DEFAULT 0,
+        sent_at INTEGER NOT NULL
+      );
     `);
+    const accountColumns = this.db
+      .prepare("PRAGMA table_info(accounts)")
+      .all() as Array<{
+      name: string;
+    }>;
+    if (!accountColumns.some(({ name }) => name === "email_verified_at"))
+      this.db.exec("ALTER TABLE accounts ADD COLUMN email_verified_at TEXT");
     const sessionColumns = this.db
       .prepare("PRAGMA table_info(account_sessions)")
       .all() as Array<{ name: string }>;
@@ -329,7 +345,7 @@ export class Accounts {
     try {
       this.db
         .prepare(
-          "INSERT INTO accounts(id,email,password_hash,password_salt,created_at) VALUES (?,?,?,?,?)",
+          "INSERT INTO accounts(id,email,password_hash,password_salt,created_at,email_verified_at) VALUES (?,?,?,?,?,NULL)",
         )
         .run(
           id,
@@ -344,6 +360,118 @@ export class Accounts {
       throw error;
     }
     return this.issueSession(id, client);
+  }
+
+  emailStatus(accountId: string) {
+    const account = this.db
+      .prepare(
+        "SELECT email,email_verified_at AS verifiedAt FROM accounts WHERE id=?",
+      )
+      .get(accountId) as
+      { email: string; verifiedAt: string | null } | undefined;
+    if (!account) throw new AccountError("account_not_found", 404);
+    return { email: account.email, verifiedAt: account.verifiedAt };
+  }
+
+  createEmailVerification(accountId: string) {
+    const status = this.emailStatus(accountId);
+    if (status.verifiedAt)
+      throw new AccountError("email_already_verified", 409);
+    const existing = this.db
+      .prepare(
+        "SELECT sent_at AS sentAt,failed_attempts AS failedAttempts FROM account_email_verifications WHERE account_id=?",
+      )
+      .get(accountId) as { sentAt: number; failedAttempts: number } | undefined;
+    const now = Date.now();
+    if (existing && now - existing.sentAt < 60_000)
+      throw new AccountError("verification_resend_too_soon", 429);
+    if (existing && existing.failedAttempts >= 5)
+      throw new AccountError("verification_attempts_exceeded", 429);
+    const code = String(randomInt(10_000_000, 100_000_000));
+    const salt = randomBytes(16);
+    const expiresAt = now + 24 * 60 * 60 * 1000;
+    this.db
+      .prepare(
+        `INSERT INTO account_email_verifications(account_id,code_hash,code_salt,expires_at,failed_attempts,sent_at)
+         VALUES (?,?,?,?,?,?)
+         ON CONFLICT(account_id) DO UPDATE SET
+           code_hash=excluded.code_hash,
+           code_salt=excluded.code_salt,
+           expires_at=excluded.expires_at,
+           sent_at=excluded.sent_at`,
+      )
+      .run(
+        accountId,
+        this.passwordHash(code, salt).toString("base64url"),
+        salt.toString("base64url"),
+        expiresAt,
+        existing?.failedAttempts ?? 0,
+        now,
+      );
+    return {
+      email: status.email,
+      code,
+      expiresAt: new Date(expiresAt).toISOString(),
+    };
+  }
+
+  cancelEmailVerification(accountId: string) {
+    this.db
+      .prepare("DELETE FROM account_email_verifications WHERE account_id=?")
+      .run(accountId);
+  }
+
+  confirmEmail(accountId: string, codeValue: unknown) {
+    const code = typeof codeValue === "string" ? codeValue.trim() : "";
+    const record = this.db
+      .prepare(
+        "SELECT code_hash AS codeHash,code_salt AS codeSalt,expires_at AS expiresAt,failed_attempts AS failedAttempts FROM account_email_verifications WHERE account_id=?",
+      )
+      .get(accountId) as
+      | {
+          codeHash: string;
+          codeSalt: string;
+          expiresAt: number;
+          failedAttempts: number;
+        }
+      | undefined;
+    const salt = record
+      ? Buffer.from(record.codeSalt, "base64url")
+      : Buffer.alloc(16);
+    const expected = record
+      ? Buffer.from(record.codeHash, "base64url")
+      : Buffer.alloc(64);
+    const validFormat = /^\d{8}$/.test(code);
+    const matches = timingSafeEqual(
+      this.passwordHash(validFormat ? code : "", salt),
+      expected,
+    );
+    if (record && record.failedAttempts >= 5)
+      throw new AccountError("verification_attempts_exceeded", 429);
+    if (!record || record.expiresAt <= Date.now() || !validFormat || !matches) {
+      if (record)
+        this.db
+          .prepare(
+            "UPDATE account_email_verifications SET failed_attempts=failed_attempts+1 WHERE account_id=?",
+          )
+          .run(accountId);
+      throw new AccountError("invalid_verification_code", 400);
+    }
+    const verifiedAt = new Date().toISOString();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare("UPDATE accounts SET email_verified_at=? WHERE id=?")
+        .run(verifiedAt, accountId);
+      this.db
+        .prepare("DELETE FROM account_email_verifications WHERE account_id=?")
+        .run(accountId);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return { email: this.emailStatus(accountId).email, verifiedAt };
   }
 
   signIn(emailValue: unknown, passwordValue: unknown, client?: unknown) {

@@ -49,9 +49,12 @@ times and revoke another session without collecting an IP address, user agent,
 device fingerprint, exact model, or activity history. Synchronous account
 deletion removes credentials, sessions, and the isolated application store.
 Cross-account tests cover application data and session authorization. One-time
-recovery codes provide an offline fallback without treating unverified email as
-an authenticator. This is still not pilot-ready authentication: contact
-verification, production migrations, and independent review remain open.
+recovery codes provide an offline fallback. An optional SMTP adapter sends
+single-use inbox-confirmation codes without returning or logging them; when it
+is configured, unconfirmed accounts are excluded from account matching.
+Confirmation establishes inbox access, not identity or a strong authenticator.
+This is still not pilot-ready authentication: passkeys, production migrations,
+delivery monitoring, and independent review remain open.
 
 For non-production account-flow testing, the account registry assembles
 candidates only from other completed, active accounts with a separate
@@ -85,7 +88,7 @@ Release builds set `OPENMATCH_COMMIT_SHA` to the exact 7–40 character hexadeci
 
 ## Core API surface
 
-Core routes include POST /v1/accounts, POST /v1/sessions, PATCH /v1/account/password, POST /v1/account/recovery-codes, POST /v1/account/recover, GET /v1/sessions, DELETE /v1/sessions/{id}, DELETE /v1/session, GET/PATCH/DELETE /v1/me, GET/PATCH /v1/account/status, GET/PATCH /v1/preferences, GET /v1/introductions, POST /v1/introductions/{id}/decision, GET /v1/connections, GET/POST /v1/connections/{id}/messages, POST /v1/reports, POST /v1/profiles/{id}/block, GET/PATCH /v1/consents, GET/PATCH /v1/consents/research, GET/PATCH /v1/consents/directory, GET /v1/me/export, and GET /v1/transparency/version. The prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete. Research and account-directory participation are separate, reversible receipts; none substitutes for pilot legal review.
+Core routes include POST /v1/accounts, POST /v1/sessions, GET /v1/account/email-verification, POST /v1/account/email-verification/request, POST /v1/account/email-verification/confirm, PATCH /v1/account/password, POST /v1/account/recovery-codes, POST /v1/account/recover, GET /v1/sessions, DELETE /v1/sessions/{id}, DELETE /v1/session, GET/PATCH/DELETE /v1/me, GET/PATCH /v1/account/status, GET/PATCH /v1/preferences, GET /v1/introductions, POST /v1/introductions/{id}/decision, GET /v1/connections, GET/POST /v1/connections/{id}/messages, POST /v1/reports, POST /v1/profiles/{id}/block, GET/PATCH /v1/consents, GET/PATCH /v1/consents/research, GET/PATCH /v1/consents/directory, GET /v1/me/export, and GET /v1/transparency/version. The prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete. Research and account-directory participation are separate, reversible receipts; none substitutes for pilot legal review.
 
 All list endpoints use opaque pagination. Error schemas are public. Authorization and rate limits are explicit in OpenAPI before implementation.
 

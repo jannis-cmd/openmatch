@@ -65,7 +65,7 @@ The repository now contains a thin, local-first vertical slice:
 - genuine two-sided eligibility and directed fit from both people's explicit demo preferences;
 - profile and privacy views;
 - self-service JSON export and synchronous local demo-data deletion with a non-retained completion receipt;
-- optional email/passphrase accounts with NIST-aligned length/usability rules, scrypt-protected credentials, authenticated passphrase change with complete session rotation, one-time hashed offline recovery codes, expiring opaque sessions, privacy-minimal active-session inspection/revocation, account-isolated SQLite data, and device-secure iOS/Android session restoration;
+- optional email/passphrase accounts with NIST-aligned length/usability rules, scrypt-protected credentials, provider-backed inbox confirmation, authenticated passphrase change with complete session rotation, one-time hashed offline recovery codes, expiring opaque sessions, privacy-minimal active-session inspection/revocation, account-isolated SQLite data, and device-secure iOS/Android session restoration;
 - the same shared matching package on web, iOS, Android, and API;
 - a SQLite development API with profile, preferences, introductions, decisions, reset, and transparency endpoints.
 
@@ -77,6 +77,15 @@ EAS builds contain no committed endpoint and require a separately configured
 plain HTTPS API origin. See `docs/TESTFLIGHT.md`; distributed builds are not
 ready until the production-service prerequisites listed there are complete.
 
+Account email confirmation is provider-neutral SMTP. Set both
+`OPENMATCH_SMTP_URL` (an `smtp:` or `smtps:` URL) and
+`OPENMATCH_EMAIL_FROM` (a plain sender mailbox) on the API service. Delivery
+requires TLS, and confirmation codes are never printed or returned by an API
+endpoint. With no SMTP configuration, local accounts remain visibly
+unconfirmed and the development-only account-matching bridge remains available;
+a real-person deployment must configure delivery, which then blocks unconfirmed
+accounts from account matching.
+
 If the web client runs on another development origin, add it explicitly with `OPENMATCH_ALLOWED_ORIGINS`. Wildcard browser access is intentionally disabled so unrelated websites cannot mutate the localhost demo service.
 
 A production web build with no API URL is intentionally a complete public
@@ -85,7 +94,7 @@ visitor's localhost. See `docs/WEB_DEPLOYMENT.md`. Do not configure a hosted
 interactive demo until the shared demo identity has been replaced by production
 authentication and user-partitioned storage.
 
-Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, accessible author-labeled text-only messages, unmatch, block, structured reports, opt-in expiring local demo sessions, and a minimal account-isolation foundation with authenticated passphrase/session rotation, one-time offline recovery codes, active-session revocation, and synchronous account deletion. Completed active accounts with a separate reversible account-matching opt-in in an exactly matching self-entered approximate region can exercise a non-production reciprocal introduction, mutual connection, synchronized message, and closure flow; demo mode keeps its fictional candidates. Native account sessions restore from device-only Expo SecureStore, including after passphrase rotation or recovery. The account system is intentionally incomplete: verified contact ownership/passkeys, provider-backed recovery notifications, privacy-reviewed coarse location, transactional production migrations/authorization, moderation staffing/tools, encryption key management, independent security review, and deployment remain future milestones.
+Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, accessible author-labeled text-only messages, unmatch, block, structured reports, opt-in expiring local demo sessions, and a minimal account-isolation foundation with SMTP-backed email confirmation, authenticated passphrase/session rotation, one-time offline recovery codes, active-session revocation, and synchronous account deletion. Completed active accounts with a separate reversible account-matching opt-in in an exactly matching self-entered approximate region can exercise a non-production reciprocal introduction, mutual connection, synchronized message, and closure flow; when email delivery is configured, this bridge excludes unconfirmed accounts. Native account sessions restore from device-only Expo SecureStore, including after passphrase rotation or recovery. The account system is intentionally incomplete: passkeys, provider-backed recovery notifications, privacy-reviewed coarse location, transactional production migrations/authorization, moderation staffing/tools, encryption key management, independent security review, and deployment remain future milestones.
 
 ## License
 

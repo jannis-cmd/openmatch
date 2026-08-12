@@ -45,6 +45,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let otherSessionRevoked = false;
   let passwordChanged = false;
   let recoveryCodesGenerated = false;
+  let emailVerified = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -98,6 +99,23 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         201,
       );
     }
+    if (path === "/v1/account/email-verification/confirm") {
+      emailVerified = body.code === "12345678";
+      return emailVerified
+        ? response({
+            email: "native@example.org",
+            verifiedAt: "2026-08-12T12:00:00.000Z",
+          })
+        : response({ error: "invalid_verification_code" }, 400);
+    }
+    if (path === "/v1/account/email-verification/request")
+      return response({ sent: true }, 202);
+    if (path === "/v1/account/email-verification")
+      return response({
+        email: "native@example.org",
+        verifiedAt: emailVerified ? "2026-08-12T12:00:00.000Z" : null,
+        deliveryConfigured: true,
+      });
     if (path === "/v1/sessions" && init.method !== "DELETE")
       return response({
         items:
@@ -571,18 +589,25 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.getByText("Set your boundaries.")).toBeTruthy(),
   );
-  await fireEvent.press(
-    screen.getByText(/I separately choose to join account matching/),
-  );
   await fireEvent.press(screen.getByText("See my introductions"));
-  await waitFor(() => expect(directoryParticipating).toBe(true));
+  await waitFor(() => expect(directoryParticipating).toBeNull());
   await waitFor(() => expect(screen.getByText("Sign out")).toBeTruthy());
   await fireEvent.press(screen.getByText("Profile"));
   expect(screen.getByText("Account matching")).toBeTruthy();
   expect(
-    screen.getByText(/Enabled under account-directory-prototype-0.1/),
+    screen.getByText("Confirm your email before joining account matching."),
   ).toBeTruthy();
   expect(screen.getByText("Active sessions")).toBeTruthy();
+  expect(screen.getByText("Email for account messages")).toBeTruthy();
+  await fireEvent.changeText(
+    screen.getByLabelText("Email confirmation code"),
+    "12345678",
+  );
+  await fireEvent.press(screen.getByText("Confirm email"));
+  await waitFor(() => expect(emailVerified).toBe(true));
+  expect(screen.getByText(/Confirmed for account messages/)).toBeTruthy();
+  await fireEvent.press(screen.getByText("Enable account matching"));
+  await waitFor(() => expect(directoryParticipating).toBe(true));
   expect(screen.getByText("iPhone or iPad app · This session")).toBeTruthy();
   expect(screen.getByText("Web browser")).toBeTruthy();
   await fireEvent.press(screen.getByText("Sign out this session"));

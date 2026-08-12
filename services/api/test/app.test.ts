@@ -12,6 +12,7 @@ import {
 } from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
 import { Accounts } from "../src/accounts.ts";
+import { smtpEmailVerificationSender } from "../src/email-verification.ts";
 import { Store } from "../src/store.ts";
 
 const sessionHeaders = async (base: string) => {
@@ -47,9 +48,32 @@ const accountSession = async (
     token?: string;
     authentication?: boolean;
     error?: string;
+    emailVerification?: {
+      email: string;
+      verifiedAt: string | null;
+      deliveryConfigured: boolean;
+      delivery?: string;
+    };
   };
   return { response, body };
 };
+
+test("SMTP confirmation delivery is explicit and rejects unsafe configuration", () => {
+  assert.equal(smtpEmailVerificationSender(undefined, undefined), null);
+  assert.throws(
+    () =>
+      smtpEmailVerificationSender(
+        "https://mail.example.org",
+        "from@example.org",
+      ),
+    /smtp: or smtps:/,
+  );
+  assert.throws(
+    () =>
+      smtpEmailVerificationSender("smtps://mail.example.org", "not a mailbox"),
+    /plain OPENMATCH_EMAIL_FROM mailbox/,
+  );
+});
 
 test("account storage migrates existing sessions to public opaque identifiers", () => {
   const directory = mkdtempSync(join(tmpdir(), "openmatch-accounts-"));
@@ -80,9 +104,191 @@ test("account storage migrates existing sessions to public opaque identifiers", 
       .get() as { id: string; client: string };
     assert.match(session.id, /^[0-9a-f-]{36}$/);
     assert.equal(session.client, "unknown");
+    assert.ok(
+      (
+        accounts.db.prepare("PRAGMA table_info(accounts)").all() as Array<{
+          name: string;
+        }>
+      ).some(({ name }) => name === "email_verified_at"),
+    );
   } finally {
     accounts.close();
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("email confirmation is delivered out of band, hashed, expiring, and single use", async () => {
+  const accounts = new Accounts(":memory:", { dataDirectory: null });
+  const deliveries: Array<{
+    email: string;
+    code: string;
+    expiresAt: string;
+  }> = [];
+  const server = createApp({
+    store: new Store(":memory:"),
+    accounts,
+    demoSessionsEnabled: false,
+    authRateLimit: { maximum: 20, windowMs: 60_000 },
+    emailVerificationSender: async (message) => {
+      deliveries.push(message);
+    },
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  try {
+    const created = await accountSession(
+      base,
+      "/v1/accounts",
+      "verify@example.org",
+      "a verification test passphrase",
+      "web",
+    );
+    assert.equal(created.response.status, 201);
+    assert.ok(created.body.token);
+    assert.deepEqual(created.body.emailVerification, {
+      email: "verify@example.org",
+      verifiedAt: null,
+      deliveryConfigured: true,
+      delivery: "sent",
+    });
+    assert.equal("code" in (created.body.emailVerification ?? {}), false);
+    assert.equal(deliveries.length, 1);
+    assert.equal(deliveries[0]?.email, "verify@example.org");
+    assert.match(deliveries[0]?.code ?? "", /^\d{8}$/);
+    assert.ok(Date.parse(deliveries[0]?.expiresAt ?? "") > Date.now());
+    const stored = accounts.db
+      .prepare(
+        "SELECT code_hash AS codeHash,code_salt AS codeSalt,failed_attempts AS failedAttempts FROM account_email_verifications",
+      )
+      .get() as { codeHash: string; codeSalt: string; failedAttempts: number };
+    assert.notEqual(stored.codeHash, deliveries[0]?.code);
+    assert.ok(stored.codeSalt.length >= 20);
+    const headers = {
+      "content-type": "application/json",
+      authorization: `Bearer ${created.body.token}`,
+    };
+    const pending = await fetch(base + "/v1/account/email-verification", {
+      headers,
+    });
+    assert.deepEqual(await pending.json(), {
+      email: "verify@example.org",
+      verifiedAt: null,
+      deliveryConfigured: true,
+    });
+    assert.equal(
+      (
+        await fetch(base + "/v1/consents/directory", {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ participating: true }),
+        })
+      ).status,
+      409,
+    );
+    const unverifiedDecision = await fetch(
+      base + "/v1/introductions/unknown/decision",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ decision: "interested" }),
+      },
+    );
+    assert.equal(unverifiedDecision.status, 409);
+    assert.deepEqual(await unverifiedDecision.json(), {
+      error: "email_verification_required",
+    });
+    const tooSoon = await fetch(
+      base + "/v1/account/email-verification/request",
+      { method: "POST", headers },
+    );
+    assert.equal(tooSoon.status, 429);
+    assert.equal(
+      ((await tooSoon.json()) as { error: string }).error,
+      "verification_resend_too_soon",
+    );
+    accounts.db
+      .prepare("UPDATE account_email_verifications SET expires_at=0")
+      .run();
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-verification/confirm", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ code: deliveries[0]!.code }),
+        })
+      ).status,
+      400,
+    );
+    accounts.db
+      .prepare("UPDATE account_email_verifications SET expires_at=?")
+      .run(Date.parse(deliveries[0]!.expiresAt));
+    const wrong = await fetch(base + "/v1/account/email-verification/confirm", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ code: "00000000" }),
+    });
+    assert.equal(wrong.status, 400);
+    assert.equal(
+      (
+        accounts.db
+          .prepare(
+            "SELECT failed_attempts AS failedAttempts FROM account_email_verifications",
+          )
+          .get() as { failedAttempts: number }
+      ).failedAttempts,
+      2,
+    );
+    const confirmed = await fetch(
+      base + "/v1/account/email-verification/confirm",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ code: deliveries[0]!.code }),
+      },
+    );
+    assert.equal(confirmed.status, 200);
+    const confirmedBody = (await confirmed.json()) as {
+      email: string;
+      verifiedAt: string;
+    };
+    assert.equal(confirmedBody.email, "verify@example.org");
+    assert.ok(Date.parse(confirmedBody.verifiedAt));
+    assert.equal(
+      (
+        await fetch(base + "/v1/consents/directory", {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({ participating: true }),
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      accounts.db
+        .prepare("SELECT count(*) AS count FROM account_email_verifications")
+        .get()?.count,
+      0,
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-verification/confirm", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ code: deliveries[0]!.code }),
+        })
+      ).status,
+      400,
+    );
+    const status = (await (
+      await fetch(base + "/v1/account/email-verification", { headers })
+    ).json()) as { verifiedAt: string | null };
+    assert.equal(status.verifiedAt, confirmedBody.verifiedAt);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
   }
 });
 
@@ -816,7 +1022,22 @@ test("the public data inventory covers every current storage and export field", 
     }>;
   };
   const expected: Record<string, string[]> = {
-    accounts: ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
+    accounts: [
+      "id",
+      "email",
+      "passwordHash",
+      "passwordSalt",
+      "createdAt",
+      "emailVerifiedAt",
+    ],
+    accountEmailVerifications: [
+      "accountId",
+      "codeHash",
+      "codeSalt",
+      "expiresAt",
+      "failedAttempts",
+      "sentAt",
+    ],
     accountSessions: [
       "id",
       "tokenHash",

@@ -11,6 +11,7 @@ import {
   type DeletionReceipt,
   type DeliverySettings,
   type DirectoryConsentReceipt,
+  type EmailVerificationStatus,
   type Message,
   type ReportRecord,
   type ReportReason,
@@ -171,6 +172,8 @@ function AppExperience({
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
+  const [emailVerification, setEmailVerification] =
+    useState<EmailVerificationStatus | null>(null);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
@@ -202,6 +205,7 @@ function AppExperience({
         nextResearchConsent,
         nextAccountSessions,
         nextDirectoryConsent,
+        nextEmailVerification,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -217,6 +221,7 @@ function AppExperience({
         api.researchConsent(),
         api.sessions(),
         api.directoryConsent(),
+        authToken ? api.emailVerification() : Promise.resolve(null),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -233,6 +238,7 @@ function AppExperience({
       setResearchConsent(nextResearchConsent.receipt);
       setAccountSessions(nextAccountSessions.items);
       setDirectoryConsent(nextDirectoryConsent.receipt);
+      setEmailVerification(nextEmailVerification);
     } catch {
       setError(
         "The local API is unavailable. Start it with pnpm dev, then retry.",
@@ -369,11 +375,15 @@ function AppExperience({
               )}
               <OnboardingView
                 authenticated={Boolean(authToken)}
+                directoryAvailable={
+                  !emailVerification?.deliveryConfigured ||
+                  Boolean(emailVerification.verifiedAt)
+                }
                 profile={profile}
                 preferences={preferences}
                 onProfile={setProfile}
                 onPreferences={setPreferences}
-                complete={async () => {
+                complete={async (joinDirectory) => {
                   try {
                     const saved = await api.updateProfile({
                       name: profile.name.trim(),
@@ -390,7 +400,8 @@ function AppExperience({
                     });
                     await api.updatePreferences(preferences);
                     await api.acceptPrototypeConsent();
-                    if (authToken) await api.updateDirectoryConsent(true);
+                    if (authToken && joinDirectory)
+                      await api.updateDirectoryConsent(true);
                     await api.completeOnboarding();
                     setDeletionReceipt(null);
                     setProfile(saved);
@@ -811,6 +822,22 @@ function AppExperience({
                     await load();
                   }}
                   sessions={authToken ? accountSessions : []}
+                  emailVerification={emailVerification}
+                  requestEmailVerification={
+                    authToken
+                      ? async () => {
+                          await api.requestEmailVerification();
+                        }
+                      : undefined
+                  }
+                  confirmEmail={
+                    authToken
+                      ? async (code) => {
+                          await api.confirmEmail(code);
+                          setEmailVerification(await api.emailVerification());
+                        }
+                      : undefined
+                  }
                   changePassword={
                     authToken
                       ? async (currentPassword, newPassword) => {
@@ -1504,6 +1531,7 @@ function MatchingProfileFields({
 
 function OnboardingView({
   authenticated,
+  directoryAvailable,
   profile,
   preferences,
   onProfile,
@@ -1511,11 +1539,12 @@ function OnboardingView({
   complete,
 }: {
   authenticated: boolean;
+  directoryAvailable: boolean;
   profile: Profile;
   preferences: Preferences;
   onProfile: (value: Profile) => void;
   onPreferences: (value: Preferences) => void;
-  complete: () => Promise<void>;
+  complete: (joinDirectory: boolean) => Promise<void>;
 }) {
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
@@ -1530,8 +1559,7 @@ function OnboardingView({
     profile.age >= 18 &&
     profile.age <= 120 &&
     adultConfirmed &&
-    dataUseAccepted &&
-    (!authenticated || directoryAccepted);
+    dataUseAccepted;
   return (
     <div className="narrow">
       <p className="eyebrow">A small, honest beginning</p>
@@ -1738,6 +1766,7 @@ function OnboardingView({
               <input
                 type="checkbox"
                 checked={directoryAccepted}
+                disabled={!directoryAvailable}
                 onChange={(event) => setDirectoryAccepted(event.target.checked)}
               />
               I separately choose to join account matching. After setup while
@@ -1745,6 +1774,8 @@ function OnboardingView({
               accounts whose approximate city or region text exactly matches
               mine. My private preferences and one-sided decisions are not
               shown. I can withdraw this from Profile.
+              {!directoryAvailable &&
+                " Confirm your email from Profile before enabling this."}
             </label>
           )}
           <p className="help">
@@ -1755,7 +1786,7 @@ function OnboardingView({
         <button
           className="interest"
           disabled={!valid}
-          onClick={() => void complete()}
+          onClick={() => void complete(directoryAccepted)}
         >
           See my introductions
         </button>
@@ -2042,6 +2073,9 @@ function ProfileView({
   directoryConsent,
   setDirectoryConsent,
   sessions,
+  emailVerification,
+  requestEmailVerification,
+  confirmEmail,
   changePassword,
   generateRecoveryCodes,
   revokeSession,
@@ -2059,6 +2093,9 @@ function ProfileView({
   directoryConsent: DirectoryConsentReceipt | null;
   setDirectoryConsent: (participating: boolean) => Promise<void>;
   sessions: AccountSession[];
+  emailVerification: EmailVerificationStatus | null;
+  requestEmailVerification?: () => Promise<void>;
+  confirmEmail?: (code: string) => Promise<void>;
   changePassword?: (
     currentPassword: string,
     newPassword: string,
@@ -2082,6 +2119,13 @@ function ProfileView({
   const [recoveryPassword, setRecoveryPassword] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(
+    null,
+  );
+  const [verificationError, setVerificationError] = useState<string | null>(
+    null,
+  );
   const [draft, setDraft] = useState(profile);
   useEffect(() => setDraft(profile), [profile]);
   const draftValid =
@@ -2239,6 +2283,97 @@ function ProfileView({
           ))}
         </div>
       </section>
+      {emailVerification && confirmEmail && (
+        <section className="settings-card">
+          <h2>Email for account messages</h2>
+          <p>
+            <strong>{emailVerification.email}</strong>
+          </p>
+          {emailVerification.verifiedAt ? (
+            <p role="status">
+              Confirmed for account messages on{" "}
+              {new Date(emailVerification.verifiedAt).toLocaleString()}.
+              Confirmation proves access to this inbox—not identity.
+            </p>
+          ) : emailVerification.deliveryConfigured ? (
+            <>
+              <p>
+                Enter the eight-digit code sent by OpenMatch. It expires after
+                24 hours and works once. Never send it to another person.
+              </p>
+              <form
+                className="profile-fields"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  setVerificationError(null);
+                  setVerificationNotice(null);
+                  try {
+                    await confirmEmail(verificationCode);
+                    setVerificationCode("");
+                    setVerificationNotice("Email confirmed.");
+                  } catch (error) {
+                    setVerificationError(
+                      error instanceof ApiError &&
+                        error.code === "invalid_verification_code"
+                        ? "The code was not accepted or has expired."
+                        : "The email could not be confirmed.",
+                    );
+                  }
+                }}
+              >
+                <label>
+                  Confirmation code
+                  <input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{8}"
+                    maxLength={8}
+                    value={verificationCode}
+                    onChange={(event) =>
+                      setVerificationCode(
+                        event.target.value.replace(/\D/g, "").slice(0, 8),
+                      )
+                    }
+                  />
+                </label>
+                <button type="submit" disabled={verificationCode.length !== 8}>
+                  Confirm email
+                </button>
+              </form>
+              {requestEmailVerification && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setVerificationError(null);
+                    setVerificationNotice(null);
+                    try {
+                      await requestEmailVerification();
+                      setVerificationNotice("A new code was sent.");
+                    } catch (error) {
+                      setVerificationError(
+                        error instanceof ApiError &&
+                          error.code === "verification_resend_too_soon"
+                          ? "Please wait one minute before requesting another code."
+                          : "A new code could not be sent.",
+                      );
+                    }
+                  }}
+                >
+                  Send another code
+                </button>
+              )}
+              {verificationNotice && <p role="status">{verificationNotice}</p>}
+              {verificationError && <p role="alert">{verificationError}</p>}
+            </>
+          ) : (
+            <p>
+              Email delivery is not configured on this development service, so
+              the address is not confirmed. A real-person deployment must
+              configure encrypted SMTP delivery before relying on it.
+            </p>
+          )}
+        </section>
+      )}
       {deleteAccount && (
         <section className="settings-card">
           <h2>Account matching</h2>
@@ -2251,6 +2386,10 @@ function ProfileView({
           <div className="data-actions">
             <button
               aria-pressed={directoryConsent?.participating === true}
+              disabled={
+                Boolean(emailVerification?.deliveryConfigured) &&
+                !emailVerification?.verifiedAt
+              }
               onClick={() =>
                 void setDirectoryConsent(
                   !(directoryConsent?.participating === true),
@@ -2263,12 +2402,15 @@ function ProfileView({
             </button>
           </div>
           <p className="help" role="status">
-            {directoryConsent
-              ? (directoryConsent.participating ? "Enabled" : "Disabled") +
-                " under " +
-                directoryConsent.noticeVersion +
-                "."
-              : "Disabled. No account-matching consent has been recorded."}
+            {emailVerification?.deliveryConfigured &&
+            !emailVerification.verifiedAt
+              ? "Confirm your email before joining account matching."
+              : directoryConsent
+                ? (directoryConsent.participating ? "Enabled" : "Disabled") +
+                  " under " +
+                  directoryConsent.noticeVersion +
+                  "."
+                : "Disabled. No account-matching consent has been recorded."}
           </p>
         </section>
       )}
@@ -3008,7 +3150,7 @@ function AboutView({
             expiring session, and a scrypt-protected passphrase. Completed
             active accounts can currently meet only when their self-entered
             approximate region text matches exactly; the service does not
-            geocode or estimate distance. Verified contact ownership,
+            geocode or estimate distance. Passkeys, email-delivery monitoring,
             provider-backed recovery notifications, and an independent security
             review are still required before any real-person pilot.
           </p>

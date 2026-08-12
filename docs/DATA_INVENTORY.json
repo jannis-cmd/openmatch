@@ -21,8 +21,17 @@
       "purpose": "Identify a private account and verify a supplied passphrase without storing that passphrase.",
       "retention": "Until the person deletes the authenticated account or the operator removes the authentication database.",
       "access": ["service", "operator"],
-      "fields": ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
-      "disclosure": "Email is normalized to lowercase. New and changed passphrases are normalized to Unicode NFC, checked at 15–128 characters and against a small disclosed common-value blocklist, then processed with scrypt and a new random per-account salt. Plaintext passphrases are used only for the request and never persisted. Credentials are excluded from the application-data export."
+      "fields": ["id", "email", "passwordHash", "passwordSalt", "createdAt", "emailVerifiedAt"],
+      "disclosure": "Email is normalized to lowercase. emailVerifiedAt remains null until a single-use confirmation code delivered to that inbox is accepted; this proves inbox access, not identity. New and changed passphrases are normalized to Unicode NFC, checked at 15–128 characters and against a small disclosed common-value blocklist, then processed with scrypt and a new random per-account salt. Plaintext passphrases are used only for the request and never persisted. Credentials are excluded from the application-data export."
+    },
+    {
+      "id": "accountEmailVerifications",
+      "storage": "account_email_verifications table in the authentication SQLite database",
+      "purpose": "Confirm that the signed-in account holder can receive service messages at the registered email address.",
+      "retention": "Until accepted, replaced, delivery failure, account deletion, or operator database removal; each code expires after at most 24 hours.",
+      "access": ["service", "operator"],
+      "fields": ["accountId", "codeHash", "codeSalt", "expiresAt", "failedAttempts", "sentAt"],
+      "disclosure": "The eight-digit code is sent through explicitly configured TLS-required SMTP and is never returned by an API endpoint. Only a random-salted scrypt hash persists. A replacement cannot be requested within one minute, does not reset failed attempts, and confirmation shares the strict authentication throttle. When delivery is configured, unconfirmed accounts cannot enter account matching."
     },
     {
       "id": "accountSessions",

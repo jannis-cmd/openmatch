@@ -86,6 +86,14 @@ export type AuthSession = {
   token: string;
   expiresAt: string;
   authentication: boolean;
+  emailVerification?: EmailVerificationStatus & {
+    delivery?: "sent" | "failed" | "not_configured";
+  };
+};
+export type EmailVerificationStatus = {
+  email: string;
+  verifiedAt: string | null;
+  deliveryConfigured: boolean;
 };
 export type PasswordChangeSession = AuthSession & {
   otherSessionsRevoked: true;
@@ -280,6 +288,18 @@ export function createApiClient(
       adoptSession(body);
       return body as RecoverySession;
     },
+    emailVerification: () =>
+      request<EmailVerificationStatus>("/v1/account/email-verification"),
+    requestEmailVerification: () =>
+      request<{ sent: true }>(
+        "/v1/account/email-verification/request",
+        json("POST"),
+      ),
+    confirmEmail: (code: string) =>
+      request<{ email: string; verifiedAt: string }>(
+        "/v1/account/email-verification/confirm",
+        json("POST", { code }),
+      ),
     signOut: async () => {
       if (sessionPromise) {
         const token = await sessionPromise;

@@ -28,6 +28,7 @@ import {
   type DeletionReceipt,
   type DeliverySettings,
   type DirectoryConsentReceipt,
+  type EmailVerificationStatus,
   type Message,
   type ReportRecord,
   type ReportReason,
@@ -125,6 +126,8 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
+  const [emailVerification, setEmailVerification] =
+    useState<EmailVerificationStatus | null>(null);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
@@ -140,6 +143,13 @@ export default function App() {
   const [recoveryPassword, setRecoveryPassword] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(
+    null,
+  );
+  const [verificationError, setVerificationError] = useState<string | null>(
+    null,
+  );
   const [introductionReportOpen, setIntroductionReportOpen] = useState(false);
   const [connectionReportOpen, setConnectionReportOpen] = useState(false);
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
@@ -215,6 +225,7 @@ export default function App() {
         nextResearchConsent,
         nextAccountSessions,
         nextDirectoryConsent,
+        nextEmailVerification,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -230,6 +241,9 @@ export default function App() {
         api.researchConsent(),
         api.sessions(),
         api.directoryConsent(),
+        accessMode === "account"
+          ? api.emailVerification()
+          : Promise.resolve(null),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -247,6 +261,7 @@ export default function App() {
       setResearchConsent(nextResearchConsent.receipt);
       setAccountSessions(nextAccountSessions.items);
       setDirectoryConsent(nextDirectoryConsent.receipt);
+      setEmailVerification(nextEmailVerification);
     } catch {
       setError(
         "Cannot reach the local API. Check EXPO_PUBLIC_OPENMATCH_API_URL and retry.",
@@ -501,7 +516,16 @@ export default function App() {
             {accessMode === "account" && (
               <Pressable
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: directoryAccepted }}
+                accessibilityState={{
+                  checked: directoryAccepted,
+                  disabled:
+                    Boolean(emailVerification?.deliveryConfigured) &&
+                    !emailVerification?.verifiedAt,
+                }}
+                disabled={
+                  Boolean(emailVerification?.deliveryConfigured) &&
+                  !emailVerification?.verifiedAt
+                }
                 style={styles.consentRow}
                 onPress={() => setDirectoryAccepted(!directoryAccepted)}
               >
@@ -515,6 +539,10 @@ export default function App() {
                   text exactly matches mine. My private preferences and
                   one-sided decisions are not shown. I can withdraw this from
                   Profile.
+                  {emailVerification?.deliveryConfigured &&
+                  !emailVerification.verifiedAt
+                    ? " Confirm your email from Profile before enabling this."
+                    : ""}
                 </Text>
               </Pressable>
             )}
@@ -532,8 +560,7 @@ export default function App() {
                 !profile.promptAnswer.trim() ||
                 !profile.values.length ||
                 !adultConfirmed ||
-                !dataUseAccepted ||
-                (accessMode === "account" && !directoryAccepted)
+                !dataUseAccepted
               }
               onPress={() =>
                 void api
@@ -553,7 +580,7 @@ export default function App() {
                   .then(() => api.updatePreferences(preferences))
                   .then(() => api.acceptPrototypeConsent())
                   .then(() =>
-                    accessMode === "account"
+                    accessMode === "account" && directoryAccepted
                       ? api.updateDirectoryConsent(true)
                       : undefined,
                   )
@@ -1350,6 +1377,116 @@ export default function App() {
                   }}
                 />
               </View>
+              {accessMode === "account" && emailVerification && (
+                <View style={styles.scoreCard}>
+                  <Text style={styles.name}>Email for account messages</Text>
+                  <Text selectable style={styles.scoreNote}>
+                    {emailVerification.email}
+                  </Text>
+                  {emailVerification.verifiedAt ? (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      Confirmed for account messages on{" "}
+                      {new Date(emailVerification.verifiedAt).toLocaleString()}.
+                      Confirmation proves access to this inbox—not identity.
+                    </Text>
+                  ) : emailVerification.deliveryConfigured ? (
+                    <>
+                      <Text style={styles.scoreNote}>
+                        Enter the eight-digit code sent by OpenMatch. It expires
+                        after 24 hours and works once. Never send it to another
+                        person.
+                      </Text>
+                      <Text style={styles.setting}>Confirmation code</Text>
+                      <TextInput
+                        accessibilityLabel="Email confirmation code"
+                        autoComplete="one-time-code"
+                        keyboardType="number-pad"
+                        maxLength={8}
+                        value={verificationCode}
+                        onChangeText={(value) =>
+                          setVerificationCode(
+                            value.replace(/\D/g, "").slice(0, 8),
+                          )
+                        }
+                        style={styles.textField}
+                      />
+                      <Action
+                        label="Confirm email"
+                        secondary
+                        disabled={verificationCode.length !== 8}
+                        onPress={() => {
+                          setVerificationError(null);
+                          setVerificationNotice(null);
+                          void api
+                            .confirmEmail(verificationCode)
+                            .then(async () => {
+                              setVerificationCode("");
+                              setEmailVerification(
+                                await api.emailVerification(),
+                              );
+                              setVerificationNotice("Email confirmed.");
+                            })
+                            .catch((error) =>
+                              setVerificationError(
+                                error instanceof ApiError &&
+                                  error.code === "invalid_verification_code"
+                                  ? "The code was not accepted or has expired."
+                                  : "The email could not be confirmed.",
+                              ),
+                            );
+                        }}
+                      />
+                      <Action
+                        label="Send another code"
+                        secondary
+                        onPress={() => {
+                          setVerificationError(null);
+                          setVerificationNotice(null);
+                          void api
+                            .requestEmailVerification()
+                            .then(() =>
+                              setVerificationNotice("A new code was sent."),
+                            )
+                            .catch((error) =>
+                              setVerificationError(
+                                error instanceof ApiError &&
+                                  error.code === "verification_resend_too_soon"
+                                  ? "Please wait one minute before requesting another code."
+                                  : "A new code could not be sent.",
+                              ),
+                            );
+                        }}
+                      />
+                      {verificationNotice && (
+                        <Text
+                          accessibilityLiveRegion="polite"
+                          style={styles.mathNote}
+                        >
+                          {verificationNotice}
+                        </Text>
+                      )}
+                      {verificationError && (
+                        <Text
+                          accessibilityRole="alert"
+                          style={styles.errorText}
+                        >
+                          {verificationError}
+                        </Text>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={styles.scoreNote}>
+                      Email delivery is not configured on this development
+                      service, so the address is not confirmed. A real-person
+                      deployment must configure encrypted SMTP delivery before
+                      relying on it.
+                    </Text>
+                  )}
+                </View>
+              )}
               {accessMode === "account" && (
                 <View style={styles.scoreCard}>
                   <Text style={styles.name}>Account matching</Text>
@@ -1367,6 +1504,10 @@ export default function App() {
                         : "Enable account matching"
                     }
                     secondary
+                    disabled={
+                      Boolean(emailVerification?.deliveryConfigured) &&
+                      !emailVerification?.verifiedAt
+                    }
                     onPress={() =>
                       void api
                         .updateDirectoryConsent(
@@ -1380,14 +1521,17 @@ export default function App() {
                     accessibilityLiveRegion="polite"
                     style={styles.mathNote}
                   >
-                    {directoryConsent
-                      ? (directoryConsent.participating
-                          ? "Enabled"
-                          : "Disabled") +
-                        " under " +
-                        directoryConsent.noticeVersion +
-                        "."
-                      : "Disabled. No account-matching consent has been recorded."}
+                    {emailVerification?.deliveryConfigured &&
+                    !emailVerification.verifiedAt
+                      ? "Confirm your email before joining account matching."
+                      : directoryConsent
+                        ? (directoryConsent.participating
+                            ? "Enabled"
+                            : "Disabled") +
+                          " under " +
+                          directoryConsent.noticeVersion +
+                          "."
+                        : "Disabled. No account-matching consent has been recorded."}
                   </Text>
                 </View>
               )}
@@ -1944,7 +2088,7 @@ export default function App() {
                 </Text>
                 <Text style={styles.scoreNote}>
                   {accessMode === "account"
-                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Verified contact ownership, provider-backed recovery notifications, and an independent security review are still required before a real-person pilot."
+                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Passkeys, email-delivery monitoring, provider-backed recovery notifications, and an independent security review are still required before a real-person pilot."
                     : "The temporary bearer token only gates this shared local demo. It does not verify identity or isolate one person’s data from another client. Do not use this demo with real profiles."}
                 </Text>
               </View>

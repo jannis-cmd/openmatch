@@ -197,6 +197,14 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "Active sessions" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Email for account messages" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      /Email delivery is not configured on this development service/,
+    ),
+  ).toBeVisible();
   await expect(page.getByText("Web browser · This session")).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Revoke Web browser session/ }),
