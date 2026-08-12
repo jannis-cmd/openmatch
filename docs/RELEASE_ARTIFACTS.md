@@ -5,36 +5,38 @@ artifacts. It is not an app-store approval or a claim of production readiness.
 
 ## OpenMatch 0.1.0
 
-### Android direct-install APK — build 4
+### Android direct-install APK — build 5
 
 - Purpose: installation on an Android device for private tailnet testing
-- EAS build: `19b58ff5-e836-45bb-b9f8-b05fa42f437b`
-- Source commit: `81a2c5f916c02fe041f92803ea2dd24beaddb5e5`
+- EAS build: `af701477-ff8b-42be-9d95-269b0f0647cc`
+- Source commit: `ed26f248835f6703ffd0fc67054851148f0dd448`
 - Package: `org.openmatch.app`
-- Version: `0.1.0` (`versionCode` 4)
-- Artifact: <https://expo.dev/artifacts/eas/1pu0XlF73xLmkKCpcmlKMbbvsFgZaUzr9iYLBY813sU.apk>
-- Size: 96,697,542 bytes
-- SHA-256: `65b825d2b5c81cebae53a6f6ea45c14a581f6900a715920c4fb647f723a08197`
+- Version: `0.1.0` (`versionCode` 5)
+- Artifact: <https://expo.dev/artifacts/eas/-b2IrqTEFDahSZ103ryP4Ff60orR5qThCi3zg0NIX4w.apk>
+- Size: 96,699,170 bytes
+- SHA-256: `2f6da8d83ef31443eac8df30dc65b77780b07a0d5700b874348b82ab185ca463`
 - Verification: EAS finished successfully; downloaded file is a ZIP/APK and
-  every archive entry passed `unzip -t`
+  every archive entry passed `unzip -t`; its application bundle contains the
+  configured tailnet API and privacy/support web origins
 
 Android may require permission to install an app delivered by the browser. The
 device must be a member of the `cheetah-vernier` tailnet. This Mac has no
 Android SDK, emulator, or connected Android device, so on-device installation
 and APK signature inspection remain separate validation steps.
 
-### Android Play App Bundle — build 4
+### Android Play App Bundle — build 5
 
 - Purpose: Google Play internal testing or later store submission
-- EAS build: `10035aa1-c3c0-48d5-827c-b9dbfbbd4fa7`
-- Source commit: `81a2c5f916c02fe041f92803ea2dd24beaddb5e5`
+- EAS build: `ca7f7e21-0e0a-42f9-8fea-909ab7cfe03e`
+- Source commit: `ed26f248835f6703ffd0fc67054851148f0dd448`
 - Package: `org.openmatch.app`
-- Version: `0.1.0` (`versionCode` 4)
-- Artifact: <https://expo.dev/artifacts/eas/zGn2snnIz5a2oFbtMcr4wFs51fUh0ktYAhoyUETFVBw.aab>
-- Size: 68,068,203 bytes
-- SHA-256: `f0dca0c20fb317325f963311a30b4f17291e26321e5e58c916aa5c497f3bf865`
+- Version: `0.1.0` (`versionCode` 5)
+- Artifact: <https://expo.dev/artifacts/eas/g0cXQjJhbUDWwm8ji6cPhj0mZxQo_0l-vkvQeGWcZKg.aab>
+- Size: 68,068,693 bytes
+- SHA-256: `9c81c0d670e642be32fb7acccdc1b79279cb134e0a1f9bde68dbde825f957537`
 - Verification: EAS finished successfully; downloaded file is a ZIP/AAB,
-  every archive entry passed `unzip -t`, and JAR signature metadata is present
+  every archive entry passed `unzip -t`, and its application bundle contains
+  the configured tailnet API and privacy/support web origins
 
 An AAB is not directly installable. Google Play Console enrollment, listing,
 data-safety declarations, tester setup, and submission have not been performed.
@@ -42,18 +44,18 @@ data-safety declarations, tester setup, and submission have not been performed.
 ### iOS Simulator archive — build 1
 
 - Purpose: unsigned native compilation and testing in iOS Simulator
-- EAS build: `1b3e4285-bcf3-4db7-aff3-b1fcb231318f`
-- Source commit: `f98a125bad3b25238613ef86f1eb3fa911149ac0`
+- EAS build: `d6b7d2eb-e48a-4de6-bd8a-7443639fd9a3`
+- Source commit: `ed26f248835f6703ffd0fc67054851148f0dd448`
 - Bundle identifier: `org.openmatch.app`
 - Version: `0.1.0` (`CFBundleVersion` 1)
-- Artifact: <https://expo.dev/artifacts/eas/6EbyZNOovVBlb2HHSzRWyDWnrJKqy1DC6mfnaJf52BE.tar.gz>
-- Size: 22,245,917 bytes
-- SHA-256: `bf8542c8a57390ab819d86607394cec94a6defc06202fc245564087846c674e0`
+- Artifact: <https://expo.dev/artifacts/eas/S_qTRtmaRSp4rLaCBQ82WbmI5zcioo9hKkbBFJFBdNQ.tar.gz>
+- Size: 22,246,746 bytes
+- SHA-256: `99d6bfdf79f9755bac779e0e2f35aba1db93cbab4567c9c93d1db9370a374c81`
 - Verification: EAS finished successfully; gzip integrity passed; archive
   contains `OpenMatch.app`; `Info.plist` contains the expected identifier and
   version; the executable is a universal Simulator Mach-O for `arm64` and
-  `x86_64`; the configured tailnet HTTPS API origin is present; and
-  `ITSAppUsesNonExemptEncryption` is false
+  `x86_64`; the configured tailnet API and privacy/support web origins are
+  present; and `ITSAppUsesNonExemptEncryption` is false
 
 This archive cannot run on an iPhone and is not TestFlight-signed. The Mac does
 not currently have full Xcode or Simulator installed. A physical-device build

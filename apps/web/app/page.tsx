@@ -1229,7 +1229,7 @@ function LandingPage({
         <div className="download-grid">
           <article>
             <span className="download-platform">Android</span>
-            <h3>Install build 4</h3>
+            <h3>Install build 5</h3>
             <p>
               Open the APK on an Android phone. The phone must be signed into
               the <code>cheetah-vernier</code> tailnet, and Android may ask you
@@ -1237,7 +1237,7 @@ function LandingPage({
             </p>
             <a
               className="primary-action download-action"
-              href="https://expo.dev/artifacts/eas/1pu0XlF73xLmkKCpcmlKMbbvsFgZaUzr9iYLBY813sU.apk"
+              href="https://expo.dev/artifacts/eas/-b2IrqTEFDahSZ103ryP4Ff60orR5qThCi3zg0NIX4w.apk"
             >
               Download Android APK
             </a>
