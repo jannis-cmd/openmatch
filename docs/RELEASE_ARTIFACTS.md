@@ -5,41 +5,42 @@ artifacts. It is not an app-store approval or a claim of production readiness.
 
 ## OpenMatch 0.1.0
 
-### Android direct-install APK — build 7
+### Android direct-install APK — build 8
 
 - Purpose: installation on an Android device for private tailnet testing
-- EAS build: `19b32ec1-68b6-40c3-b3ff-fd600eecc4d3`
-- Source commit: `31ac79a0432d3d97e78b642f8de6b39f7aa4e270`
+- EAS build: `e46717f0-ec4b-434e-b2b2-6de5aa068c3f`
+- Source commit: `de13e2e06fca8c8b5eff9ed3db70f228e372c186`
 - Package: `org.openmatch.app`
-- Version: `0.1.0` (`versionCode` 7)
-- Artifact: <https://expo.dev/artifacts/eas/CCopaRfzWcBnyOQidypYrGQxYKFwMyhSi7xzMkUSSrg.apk>
-- Size: 96,728,894 bytes
-- SHA-256: `443ed585e98f6cc816664702b30e1f213466f699df686a7f0f196b49fb46755f`
+- Version: `0.1.0` (`versionCode` 8)
+- Artifact: <https://expo.dev/artifacts/eas/Qjrq_A_Zh2WRqnLOU0ElRfR1He9x95E8XloxV9lxZ6U.apk>
+- Size: 96,732,974 bytes
+- SHA-256: `bef5b9014c9c9ff787ba7e8229d670f88f07810e60e2f2791f95b0f78a65d287`
 - Verification: EAS finished successfully; downloaded file is a ZIP/APK and
   every archive entry passed `unzip -t`; its application bundle contains the
   configured tailnet API and privacy/support web origins, the message request
-  identifier path, and the append-only safety-report update flow
+  identifier path, append-only safety-report update flow, and reciprocal
+  gender-discovery configuration
 
 Android may require permission to install an app delivered by the browser. The
 device must be a member of the `cheetah-vernier` tailnet. This Mac has no
 Android SDK, emulator, or connected Android device, so on-device installation
 and APK signature inspection remain separate validation steps.
 
-### Android Play App Bundle — build 7
+### Android Play App Bundle — build 8
 
 - Purpose: Google Play internal testing or later store submission
-- EAS build: `3b650421-2270-4901-823c-364a918424be`
-- Source commit: `31ac79a0432d3d97e78b642f8de6b39f7aa4e270`
+- EAS build: `14730f2a-bc2d-40bd-a381-3fe3e1d63182`
+- Source commit: `de13e2e06fca8c8b5eff9ed3db70f228e372c186`
 - Package: `org.openmatch.app`
-- Version: `0.1.0` (`versionCode` 7)
-- Artifact: <https://expo.dev/artifacts/eas/TfmqYMf_O7130TUr2uqJqaSUj6-wttKcIRenWeMHTms.aab>
-- Size: 68,100,018 bytes
-- SHA-256: `586c7482d245aac1561da02397b8b962c2f3487f26d1e73fcd76489b2d296efe`
+- Version: `0.1.0` (`versionCode` 8)
+- Artifact: <https://expo.dev/artifacts/eas/teUXhXHFhoVUftYqdqevOpS7THIFDkt4klYm-oaT1V4.aab>
+- Size: 68,101,719 bytes
+- SHA-256: `5fb5f06793f1343cf3529a4c415764287c0fb5cd900b5562736722cc63b7a602`
 - Verification: EAS finished successfully; downloaded file is a ZIP/AAB,
-  every archive entry passed `unzip -t`, and its application bundle contains
-  JAR signature metadata is present; and its bundle contains the expected
-  package identifier, tailnet API and privacy/support web origins, message
-  request identifier path, and append-only safety-report update flow
+  every archive entry passed `unzip -t`; JAR signature metadata is present;
+  and its bundle contains the expected package identifier, tailnet API and
+  privacy/support web origins, message request identifier path, append-only
+  safety-report update flow, and reciprocal gender-discovery configuration
 
 An AAB is not directly installable. Google Play Console enrollment, listing,
 data-safety declarations, tester setup, and submission have not been performed.
@@ -47,19 +48,19 @@ data-safety declarations, tester setup, and submission have not been performed.
 ### iOS Simulator archive — build 1
 
 - Purpose: unsigned native compilation and testing in iOS Simulator
-- EAS build: `4992a30c-015b-4f2c-a00a-debdb60c4c96`
-- Source commit: `31ac79a0432d3d97e78b642f8de6b39f7aa4e270`
+- EAS build: `025f2947-2eb9-4da5-8cf9-ef1b5fb43b30`
+- Source commit: `de13e2e06fca8c8b5eff9ed3db70f228e372c186`
 - Bundle identifier: `org.openmatch.app`
 - Version: `0.1.0` (`CFBundleVersion` 1)
-- Artifact: <https://expo.dev/artifacts/eas/RPZTQkyb5so5bkdnhdkDmISvtQNL2P4Y7astq7SxGsw.tar.gz>
-- Size: 22,359,150 bytes
-- SHA-256: `eee5e7b500e21cecdb666ec595175653f6665c03155c312ce612837966659e58`
+- Artifact: <https://expo.dev/artifacts/eas/uqnAcVIh2iYvLmbAZoSE_5Sc6ZG_bMKS7yB8E5k4dKk.tar.gz>
+- Size: 22,362,228 bytes
+- SHA-256: `996879a1b2d591f83ab0be84cf646762878070ee6f603e9d8ea53733f60199f6`
 - Verification: EAS finished successfully; gzip integrity passed; archive
   contains `OpenMatch.app`; `Info.plist` contains the expected identifier and
   version; the executable is a universal Simulator Mach-O for `arm64` and
   `x86_64`; the configured tailnet API and privacy/support web origins are
   present; the message request identifier and append-only safety-report update
-  paths are embedded; and
+  paths and reciprocal gender-discovery configuration are embedded; and
   `ITSAppUsesNonExemptEncryption` is false
 
 This archive cannot run on an iPhone and is not TestFlight-signed. The Mac does
