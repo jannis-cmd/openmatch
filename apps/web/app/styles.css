@@ -333,6 +333,77 @@ input {
   color: #5f635c;
   font-size: 11px;
 }
+.candidate-safety {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e6e0;
+}
+.candidate-safety > p[role="status"] {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #e7eee8;
+  color: #294536;
+  font-size: 13px;
+}
+.safety-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #6a4747;
+  padding: 8px;
+  cursor: pointer;
+}
+.safety-form {
+  margin-top: 10px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f5f5f1;
+}
+.safety-form > p {
+  margin-top: 0;
+  color: #62665e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.safety-form label {
+  display: block;
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.safety-form label span {
+  color: #676c65;
+  font-weight: 400;
+}
+.safety-form select,
+.safety-form textarea {
+  width: 100%;
+  border: 1px solid #c8ccc5;
+  border-radius: 10px;
+  background: white;
+  padding: 10px;
+  font: inherit;
+}
+.safety-form textarea {
+  min-height: 76px;
+}
+.safety-form > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.safety-form button {
+  border: 1px solid #c8ccc5;
+  border-radius: 99px;
+  background: white;
+  padding: 9px 13px;
+  cursor: pointer;
+}
+.safety-form button.danger {
+  color: #7a2f2f;
+  border-color: #cdaaaa;
+}
 .empty {
   text-align: center;
   background: #fff;

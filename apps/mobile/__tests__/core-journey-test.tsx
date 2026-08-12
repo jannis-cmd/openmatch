@@ -72,6 +72,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     expect(screen.getByText("Your introductions")).toBeTruthy(),
   );
   expect(screen.getByText("Mara, 30")).toBeTruthy();
+  expect(screen.getByText("Report this profile")).toBeTruthy();
+  expect(screen.getByText("Block Mara")).toBeTruthy();
   expect(profile.name).toBe("Taylor");
   expect(onboardingComplete).toBe(true);
   await fireEvent.press(screen.getByText("Profile"));

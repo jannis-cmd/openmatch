@@ -6,6 +6,7 @@ import {
   type AccountStatus,
   type Connection,
   type Message,
+  type ReportReason,
 } from "@openmatch/api-client";
 import {
   ALGORITHM_VERSION,
@@ -401,6 +402,30 @@ function AppExperience({ exit }: { exit: () => void }) {
                         <p className="private-note">
                           Your decision is private unless interest is mutual.
                         </p>
+                        <CandidateSafety
+                          name={current.profile.name}
+                          notice={notice}
+                          block={async () => {
+                            if (
+                              window.confirm(
+                                `Block ${current.profile.name}? They will no longer appear in your introductions.`,
+                              )
+                            ) {
+                              await api.block(current.profile.id);
+                              await load();
+                            }
+                          }}
+                          report={async (reason, reportDetails) => {
+                            const result = await api.report(
+                              current.profile.id,
+                              reason,
+                              reportDetails,
+                            );
+                            setNotice(
+                              `Report received. Reference status: ${result.status}.`,
+                            );
+                          }}
+                        />
                       </aside>
                     </div>
                   ) : (
@@ -1197,6 +1222,81 @@ function ProfileView({
           </button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function CandidateSafety({
+  name,
+  notice,
+  block,
+  report,
+}: {
+  name: string;
+  notice: string | null;
+  block: () => Promise<void>;
+  report: (reason: ReportReason, details: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<ReportReason>("harassment");
+  const [reportDetails, setReportDetails] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  return (
+    <div className="candidate-safety">
+      {notice && <p role="status">{notice}</p>}
+      <button className="safety-toggle" onClick={() => setOpen(!open)}>
+        {open ? "Close safety options" : "Safety options"}
+      </button>
+      {open && (
+        <div className="safety-form">
+          <p>
+            You can report a concern without notifying {name}. Blocking removes
+            them immediately.
+          </p>
+          <label htmlFor="candidate-report-reason">Reason</label>
+          <select
+            id="candidate-report-reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value as ReportReason)}
+          >
+            <option value="harassment">Harassment</option>
+            <option value="scam">Scam</option>
+            <option value="impersonation">Impersonation</option>
+            <option value="offline_safety">Offline safety</option>
+            <option value="other">Other</option>
+          </select>
+          <label htmlFor="candidate-report-details">
+            Details <span>optional</span>
+          </label>
+          <textarea
+            id="candidate-report-details"
+            value={reportDetails}
+            maxLength={2000}
+            onChange={(event) => setReportDetails(event.target.value)}
+          />
+          <div>
+            <button
+              disabled={submitting}
+              onClick={async () => {
+                setSubmitting(true);
+                try {
+                  await report(reason, reportDetails.trim());
+                  setReportDetails("");
+                  setOpen(false);
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              Submit report
+            </button>
+            <button className="danger" onClick={() => void block()}>
+              Block {name}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -124,6 +124,30 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.doesNotMatch(introductionsText, /"preferences"/);
     assert.doesNotMatch(introductionsText, /"distanceKm"/);
     assert.match(introductionsText, /"distanceBand":"Within 5 km"/);
+    assert.equal(
+      (
+        await request("/v1/reports", {
+          method: "POST",
+          body: JSON.stringify({
+            profileId: "noah",
+            reason: "scam",
+            details: "A pre-connection safety report",
+          }),
+        })
+      ).status,
+      201,
+    );
+    assert.equal(
+      (await request("/v1/profiles/noah/block", { method: "POST" })).status,
+      200,
+    );
+    const afterPreConnectionBlock = (await (
+      await request("/v1/introductions")
+    ).json()) as { items: Array<{ profile: { id: string } }> };
+    assert.equal(
+      afterPreConnectionBlock.items.some((item) => item.profile.id === "noah"),
+      false,
+    );
     const decision = (await (
       await request("/v1/introductions/mara/decision", {
         method: "POST",
@@ -181,8 +205,8 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       accountStatus: string;
     };
     assert.equal(dataExport.profile.id, "me");
-    assert.equal(dataExport.reports.length, 1);
-    assert.equal(dataExport.blocks.length, 1);
+    assert.equal(dataExport.reports.length, 2);
+    assert.equal(dataExport.blocks.length, 2);
     assert.equal(dataExport.preferenceObservations.length, 1);
     assert.equal(dataExport.accountStatus, "active");
     assert.equal((await request("/v1/me", { method: "DELETE" })).status, 204);

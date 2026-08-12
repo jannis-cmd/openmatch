@@ -390,6 +390,63 @@ export default function App() {
                 <Text style={styles.private}>
                   Private unless interest is mutual.
                 </Text>
+                {safetyNotice && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.safetyNotice}
+                  >
+                    {safetyNotice}
+                  </Text>
+                )}
+                <View style={styles.introductionSafety}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      chooseReportReason(
+                        (reason) =>
+                          void api
+                            .report(current.profile.id, reason)
+                            .then((result) =>
+                              setSafetyNotice(
+                                `Report received. Reference status: ${result.status}.`,
+                              ),
+                            )
+                            .catch(() =>
+                              setSafetyNotice(
+                                "Report could not be sent. Retry.",
+                              ),
+                            ),
+                      )
+                    }
+                  >
+                    <Text style={styles.safetyLink}>Report this profile</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      Alert.alert(
+                        `Block ${current.profile.name}?`,
+                        "They will no longer appear in your introductions.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Block",
+                            style: "destructive",
+                            onPress: () =>
+                              void api.block(current.profile.id).then(() => {
+                                setSafetyNotice(null);
+                                return load();
+                              }),
+                          },
+                        ],
+                      )
+                    }
+                  >
+                    <Text style={styles.safetyLink}>
+                      Block {current.profile.name}
+                    </Text>
+                  </Pressable>
+                </View>
               </>
             ) : (
               <View style={styles.empty}>
@@ -1144,6 +1201,20 @@ const styles = StyleSheet.create({
     maxWidth: "85%",
   },
   safetyLink: { color: "#8A4040", textAlign: "center", paddingTop: 20 },
+  safetyNotice: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#E7EEE8",
+    color: "#294536",
+    textAlign: "center",
+  },
+  introductionSafety: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 24,
+    paddingBottom: 8,
+  },
   messageInput: {
     minHeight: 88,
     marginTop: 14,

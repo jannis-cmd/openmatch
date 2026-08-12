@@ -45,6 +45,15 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "3 remaining" }),
   ).toBeVisible();
   await expect(page.getByText("Within 5 km")).toBeVisible();
+  await page.getByRole("button", { name: "Safety options" }).click();
+  await page.getByLabel("Reason").selectOption("other");
+  await page
+    .getByLabel("Details optional")
+    .fill("A concern visible before matching");
+  await page.getByRole("button", { name: "Submit report" }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Report received. Reference status: received.",
+  );
   await page.getByRole("button", { name: "See the full calculation" }).click();
   await expect(page.getByText(/Your directed fit:/)).toBeVisible();
   await expect(page.getByText(/Their directed fit:/)).toBeVisible();

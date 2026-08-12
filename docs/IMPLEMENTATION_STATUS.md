@@ -13,7 +13,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Limited learning from decisions | Interested/Pass observations store only shown A-side factors and selection probability; suggestions require 20 mixed observations; no automatic changes |
 | Personal-data transparency | JSON export, pause, hide, resume, and deletion/reset from Profile on web and mobile |
 | Preference privacy | Candidate factor traces default private; sharing is explicit; redaction is tested not to change scores |
-| Basic safety | Mutual-only user-written text messaging, no read receipts, confirmed unmatch/block actions, categorized reports, and visible report receipt |
+| Basic safety | Report/block from introductions and conversations, mutual-only user-written text messaging, no read receipts, confirmed destructive actions, categorized reports, and visible report receipts |
 | Local API hardening | SQLite, validation, 64 KiB body limit, allowlisted browser origins, no-store responses, known-profile checks, explicit demo boundary |
 | Accessibility baseline | Semantic controls, visible/non-color states, automated WCAG 2.2 A/AA scans at four web states, native component queries, contrast fixes |
 | Open development | AGPL software license, CC BY documentation license, governance, research proposal template, evidence register, decision log, and formatting gate |
