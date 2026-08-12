@@ -118,6 +118,8 @@
         "city",
         "distanceKm",
         "pronouns",
+        "gender",
+        "genderGroups[]",
         "intent",
         "readiness",
         "bio",
@@ -129,7 +131,7 @@
         "lifestyle.schedule",
         "color"
       ],
-      "disclosure": "For fictional demo candidates, distanceKm is converted to a public distance band. For account-to-account testing, only accounts with exactly matching normalized self-entered city/region text are considered and the client receives 'Same approximate region'; no distance is calculated. The other chosen profile fields are public to eligible candidates after completed setup while Active. Preferences and decisions are not profile fields."
+      "disclosure": "For fictional demo candidates, distanceKm is converted to a public distance band. For account-to-account testing, only accounts with exactly matching normalized self-entered city/region text are considered and the client receives 'Same approximate region'; no distance is calculated. The person's free-text gender description is public to eligible candidates; their self-selected, potentially overlapping routing groups are processed only for reciprocal eligibility and are removed from introduction/connection payloads. OpenMatch never infers either. The other chosen profile fields are public after completed setup while Active. Preferences and decisions are not profile fields."
     },
     {
       "id": "preferences",
@@ -143,6 +145,7 @@
         "idealDistanceKm",
         "maximumDistanceKm",
         "intents[]",
+        "genderGroups[]",
         "smoking",
         "children",
         "weights.proximity",
@@ -150,7 +153,7 @@
         "weights.lifestyle",
         "weights.schedule"
       ],
-      "disclosure": "The person sees all of their inputs. Another person's factor trace is private unless that person explicitly shares it."
+      "disclosure": "The person sees all of their inputs. Gender-group preferences remain private and are used only as a reciprocal eligibility boundary. Another person's factor trace is private unless that person explicitly shares it."
     },
     {
       "id": "onboarding",
@@ -183,13 +186,14 @@
       "retention": "prototype",
       "access": ["person", "service", "operator"],
       "fields": [
+        "algorithmVersion",
         "weeklySeed",
         "batchSize",
         "profileId",
         "selectionMode",
         "selectionProbability"
       ],
-      "disclosure": "The seed, mode, and probability are shown with an exploratory introduction. The internal profile ID is not an additional public field. The snapshot contains no score or private candidate preference."
+      "disclosure": "The algorithm version invalidates a batch whenever eligibility logic changes. The seed, mode, and probability are shown with an exploratory introduction. The internal profile ID is not an additional public field. The snapshot contains no score or private candidate preference."
     },
     {
       "id": "consentReceipt",

@@ -27,6 +27,26 @@ the optional conversation-starter draft—not the score. No client silently
 assigns these demo defaults after onboarding, and saving a profile change
 invalidates the current batch so explanations are recalculated.
 
+### Gender discovery
+
+Gender is an explicit reciprocal eligibility boundary, never a score or an
+inferred trait. Each person writes a public gender description and selects one
+or more potentially overlapping discovery groups: women, men, and nonbinary
+people. They separately choose, in private, which groups they are open to
+meeting. Both routing groups and groups sought remain private. A pair is
+eligible only when each person's routing selection intersects the other's
+groups sought. OpenMatch does not request sex assigned
+at birth, infer identity from names/photos/pronouns, or translate an orientation
+label into eligibility.
+
+The three routing groups are deliberately not presented as a complete taxonomy
+of gender. Free text preserves self-description; overlapping groups let someone
+choose how they should be routed. New and migrated accounts begin unconfigured
+and cannot enter account matching until all three choices—description, public
+routing, and private people sought—are explicit. A pilot still requires paid
+participatory research with trans, nonbinary, intersex, asexual, and closeted
+people, localization, and targeted outing/fetishization threat testing.
+
 ### Proximity
 
 Proximity uses a coarse profile region, never live GPS. Each person chooses an ideal and maximum radius. Each directed compatibility is 1 inside that person's ideal radius, declines linearly and visibly, and reaches 0 at their maximum. Either maximum can make the pair ineligible. This reflects opportunity to meet, not a claim that closeness creates compatibility.
@@ -54,7 +74,7 @@ This design follows two evidence constraints: stated and revealed preferences ca
 
 ### Candidate-set and ordering procedure
 
-1. Resolve mutual identity/intention eligibility and hard boundaries.
+1. Resolve reciprocal gender-discovery, intention, and other hard boundaries.
 2. Exclude blocks, resolved pairs, paused/inactive accounts, and pairs without safe geographic eligibility.
 3. Calculate both directed fits from explicit current weights.
 4. Combine with the harmonic mean.

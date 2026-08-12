@@ -49,9 +49,11 @@ import {
   nearestPriority,
   POLITE_CLOSE_MESSAGE,
   conversationStarter,
+  GENDER_DISCOVERY_GROUPS,
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
+  type GenderDiscoveryGroup,
   type Preferences,
   type Profile,
   type WeightSuggestion,
@@ -526,6 +528,7 @@ export default function App() {
               onChangeText={(pronouns) => setProfile({ ...profile, pronouns })}
               style={styles.textField}
             />
+            <GenderDiscoveryFields value={profile} onChange={setProfile} />
             <IntentSelector
               value={profile.intent}
               onChange={(intent) => setProfile({ ...profile, intent })}
@@ -587,12 +590,18 @@ export default function App() {
                 accessibilityState={{
                   checked: directoryAccepted,
                   disabled:
-                    Boolean(emailVerification?.deliveryConfigured) &&
-                    !emailVerification?.verifiedAt,
+                    (Boolean(emailVerification?.deliveryConfigured) &&
+                      !emailVerification?.verifiedAt) ||
+                    !profile.gender.trim() ||
+                    !profile.genderGroups.length ||
+                    !preferences.genderGroups.length,
                 }}
                 disabled={
-                  Boolean(emailVerification?.deliveryConfigured) &&
-                  !emailVerification?.verifiedAt
+                  (Boolean(emailVerification?.deliveryConfigured) &&
+                    !emailVerification?.verifiedAt) ||
+                  !profile.gender.trim() ||
+                  !profile.genderGroups.length ||
+                  !preferences.genderGroups.length
                 }
                 style={styles.consentRow}
                 onPress={() => setDirectoryAccepted(!directoryAccepted)}
@@ -627,6 +636,9 @@ export default function App() {
                 !profile.prompt.trim() ||
                 !profile.promptAnswer.trim() ||
                 !profile.values.length ||
+                !profile.gender.trim() ||
+                !profile.genderGroups.length ||
+                !preferences.genderGroups.length ||
                 !adultConfirmed ||
                 !dataUseAccepted
               }
@@ -637,6 +649,8 @@ export default function App() {
                     age: profile.age,
                     city: profile.city.trim(),
                     pronouns: profile.pronouns.trim(),
+                    gender: profile.gender.trim(),
+                    genderGroups: profile.genderGroups,
                     intent: profile.intent,
                     readiness: profile.readiness,
                     bio: profile.bio.trim(),
@@ -732,7 +746,8 @@ export default function App() {
                       {current.profile.name}, {current.profile.age}
                     </Text>
                     <Text style={styles.meta}>
-                      {current.profile.pronouns} · {current.profile.city}
+                      {current.profile.pronouns} · {current.profile.gender} ·{" "}
+                      {current.profile.city}
                     </Text>
                     <Text style={styles.intent}>{current.profile.intent}</Text>
                     <Text style={styles.meta}>{current.profile.readiness}</Text>
@@ -1398,6 +1413,10 @@ export default function App() {
                       }
                       style={styles.textField}
                     />
+                    <GenderDiscoveryFields
+                      value={profile}
+                      onChange={setProfile}
+                    />
                     <IntentSelector
                       value={profile.intent}
                       onChange={(intent) => setProfile({ ...profile, intent })}
@@ -1426,7 +1445,7 @@ export default function App() {
                   <>
                     <Text style={styles.meta}>
                       {profile.pronouns || "Pronouns not shown"} ·{" "}
-                      {profile.city}
+                      {profile.gender} · {profile.city}
                     </Text>
                     <Text style={styles.intent}>{profile.intent}</Text>
                     <Text style={styles.meta}>{profile.readiness}</Text>
@@ -1456,7 +1475,9 @@ export default function App() {
                       !bio.trim() ||
                       !profile.prompt.trim() ||
                       !profile.promptAnswer.trim() ||
-                      !profile.values.length)
+                      !profile.values.length ||
+                      !profile.gender.trim() ||
+                      !profile.genderGroups.length)
                   }
                   onPress={() => {
                     if (editingProfile)
@@ -1466,6 +1487,8 @@ export default function App() {
                           age: profile.age,
                           city: profile.city.trim(),
                           pronouns: profile.pronouns.trim(),
+                          gender: profile.gender.trim(),
+                          genderGroups: profile.genderGroups,
                           intent: profile.intent,
                           readiness: profile.readiness,
                           bio: bio.trim(),
@@ -1802,8 +1825,12 @@ export default function App() {
                     }
                     secondary
                     disabled={
-                      Boolean(emailVerification?.deliveryConfigured) &&
-                      !emailVerification?.verifiedAt
+                      directoryConsent?.participating !== true &&
+                      ((Boolean(emailVerification?.deliveryConfigured) &&
+                        !emailVerification?.verifiedAt) ||
+                        !profile.gender.trim() ||
+                        !profile.genderGroups.length ||
+                        !preferences.genderGroups.length)
                     }
                     onPress={() =>
                       void api
@@ -1818,17 +1845,27 @@ export default function App() {
                     accessibilityLiveRegion="polite"
                     style={styles.mathNote}
                   >
-                    {emailVerification?.deliveryConfigured &&
-                    !emailVerification.verifiedAt
-                      ? "Confirm your email before joining account matching."
-                      : directoryConsent
-                        ? (directoryConsent.participating
-                            ? "Enabled"
-                            : "Disabled") +
-                          " under " +
-                          directoryConsent.noticeVersion +
-                          "."
-                        : "Disabled. No account-matching consent has been recorded."}
+                    {directoryConsent?.participating &&
+                    (!profile.gender.trim() ||
+                      !profile.genderGroups.length ||
+                      !preferences.genderGroups.length)
+                      ? "Participation is recorded, but you are excluded from matching until you finish gender discovery in Profile and Preferences."
+                      : !directoryConsent?.participating &&
+                          (!profile.gender.trim() ||
+                            !profile.genderGroups.length ||
+                            !preferences.genderGroups.length)
+                        ? "Finish gender discovery in Profile and Preferences before joining account matching."
+                        : emailVerification?.deliveryConfigured &&
+                            !emailVerification.verifiedAt
+                          ? "Confirm your email before joining account matching."
+                          : directoryConsent
+                            ? (directoryConsent.participating
+                                ? "Enabled"
+                                : "Disabled") +
+                              " under " +
+                              directoryConsent.noticeVersion +
+                              "."
+                            : "Disabled. No account-matching consent has been recorded."}
                   </Text>
                 </View>
               )}
@@ -2904,6 +2941,33 @@ function PreferencesScreen({
             }
           />
         </View>
+        <Text style={styles.setting}>People you are open to meeting</Text>
+        {GENDER_DISCOVERY_GROUPS.map((group) => {
+          const checked = value.genderGroups.includes(group);
+          return (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked }}
+              style={styles.radioRow}
+              onPress={() =>
+                onChange({
+                  ...value,
+                  genderGroups: checked
+                    ? value.genderGroups.filter((item) => item !== group)
+                    : [...value.genderGroups, group],
+                })
+              }
+              key={group}
+            >
+              <Text style={styles.radioMark}>{checked ? "☑" : "☐"}</Text>
+              <Text style={styles.radioLabel}>{genderGroupLabel(group)}</Text>
+            </Pressable>
+          );
+        })}
+        <Text style={styles.mathNote}>
+          Private boundary. An introduction appears only when both people’s
+          discovery choices include one another.
+        </Text>
         <Text style={styles.setting}>
           Relationship intentions you are open to
         </Text>
@@ -3394,6 +3458,66 @@ function ReadinessSelector({
         ]}
         onChange={onChange}
       />
+    </View>
+  );
+}
+
+const genderGroupLabel = (group: GenderDiscoveryGroup) =>
+  ({
+    women: "Women",
+    men: "Men",
+    nonbinary_people: "Nonbinary people",
+  })[group];
+
+function GenderDiscoveryFields({
+  value,
+  onChange,
+}: {
+  value: Profile;
+  onChange: (value: Profile) => void;
+}) {
+  return (
+    <View>
+      <Text style={styles.setting}>How you describe your gender</Text>
+      <TextInput
+        accessibilityLabel="How you describe your gender"
+        value={value.gender}
+        maxLength={50}
+        placeholder="For example: woman, man, nonbinary, agender"
+        onChangeText={(gender) => onChange({ ...value, gender })}
+        style={styles.textField}
+      />
+      <Text style={styles.setting}>Your discovery groups</Text>
+      {GENDER_DISCOVERY_GROUPS.map((group) => {
+        const checked = value.genderGroups.includes(group);
+        return (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked }}
+            style={styles.radioRow}
+            onPress={() =>
+              onChange({
+                ...value,
+                genderGroups: checked
+                  ? value.genderGroups.filter((item) => item !== group)
+                  : [...value.genderGroups, group],
+              })
+            }
+            key={group}
+          >
+            <Text style={styles.radioMark}>{checked ? "☑" : "☐"}</Text>
+            <Text style={styles.radioLabel}>
+              Include me in discovery for{" "}
+              {genderGroupLabel(group).toLowerCase()}
+            </Text>
+          </Pressable>
+        );
+      })}
+      <Text style={styles.mathNote}>
+        Your description is public to eligible people. Your selected routing
+        groups stay private. Groups may overlap and are not a complete
+        definition of identity. OpenMatch never infers them.
+      </Text>
     </View>
   );
 }

@@ -30,9 +30,11 @@ import {
   nearestPriority,
   POLITE_CLOSE_MESSAGE,
   conversationStarter,
+  GENDER_DISCOVERY_GROUPS,
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
+  type GenderDiscoveryGroup,
   type Preferences,
   type Profile,
   type WeightSuggestion,
@@ -442,6 +444,8 @@ function AppExperience({
                       age: profile.age,
                       city: profile.city.trim(),
                       pronouns: profile.pronouns.trim(),
+                      gender: profile.gender.trim(),
+                      genderGroups: profile.genderGroups,
                       intent: profile.intent,
                       readiness: profile.readiness,
                       bio: profile.bio.trim(),
@@ -542,7 +546,7 @@ function AppExperience({
                             </h2>
                             <p>
                               {current.profile.pronouns} ·{" "}
-                              {current.profile.city}
+                              {current.profile.gender} · {current.profile.city}
                             </p>
                           </div>
                           <p className="intent">{current.profile.intent}</p>
@@ -907,6 +911,9 @@ function AppExperience({
                   }}
                   accountStatus={accountStatus}
                   reports={reports}
+                  genderPreferencesConfigured={
+                    preferences.genderGroups.length > 0
+                  }
                   addReportUpdate={async (reportId, kind, details) => {
                     await api.addReportUpdate(reportId, kind, details);
                     setReports((await api.reports()).items);
@@ -1759,6 +1766,9 @@ function OnboardingView({
     profile.prompt.trim().length > 0 &&
     profile.promptAnswer.trim().length > 0 &&
     profile.values.length > 0 &&
+    profile.gender.trim().length > 0 &&
+    profile.genderGroups.length > 0 &&
+    preferences.genderGroups.length > 0 &&
     profile.age >= 18 &&
     profile.age <= 120 &&
     adultConfirmed &&
@@ -1815,6 +1825,7 @@ function OnboardingView({
             }
           />
         </label>
+        <GenderDiscoveryFields value={profile} onChange={onProfile} />
         <label>
           Relationship intention
           <select
@@ -2013,6 +2024,30 @@ function BoundaryFields({
   return (
     <div className="boundary-fields">
       <fieldset>
+        <legend>People you are open to meeting</legend>
+        {GENDER_DISCOVERY_GROUPS.map((group) => (
+          <label key={group}>
+            <input
+              type="checkbox"
+              checked={value.genderGroups.includes(group)}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  genderGroups: event.target.checked
+                    ? [...value.genderGroups, group]
+                    : value.genderGroups.filter((item) => item !== group),
+                })
+              }
+            />
+            {genderGroupLabel(group)}
+          </label>
+        ))}
+        <p className="help">
+          Private boundary. An introduction appears only when both people’s
+          discovery choices include one another.
+        </p>
+      </fieldset>
+      <fieldset>
         <legend>Relationship intentions you are open to</legend>
         {intents.map((intent) => (
           <label key={intent}>
@@ -2067,6 +2102,62 @@ function BoundaryFields({
         people’s stated boundaries are satisfied.
       </p>
     </div>
+  );
+}
+
+const genderGroupLabel = (group: GenderDiscoveryGroup) =>
+  ({
+    women: "Women",
+    men: "Men",
+    nonbinary_people: "Nonbinary people",
+  })[group];
+
+function GenderDiscoveryFields({
+  value,
+  onChange,
+}: {
+  value: Profile;
+  onChange: (value: Profile) => void;
+}) {
+  return (
+    <fieldset>
+      <legend>Gender and discovery</legend>
+      <label>
+        How you describe your gender
+        <input
+          value={value.gender}
+          maxLength={50}
+          placeholder="For example: woman, man, nonbinary, agender"
+          onChange={(event) =>
+            onChange({ ...value, gender: event.target.value })
+          }
+        />
+      </label>
+      <div className="checkbox-grid">
+        {GENDER_DISCOVERY_GROUPS.map((group) => (
+          <label key={group}>
+            <input
+              type="checkbox"
+              checked={value.genderGroups.includes(group)}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  genderGroups: event.target.checked
+                    ? [...value.genderGroups, group]
+                    : value.genderGroups.filter((item) => item !== group),
+                })
+              }
+            />
+            Include me in discovery for {genderGroupLabel(group).toLowerCase()}
+          </label>
+        ))}
+      </div>
+      <p className="help">
+        Your description is public to eligible people. Your selected routing
+        groups stay private. Groups may overlap and are not a complete
+        definition of identity. OpenMatch never infers them.
+      </p>
+    </fieldset>
   );
 }
 
@@ -2272,6 +2363,7 @@ function ProfileView({
   saveProfile,
   accountStatus,
   reports,
+  genderPreferencesConfigured,
   addReportUpdate,
   researchConsent,
   directoryConsent,
@@ -2297,6 +2389,7 @@ function ProfileView({
   saveProfile: (patch: Partial<Profile>) => Promise<void>;
   accountStatus: AccountStatus;
   reports: ReportRecord[];
+  genderPreferencesConfigured: boolean;
   addReportUpdate: (
     reportId: number,
     kind: ReportUpdateKind,
@@ -2377,6 +2470,8 @@ function ProfileView({
     draft.prompt.trim().length > 0 &&
     draft.promptAnswer.trim().length > 0 &&
     draft.values.length > 0 &&
+    draft.gender.trim().length > 0 &&
+    draft.genderGroups.length > 0 &&
     draft.age >= 18 &&
     draft.age <= 120;
 
@@ -2403,6 +2498,8 @@ function ProfileView({
                   age: draft.age,
                   city: draft.city.trim(),
                   pronouns: draft.pronouns.trim(),
+                  gender: draft.gender.trim(),
+                  genderGroups: draft.genderGroups,
                   intent: draft.intent,
                   readiness: draft.readiness,
                   bio: draft.bio.trim(),
@@ -2462,6 +2559,7 @@ function ProfileView({
                 }
               />
             </label>
+            <GenderDiscoveryFields value={draft} onChange={setDraft} />
             <label>
               Relationship intention
               <select
@@ -2508,8 +2606,8 @@ function ProfileView({
         ) : (
           <>
             <p className="profile-meta">
-              {profile.pronouns || "Pronouns not shown"} · {profile.city} ·{" "}
-              {profile.intent}
+              {profile.pronouns || "Pronouns not shown"} · {profile.gender} ·{" "}
+              {profile.city} · {profile.intent}
             </p>
             <p className="readiness">{profile.readiness}</p>
             <p className="large-copy">{profile.bio}</p>
@@ -2794,8 +2892,12 @@ function ProfileView({
             <button
               aria-pressed={directoryConsent?.participating === true}
               disabled={
-                Boolean(emailVerification?.deliveryConfigured) &&
-                !emailVerification?.verifiedAt
+                directoryConsent?.participating !== true &&
+                ((Boolean(emailVerification?.deliveryConfigured) &&
+                  !emailVerification?.verifiedAt) ||
+                  !profile.gender.trim() ||
+                  profile.genderGroups.length === 0 ||
+                  !genderPreferencesConfigured)
               }
               onClick={() =>
                 void setDirectoryConsent(
@@ -2809,15 +2911,27 @@ function ProfileView({
             </button>
           </div>
           <p className="help" role="status">
-            {emailVerification?.deliveryConfigured &&
-            !emailVerification.verifiedAt
-              ? "Confirm your email before joining account matching."
-              : directoryConsent
-                ? (directoryConsent.participating ? "Enabled" : "Disabled") +
-                  " under " +
-                  directoryConsent.noticeVersion +
-                  "."
-                : "Disabled. No account-matching consent has been recorded."}
+            {directoryConsent?.participating &&
+            (!profile.gender.trim() ||
+              profile.genderGroups.length === 0 ||
+              !genderPreferencesConfigured)
+              ? "Participation is recorded, but you are excluded from matching until you finish gender discovery in Profile and Preferences."
+              : !directoryConsent?.participating &&
+                  (!profile.gender.trim() ||
+                    profile.genderGroups.length === 0 ||
+                    !genderPreferencesConfigured)
+                ? "Finish gender discovery in Profile and Preferences before joining account matching."
+                : emailVerification?.deliveryConfigured &&
+                    !emailVerification.verifiedAt
+                  ? "Confirm your email before joining account matching."
+                  : directoryConsent
+                    ? (directoryConsent.participating
+                        ? "Enabled"
+                        : "Disabled") +
+                      " under " +
+                      directoryConsent.noticeVersion +
+                      "."
+                    : "Disabled. No account-matching consent has been recorded."}
           </p>
         </section>
       )}

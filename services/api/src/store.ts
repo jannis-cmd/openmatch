@@ -67,6 +67,7 @@ export type AccountDeliveryAction =
 export type AccountStatus = "active" | "paused" | "hidden";
 export type DeliverySettings = { batchSize: 1 | 2 | 3 | 4 | 5 };
 export type IntroductionBatch = {
+  algorithmVersion: string;
   weeklySeed: string;
   batchSize: number;
   entries: Array<{
@@ -96,8 +97,13 @@ export type ReportUpdateKind =
 
 export class Store {
   readonly db: DatabaseSync;
+  private readonly accountProfile: boolean;
 
-  constructor(path = process.env.OPENMATCH_DB ?? "./openmatch.sqlite") {
+  constructor(
+    path = process.env.OPENMATCH_DB ?? "./openmatch.sqlite",
+    options: { accountProfile?: boolean } = {},
+  ) {
+    this.accountProfile = options.accountProfile === true;
     this.db = new DatabaseSync(path);
     this.db.exec(`
       PRAGMA journal_mode = WAL;
@@ -139,8 +145,22 @@ export class Store {
     const insert = this.db.prepare(
       "INSERT OR IGNORE INTO state(key,value) VALUES (?,?)",
     );
-    insert.run("profile", JSON.stringify(demoUser));
-    insert.run("preferences", JSON.stringify(defaultPreferences));
+    insert.run(
+      "profile",
+      JSON.stringify(
+        this.accountProfile
+          ? { ...demoUser, gender: "", genderGroups: [] }
+          : demoUser,
+      ),
+    );
+    insert.run(
+      "preferences",
+      JSON.stringify(
+        this.accountProfile
+          ? { ...defaultPreferences, genderGroups: [] }
+          : defaultPreferences,
+      ),
+    );
     insert.run("onboarding_complete", JSON.stringify(false));
     insert.run("account_status", JSON.stringify("active"));
     insert.run("delivery_settings", JSON.stringify({ batchSize: 5 }));
@@ -149,10 +169,28 @@ export class Store {
     insert.run("research_consent_receipt", JSON.stringify(null));
     insert.run("directory_consent_receipt", JSON.stringify(null));
     const profile = this.getState<Record<string, unknown>>("profile");
-    if (!("readiness" in profile))
+    if (!("readiness" in profile) || !("gender" in profile))
       this.setState("profile", {
         ...profile,
-        readiness: "Prefer to chat first",
+        ...(!("readiness" in profile)
+          ? { readiness: "Prefer to chat first" }
+          : {}),
+        ...(!("gender" in profile)
+          ? this.accountProfile
+            ? { gender: "", genderGroups: [] }
+            : {
+                gender: demoUser.gender,
+                genderGroups: demoUser.genderGroups,
+              }
+          : {}),
+      });
+    const preferences = this.getState<Record<string, unknown>>("preferences");
+    if (!("genderGroups" in preferences))
+      this.setState("preferences", {
+        ...preferences,
+        genderGroups: this.accountProfile
+          ? []
+          : defaultPreferences.genderGroups,
       });
   }
 
@@ -197,7 +235,18 @@ export class Store {
   onboardingComplete() {
     return this.getState<boolean>("onboarding_complete");
   }
+  discoveryConfigured() {
+    const profile = this.profile();
+    const preferences = this.preferences();
+    return (
+      profile.gender.trim().length > 0 &&
+      profile.genderGroups.length > 0 &&
+      preferences.genderGroups.length > 0
+    );
+  }
   completeOnboarding() {
+    if (!this.discoveryConfigured())
+      throw new RangeError("gender discovery choices are required");
     this.setState("onboarding_complete", true);
     return { complete: true as const };
   }

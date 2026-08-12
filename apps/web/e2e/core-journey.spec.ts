@@ -85,11 +85,25 @@ test("first run through a persistent connection and safety action", async ({
     expect(created.status()).toBe(201);
     const token = ((await created.json()) as { token: string }).token;
     const headers = { authorization: "Bearer " + token };
+    const gender =
+      name === "Noah"
+        ? { gender: "Man", genderGroups: ["men"] }
+        : name === "Mara"
+          ? { gender: "Woman", genderGroups: ["women"] }
+          : { gender: "Nonbinary", genderGroups: ["nonbinary_people"] };
     expect(
       (
         await request.patch(apiBase + "/v1/me", {
           headers,
-          data: { name, age, city: "Winterthur", readiness },
+          data: { name, age, city: "Winterthur", readiness, ...gender },
+        })
+      ).status(),
+    ).toBe(200);
+    expect(
+      (
+        await request.patch(apiBase + "/v1/preferences", {
+          headers,
+          data: { genderGroups: ["women", "men", "nonbinary_people"] },
         })
       ).status(),
     ).toBe(200);
@@ -198,6 +212,12 @@ test("first run through a persistent connection and safety action", async ({
     .getByRole("textbox", { name: "Pronouns optional" })
     .fill("she/her");
   await page
+    .getByRole("textbox", { name: "How you describe your gender" })
+    .fill("Woman");
+  await page
+    .getByRole("checkbox", { name: "Include me in discovery for women" })
+    .check();
+  await page
     .getByRole("combobox", { name: "Relationship intention" })
     .selectOption({ label: "Still figuring it out" });
   await page
@@ -208,6 +228,13 @@ test("first run through a persistent connection and safety action", async ({
     .selectOption({ label: "Ready to meet in person" });
   await page.getByLabel("Your answer").fill("Building a welcoming table.");
   await page.getByLabel(/Values 1–5/).fill("Care, Curiosity");
+  const genderPreferences = page.getByRole("group", {
+    name: "People you are open to meeting",
+  });
+  for (const group of ["Women", "Men", "Nonbinary people"])
+    await genderPreferences
+      .getByRole("checkbox", { name: group, exact: true })
+      .check();
   await page
     .getByRole("checkbox", {
       name: "I confirm that I am at least 18 years old.",
@@ -602,7 +629,7 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     reportCard.getByText(/correction.*The timing in my original report/i),
   ).toBeVisible();
-  await expect(page.getByText(/she\/her · Winterthur/)).toBeVisible();
+  await expect(page.getByText(/she\/her · Woman · Winterthur/)).toBeVisible();
   await page.getByRole("button", { name: "Edit" }).click();
   await page.getByRole("textbox", { name: "Display name" }).fill("Taylor Two");
   await page.getByRole("button", { name: "Save" }).click();

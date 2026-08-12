@@ -12,6 +12,13 @@ export type RelationshipIntent =
   | "Long-term, open to short"
   | "Still figuring it out";
 
+export const GENDER_DISCOVERY_GROUPS = [
+  "women",
+  "men",
+  "nonbinary_people",
+] as const;
+export type GenderDiscoveryGroup = (typeof GENDER_DISCOVERY_GROUPS)[number];
+
 export const POLITE_CLOSE_MESSAGE =
   "Thank you for talking with me. I don’t think this is the connection I’m looking for, so I’m going to close this conversation. I wish you well.";
 
@@ -68,6 +75,8 @@ export type Profile = {
   city: string;
   distanceKm: number;
   pronouns: string;
+  gender: string;
+  genderGroups: GenderDiscoveryGroup[];
   intent: RelationshipIntent;
   readiness: "Ready to meet in person" | "Prefer to chat first";
   bio: string;
@@ -88,6 +97,7 @@ export type Preferences = {
   idealDistanceKm: number;
   maximumDistanceKm: number;
   intents: RelationshipIntent[];
+  genderGroups: GenderDiscoveryGroup[];
   smoking: "no" | "any";
   children: "want" | "open" | "do not want" | "any";
   weights: {
@@ -98,7 +108,7 @@ export type Preferences = {
   };
 };
 
-export type PublicProfile = Omit<Profile, "distanceKm"> & {
+export type PublicProfile = Omit<Profile, "distanceKm" | "genderGroups"> & {
   distanceBand: string;
 };
 export type PublicExplanation = Omit<Explanation, "factorsForB"> & {
@@ -137,7 +147,7 @@ export const nearestPriority = (weight: number) =>
   );
 
 export function toPublicProfile(profile: Profile): PublicProfile {
-  const { distanceKm, ...visible } = profile;
+  const { distanceKm, genderGroups: _genderGroups, ...visible } = profile;
   const distanceBand =
     distanceKm <= 5
       ? "Within 5 km"
@@ -158,6 +168,8 @@ export const demoUser: Profile = {
   city: "Zürich",
   distanceKm: 0,
   pronouns: "they/them",
+  gender: "Nonbinary",
+  genderGroups: ["nonbinary_people"],
   intent: "Long-term relationship",
   readiness: "Prefer to chat first",
   bio: "Curious, grounded, and happiest near water or a good table.",
@@ -183,6 +195,14 @@ export function validateProfile(value: Profile): Profile {
     value.city.trim().length > 80 ||
     typeof value.pronouns !== "string" ||
     value.pronouns.length > 50 ||
+    typeof value.gender !== "string" ||
+    value.gender.length > 50 ||
+    !Array.isArray(value.genderGroups) ||
+    value.genderGroups.length > GENDER_DISCOVERY_GROUPS.length ||
+    value.genderGroups.some(
+      (group) => !GENDER_DISCOVERY_GROUPS.includes(group),
+    ) ||
+    new Set(value.genderGroups).size !== value.genderGroups.length ||
     ![
       "Long-term relationship",
       "Long-term, open to short",
@@ -241,6 +261,7 @@ export const defaultPreferences: Preferences = {
   idealDistanceKm: 12,
   maximumDistanceKm: 45,
   intents: ["Long-term relationship", "Long-term, open to short"],
+  genderGroups: [...GENDER_DISCOVERY_GROUPS],
   smoking: "no",
   children: "open",
   weights: { proximity: 2 / 3, values: 1, lifestyle: 2 / 3, schedule: 1 / 3 },
@@ -275,6 +296,15 @@ export function validatePreferences(value: Preferences): Preferences {
   )
     throw new RangeError("relationship intentions are invalid");
   if (
+    !Array.isArray(value.genderGroups) ||
+    value.genderGroups.length > GENDER_DISCOVERY_GROUPS.length ||
+    value.genderGroups.some(
+      (group) => !GENDER_DISCOVERY_GROUPS.includes(group),
+    ) ||
+    new Set(value.genderGroups).size !== value.genderGroups.length
+  )
+    throw new RangeError("gender discovery preferences are invalid");
+  if (
     !["no", "any"].includes(value.smoking) ||
     !["want", "open", "do not want", "any"].includes(value.children)
   )
@@ -300,6 +330,8 @@ export const demoCandidates: Candidate[] = [
       city: "Zürich",
       distanceKm: 4,
       pronouns: "she/her",
+      gender: "Woman",
+      genderGroups: ["women"],
       intent: "Long-term relationship",
       readiness: "Ready to meet in person",
       bio: "Architect, amateur ceramicist, and reliable maker of breakfast.",
@@ -330,6 +362,8 @@ export const demoCandidates: Candidate[] = [
       city: "Winterthur",
       distanceKm: 24,
       pronouns: "he/him",
+      gender: "Man",
+      genderGroups: ["men"],
       intent: "Long-term relationship",
       readiness: "Prefer to chat first",
       bio: "Teacher, climber, slow reader. I prefer a few close people to a crowded room.",
@@ -356,6 +390,8 @@ export const demoCandidates: Candidate[] = [
       city: "Baden",
       distanceKm: 22,
       pronouns: "she/her",
+      gender: "Woman",
+      genderGroups: ["women"],
       intent: "Long-term, open to short",
       readiness: "Ready to meet in person",
       bio: "Museum person, public-transport optimist, and enthusiastic host.",
@@ -386,6 +422,8 @@ export const demoCandidates: Candidate[] = [
       city: "Luzern",
       distanceKm: 52,
       pronouns: "they/them",
+      gender: "Nonbinary",
+      genderGroups: ["nonbinary_people"],
       intent: "Long-term relationship",
       readiness: "Prefer to chat first",
       bio: "Sound designer. Quiet until there is a subject worth getting animated about.",
@@ -449,6 +487,16 @@ export function createIntroduction(
       label: "Mutual relationship intentions",
       satisfiedForA: preferences.intents.includes(other.intent),
       satisfiedForB: otherPreferences.intents.includes(user.intent),
+    },
+    {
+      id: "gender",
+      label: "Mutual gender discovery choices",
+      satisfiedForA: other.genderGroups.some((group) =>
+        preferences.genderGroups.includes(group),
+      ),
+      satisfiedForB: user.genderGroups.some((group) =>
+        otherPreferences.genderGroups.includes(group),
+      ),
     },
     {
       id: "smoking",

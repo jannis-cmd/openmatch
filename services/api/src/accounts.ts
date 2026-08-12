@@ -342,6 +342,7 @@ export class Accounts {
         this.dataDirectory
           ? join(this.dataDirectory, `${accountId}.sqlite`)
           : ":memory:",
+        { accountProfile: true },
       );
       this.stores.set(accountId, store);
     }
@@ -370,6 +371,7 @@ export class Accounts {
       !store ||
       !store.onboardingComplete() ||
       !store.consentReceipt() ||
+      !store.discoveryConfigured() ||
       store.directoryConsentReceipt()?.participating !== true
     )
       return undefined;

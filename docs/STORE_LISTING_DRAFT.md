@@ -118,11 +118,13 @@ current definitions and the deployed vendors before submission.
 Potential linked-to-user data:
 
 - contact information: primary and optional backup email;
-- user content: profile fields, prompt answers, text messages, reports;
+- user content: profile fields including self-described gender, prompt answers,
+  text messages, reports;
 - identifiers: internal account, profile, session, connection, and report IDs;
 - coarse location: self-entered approximate city or region;
 - preferences and other data: boundaries, priorities, decisions, consent,
-  saved introductions, account state, meeting-planning preference.
+  private self-routing and gender-group preferences, saved introductions,
+  account state, meeting-planning preference.
 
 Current purposes:
 
@@ -150,8 +152,10 @@ monitoring, and support vendors before answering the Play Console form.
   delivery discloses deliberate text to the matched recipient. Vendor
   processing and policy definitions require legal review.
 - Optional data: backup notification email, pronouns, research consent, and
-  several profile fields are optional. Required-vs-optional answers must match
-  the final onboarding UI.
+  several profile fields are optional. A gender description and explicit
+  public/private discovery choices are required only to enter matching; they
+  are sensitive user content and preferences. Required-vs-optional answers
+  must match the final onboarding UI.
 
 ## Content and age-rating review
 

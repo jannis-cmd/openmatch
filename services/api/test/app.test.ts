@@ -274,6 +274,19 @@ test("email confirmation is delivered out of band, hashed, expiring, and single 
       "content-type": "application/json",
       authorization: `Bearer ${created.body.token}`,
     };
+    await fetch(base + "/v1/me", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        gender: "Nonbinary",
+        genderGroups: ["nonbinary_people"],
+      }),
+    });
+    await fetch(base + "/v1/preferences", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ genderGroups: ["nonbinary_people"] }),
+    });
     const pending = await fetch(base + "/v1/account/email-verification", {
       headers,
     });
@@ -623,11 +636,44 @@ test("authenticated accounts have hashed credentials and isolated application da
       })
     ).json()) as { items: unknown[] };
     assert.equal(incompleteIntroductions.items.length, 0);
+    const initialAccountProfile = (await (
+      await fetch(base + "/v1/me", { headers: auth(first.body.token!) })
+    ).json()) as Profile;
+    const initialAccountPreferences = (await (
+      await fetch(base + "/v1/preferences", {
+        headers: auth(first.body.token!),
+      })
+    ).json()) as { genderGroups: string[] };
+    assert.equal(initialAccountProfile.gender, "");
+    assert.deepEqual(initialAccountProfile.genderGroups, []);
+    assert.deepEqual(initialAccountPreferences.genderGroups, []);
+    assert.equal(
+      (
+        await fetch(base + "/v1/consents/directory", {
+          method: "PATCH",
+          headers: auth(first.body.token!),
+          body: JSON.stringify({ participating: true }),
+        })
+      ).status,
+      409,
+    );
     const completeAccount = async (token: string, name: string) => {
       await fetch(base + "/v1/me", {
         method: "PATCH",
         headers: auth(token),
-        body: JSON.stringify({ name, city: "Zürich" }),
+        body: JSON.stringify({
+          name,
+          city: "Zürich",
+          gender: "Nonbinary",
+          genderGroups: ["nonbinary_people"],
+        }),
+      });
+      await fetch(base + "/v1/preferences", {
+        method: "PATCH",
+        headers: auth(token),
+        body: JSON.stringify({
+          genderGroups: ["women", "men", "nonbinary_people"],
+        }),
       });
       assert.equal(
         (
@@ -707,11 +753,15 @@ test("authenticated accounts have hashed credentials and isolated application da
       await fetch(base + "/v1/introductions", {
         headers: auth(first.body.token!),
       })
-    ).json()) as { items: Array<{ profile: { id: string } }> };
+    ).json()) as {
+      items: Array<{ profile: { id: string; gender: string } }>;
+    };
     assert.deepEqual(
       introductions.items.map(({ profile }) => profile.id),
       [secondId],
     );
+    assert.equal(introductions.items[0].profile.gender, "Nonbinary");
+    assert.equal("genderGroups" in introductions.items[0].profile, false);
     const firstDecision = await fetch(
       base + `/v1/introductions/${secondId}/decision`,
       {
@@ -1390,6 +1440,8 @@ test("the public data inventory covers every current storage and export field", 
       "city",
       "distanceKm",
       "pronouns",
+      "gender",
+      "genderGroups[]",
       "intent",
       "readiness",
       "bio",
@@ -1407,6 +1459,7 @@ test("the public data inventory covers every current storage and export field", 
       "idealDistanceKm",
       "maximumDistanceKm",
       "intents[]",
+      "genderGroups[]",
       "smoking",
       "children",
       "weights.proximity",
@@ -1418,6 +1471,7 @@ test("the public data inventory covers every current storage and export field", 
     accountStatus: ["status"],
     deliverySettings: ["batchSize"],
     introductionBatch: [
+      "algorithmVersion",
       "weeklySeed",
       "batchSize",
       "profileId",
@@ -1500,7 +1554,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       false,
     );
     assert.deepEqual(await (await request("/v1/transparency/version")).json(), {
-      matching: "1.0.0-draft.3",
+      matching: "1.0.0-draft.4",
       hiddenFactors: false,
       privatePersonalInputsMayBeRedacted: true,
       status: "prototype",
@@ -2033,6 +2087,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       accountStatus: string;
       deliverySettings: { batchSize: number };
       introductionBatch: {
+        algorithmVersion: string;
         weeklySeed: string;
         batchSize: number;
         entries: unknown[];
@@ -2062,6 +2117,10 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(dataExport.accountStatus, "active");
     assert.equal(dataExport.deliverySettings.batchSize, 5);
     assert.equal(dataExport.introductionBatch.weeklySeed, publicWeeklySeed());
+    assert.equal(
+      dataExport.introductionBatch.algorithmVersion,
+      "1.0.0-draft.4",
+    );
     assert.equal(dataExport.introductionBatch.batchSize, 5);
     assert.ok(dataExport.introductionBatch.entries.length > 0);
     assert.equal(dataExport.consentReceipt.noticeVersion, "prototype-0.1");

@@ -410,6 +410,14 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     "Winterthur",
   );
   await fireEvent.changeText(
+    screen.getByLabelText("How you describe your gender"),
+    "Woman",
+  );
+  await fireEvent.press(
+    screen.getByText("Include me in discovery for nonbinary people"),
+  );
+  await fireEvent.press(screen.getByText("Include me in discovery for women"));
+  await fireEvent.changeText(
     screen.getByLabelText("Profile prompt answer"),
     "Building a welcoming table.",
   );
@@ -433,6 +441,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(demoSessionRequests).toBe(1);
   expect(profile.promptAnswer).toBe("Building a welcoming table.");
   expect(profile.values).toEqual(["Care", "Curiosity"]);
+  expect(profile.gender).toBe("Woman");
+  expect(profile.genderGroups).toEqual(["women"]);
   expect(screen.getByText("Mara, 30")).toBeTruthy();
   expect(screen.getByText("Public lottery slot")).toBeTruthy();
   await fireEvent.press(screen.getByText("See the full calculation"));

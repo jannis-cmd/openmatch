@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  createIntroduction,
   createIntroductions,
   conversationStarter,
   defaultPreferences,
@@ -204,6 +205,22 @@ test("candidate-side boundaries are real inputs, not assumed true", () => {
   assert.equal(introduction, undefined);
 });
 
+test("gender discovery requires both people's explicit choices", () => {
+  const candidate = structuredClone(demoCandidates[0]);
+  const viewerPreferences = structuredClone(defaultPreferences);
+  viewerPreferences.genderGroups = ["women"];
+  candidate.preferences.genderGroups = ["men"];
+  const excluded = createIntroduction(demoUser, candidate, viewerPreferences);
+  assert.equal(excluded.explanation.eligible, false);
+  assert.deepEqual(excluded.explanation.failedBoundaries, [
+    "Mutual gender discovery choices",
+  ]);
+
+  candidate.preferences.genderGroups = ["nonbinary_people"];
+  const reciprocal = createIntroduction(demoUser, candidate, viewerPreferences);
+  assert.equal(reciprocal.explanation.eligible, true);
+});
+
 test("candidate-side weights change only their directed fit", () => {
   const lowValues = structuredClone(demoCandidates[1]);
   const highValues = structuredClone(demoCandidates[1]);
@@ -289,6 +306,14 @@ test("invalid preferences are rejected before scoring or persistence", () => {
       }),
     /values weight/,
   );
+  assert.throws(
+    () =>
+      validatePreferences({
+        ...defaultPreferences,
+        genderGroups: ["everyone" as "women"],
+      }),
+    /gender discovery/,
+  );
 });
 
 test("invalid public profile fields are rejected", () => {
@@ -297,6 +322,18 @@ test("invalid public profile fields are rejected", () => {
   assert.throws(() => validateProfile({ ...demoUser, city: "" }), /details/);
   assert.throws(
     () => validateProfile({ ...demoUser, pronouns: "x".repeat(51) }),
+    /details/,
+  );
+  assert.throws(
+    () => validateProfile({ ...demoUser, gender: "x".repeat(51) }),
+    /details/,
+  );
+  assert.throws(
+    () =>
+      validateProfile({
+        ...demoUser,
+        genderGroups: ["women", "women"],
+      }),
     /details/,
   );
   assert.throws(() => validateProfile({ ...demoUser, bio: "" }), /biography/);

@@ -67,6 +67,7 @@ const currentBatchIntroductions = (
   let batch = store.introductionBatch();
   if (
     !batch ||
+    batch.algorithmVersion !== ALGORITHM_VERSION ||
     batch.weeklySeed !== weeklySeed ||
     batch.batchSize !== batchSize
   ) {
@@ -82,6 +83,7 @@ const currentBatchIntroductions = (
       introductionOptions(store),
     );
     batch = {
+      algorithmVersion: ALGORITHM_VERSION,
       weeklySeed,
       batchSize,
       entries: items.map(({ profile, explanation }) => ({
@@ -983,6 +985,10 @@ export function createApp(
         const body = (await readJson(request)) as { participating?: unknown };
         if (typeof body.participating !== "boolean")
           return send(response, 400, { error: "invalid_directory_consent" });
+        if (body.participating && !store.discoveryConfigured())
+          return send(response, 409, {
+            error: "gender_discovery_configuration_required",
+          });
         if (
           body.participating &&
           accountSession &&

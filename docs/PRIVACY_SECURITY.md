@@ -4,6 +4,17 @@
 
 Collect only what a current feature requires; state purpose before collection; separate public visibility from processing consent; use coarse location; encrypt in transit and at rest; short retention; audited access; easy export/deletion; no advertising identifiers, contact uploads, data brokers, or cross-service tracking.
 
+Gender discovery separates a person's public free-text description and
+self-selected routing groups from their private groups sought. Routing groups
+can overlap and are not treated as identity truth. The service never infers
+gender or orientation from a name, photo, pronouns, behavior, or another field,
+and never requests sex assigned at birth for matching. New and migrated account
+profiles remain excluded from the directory until the person explicitly
+configures both sides. These fields still create outing, harassment, scraping,
+and fetishization risk; an actual pilot requires granular visibility research,
+anti-enumeration controls, neutral notifications, rapid concealment, and
+participatory threat modeling with affected communities.
+
 ## Initial retention proposal (requires legal and community review)
 
 - paused profile: hidden immediately, retained 90 days unless user selects earlier deletion;
