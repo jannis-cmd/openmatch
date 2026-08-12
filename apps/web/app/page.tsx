@@ -382,6 +382,17 @@ function AppExperience({ exit }: { exit: () => void }) {
                       </article>
                       <aside className="match-panel">
                         <p className="eyebrow">Why this introduction</p>
+                        {current.explanation.selectionMode ===
+                          "exploration" && (
+                          <div className="exploration-note" role="note">
+                            <strong>Public lottery slot</strong>
+                            <span>
+                              One place in this five-person batch is selected
+                              reproducibly from eligible profiles. It does not
+                              change anyone’s score.
+                            </span>
+                          </div>
+                        )}
                         <div className="score">
                           {Math.round(current.explanation.finalScore * 100)}
                           <small>%</small>
@@ -456,6 +467,17 @@ function AppExperience({ exit }: { exit: () => void }) {
                               )}
                               % · Explicit inputs only · No undocumented system
                               factors.
+                            </p>
+                            <p>
+                              Selection: {current.explanation.selectionMode} ·
+                              probability{" "}
+                              {Math.round(
+                                current.explanation.selectionProbability * 100,
+                              )}
+                              %
+                              {current.explanation.weeklySeed
+                                ? ` · public seed ${current.explanation.weeklySeed}`
+                                : ""}
                             </p>
                           </div>
                         )}
@@ -929,8 +951,8 @@ function AlgorithmGraphic() {
     },
     {
       number: "4",
-      title: "Add real-world context",
-      copy: "Distance helps order eligible people, but popularity and payment never do.",
+      title: "Keep one public lottery place",
+      copy: "In a five-person batch, one eligible profile is selected with a reproducible weekly seed. The score never changes.",
     },
     {
       number: "5",
@@ -2075,6 +2097,15 @@ function AboutView({
         </div>
         <div>
           <b>3</b>
+          <h2>One public lottery place</h2>
+          <p>
+            A five-person batch reserves one place for a reproducible weekly
+            lottery among eligible people. The label, seed, and probability are
+            visible; the score never changes.
+          </p>
+        </div>
+        <div>
+          <b>4</b>
           <h2>Human judgment</h2>
           <p>
             You see the person and reasoning, then decide. Feedback can suggest

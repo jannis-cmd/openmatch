@@ -61,6 +61,9 @@ export type PublicProfile = Omit<Profile, "distanceKm"> & {
 export type PublicExplanation = Omit<Explanation, "factorsForB"> & {
   factorsForB: Contribution[] | null;
   candidateTrace: "shared" | "private";
+  selectionMode: "score" | "exploration";
+  selectionProbability: number;
+  weeklySeed: string | null;
 };
 export type Introduction = {
   profile: PublicProfile;
@@ -464,6 +467,9 @@ export function createIntroduction(
     factorsForB:
       candidateTrace === "shared" ? completeExplanation.factorsForB : null,
     candidateTrace,
+    selectionMode: "score",
+    selectionProbability: 1,
+    weeklySeed: null,
   };
   const reasons = factors
     .filter(
@@ -484,9 +490,88 @@ export function createIntroductions(
   user = demoUser,
   candidates = demoCandidates,
   preferences = defaultPreferences,
+  options: {
+    weeklySeed?: string;
+    explorationSlots?: number;
+    limit?: number;
+  } = {},
 ) {
-  return candidates
+  const eligible = candidates
     .map((candidate) => createIntroduction(user, candidate, preferences))
     .filter((item) => item.explanation.eligible)
     .sort((a, b) => b.explanation.finalScore - a.explanation.finalScore);
+  const limit = Math.min(
+    eligible.length,
+    Math.max(0, Math.trunc(options.limit ?? eligible.length)),
+  );
+  const explorationSlots = Math.min(
+    limit,
+    Math.max(0, Math.trunc(options.explorationSlots ?? 0)),
+  );
+  if (!options.weeklySeed || explorationSlots === 0 || eligible.length < 2)
+    return eligible.slice(0, limit);
+
+  const lotteryValue = (profileId: string) => {
+    const value = `${options.weeklySeed}:${user.id}:${profileId}`;
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index += 1) {
+      hash ^= value.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  };
+  eligible.sort(
+    (left, right) =>
+      right.explanation.finalScore - left.explanation.finalScore ||
+      lotteryValue(left.profile.id) - lotteryValue(right.profile.id) ||
+      left.profile.id.localeCompare(right.profile.id),
+  );
+  const exploratoryIds = new Set(
+    [...eligible]
+      .sort(
+        (left, right) =>
+          lotteryValue(left.profile.id) - lotteryValue(right.profile.id) ||
+          left.profile.id.localeCompare(right.profile.id),
+      )
+      .slice(0, explorationSlots)
+      .map((item) => item.profile.id),
+  );
+  const probability = explorationSlots / eligible.length;
+  const annotate = (
+    item: Introduction,
+    selectionMode: "score" | "exploration",
+  ): Introduction => ({
+    ...item,
+    explanation: {
+      ...item.explanation,
+      selectionMode,
+      selectionProbability: selectionMode === "exploration" ? probability : 1,
+      weeklySeed: options.weeklySeed ?? null,
+    },
+  });
+  const result = eligible
+    .filter((item) => !exploratoryIds.has(item.profile.id))
+    .slice(0, limit - explorationSlots)
+    .map((item) => annotate(item, "score"));
+  const exploratory = eligible
+    .filter((item) => exploratoryIds.has(item.profile.id))
+    .sort(
+      (left, right) =>
+        lotteryValue(left.profile.id) - lotteryValue(right.profile.id),
+    )
+    .map((item) => annotate(item, "exploration"));
+  const position = lotteryValue("exploration-slot") % (result.length + 1);
+  result.splice(position, 0, ...exploratory);
+  return result;
+}
+
+/** A public Monday date makes each UTC week's lottery reproducible. */
+export function publicWeeklySeed(date = new Date()): string {
+  if (Number.isNaN(date.getTime())) throw new RangeError("date must be valid");
+  const monday = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  const daysSinceMonday = (monday.getUTCDay() + 6) % 7;
+  monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
+  return monday.toISOString().slice(0, 10);
 }

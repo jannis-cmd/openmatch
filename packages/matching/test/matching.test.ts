@@ -10,6 +10,7 @@ import {
   nearestPriority,
   priorityLabel,
   proximityCompatibility,
+  publicWeeklySeed,
   suggestPreferenceWeights,
   validatePreferences,
   validateProfile,
@@ -123,6 +124,63 @@ test("candidate generation excludes hard-boundary failures and orders eligible p
   );
   assert.equal(introductions[0].profile.distanceBand, "Within 5 km");
   assert.equal("distanceKm" in introductions[0].profile, false);
+});
+
+test("public-seed exploration reserves a reproducible slot without changing scores", () => {
+  const baseline = createIntroductions(
+    demoUser,
+    demoCandidates,
+    defaultPreferences,
+  );
+  const options = {
+    weeklySeed: "2026-08-10",
+    explorationSlots: 1,
+    limit: 2,
+  };
+  const first = createIntroductions(
+    demoUser,
+    demoCandidates,
+    defaultPreferences,
+    options,
+  );
+  const repeated = createIntroductions(
+    demoUser,
+    demoCandidates,
+    defaultPreferences,
+    options,
+  );
+  assert.deepEqual(
+    first.map(({ profile }) => profile.id),
+    repeated.map(({ profile }) => profile.id),
+  );
+  assert.equal(first.length, 2);
+  assert.equal(
+    first.filter((item) => item.explanation.selectionMode === "exploration")
+      .length,
+    1,
+  );
+  const exploratory = first.find(
+    (item) => item.explanation.selectionMode === "exploration",
+  );
+  assert.ok(exploratory);
+  assert.equal(exploratory.explanation.selectionProbability, 1 / 3);
+  assert.equal(exploratory.explanation.weeklySeed, "2026-08-10");
+  assert.equal(
+    exploratory.explanation.finalScore,
+    baseline.find((item) => item.profile.id === exploratory.profile.id)
+      ?.explanation.finalScore,
+  );
+});
+
+test("the weekly public seed is the UTC Monday date", () => {
+  assert.equal(
+    publicWeeklySeed(new Date("2026-08-16T23:59:59.000Z")),
+    "2026-08-10",
+  );
+  assert.equal(
+    publicWeeklySeed(new Date("2026-08-17T00:00:00.000Z")),
+    "2026-08-17",
+  );
 });
 
 test("candidate-side boundaries are real inputs, not assumed true", () => {

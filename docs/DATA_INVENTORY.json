@@ -86,6 +86,21 @@
       "fields": ["batchSize"]
     },
     {
+      "id": "introductionBatch",
+      "storage": "state.introduction_batch JSON",
+      "purpose": "Keep one finite batch's public-seed selection stable across refreshes so the declared exploration allocation cannot be redrawn after every action.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": [
+        "weeklySeed",
+        "batchSize",
+        "profileId",
+        "selectionMode",
+        "selectionProbability"
+      ],
+      "disclosure": "The seed, mode, and probability are shown with an exploratory introduction. The internal profile ID is not an additional public field. The snapshot contains no score or private candidate preference."
+    },
+    {
       "id": "consentReceipt",
       "storage": "state.consent_receipt JSON",
       "purpose": "Prove explicit adult confirmation and acceptance of prototype data use under a named notice.",

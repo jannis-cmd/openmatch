@@ -1,4 +1,4 @@
-export const ALGORITHM_VERSION = "1.0.0-draft.2";
+export const ALGORITHM_VERSION = "1.0.0-draft.3";
 
 export type Factor = {
   id: string;

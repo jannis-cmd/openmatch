@@ -297,6 +297,21 @@ input {
   color: #536158;
   font-size: 14px;
 }
+.exploration-note {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 1px solid #cbd5cd;
+  border-radius: 12px;
+  background: #f1f5f1;
+  color: #294536;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.exploration-note span {
+  color: #59655d;
+}
 .account-status span {
   flex: 1;
   color: #536158;

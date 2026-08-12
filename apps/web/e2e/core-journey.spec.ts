@@ -87,16 +87,35 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "3 remaining" }),
   ).toBeVisible();
-  await expect(page.getByText("Within 5 km")).toBeVisible();
-  await expect(page.getByText("Ready to meet in person")).toBeVisible();
+  const firstIntroduction = await page
+    .locator(".profile-card h2")
+    .textContent();
+  expect(firstIntroduction).toBeTruthy();
   await page.getByRole("button", { name: "Save for later" }).click();
   await expect(
     page.getByRole("heading", { name: "2 remaining" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Saved (1)" }).click();
-  await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: firstIntroduction ?? "" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Return to batch" }).click();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (await page.getByRole("heading", { name: "Mara, 30" }).isVisible())
+      break;
+    const previousIntroduction = await page
+      .locator(".profile-card h2")
+      .textContent();
+    await page.getByRole("button", { name: "Pass" }).click();
+    if (previousIntroduction)
+      await expect(
+        page.getByRole("heading", { name: previousIntroduction }),
+      ).not.toBeVisible();
+  }
   await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
+  await expect(page.getByText("Within 5 km")).toBeVisible();
+  await expect(page.getByText("Ready to meet in person")).toBeVisible();
+  await expect(page.getByText("Public lottery slot")).toBeVisible();
   await page.getByRole("button", { name: "Safety options" }).click();
   await page.getByLabel("Reason").selectOption("other");
   await page
@@ -113,6 +132,8 @@ test("first run through a persistent connection and safety action", async ({
     page.getByText(/Their factor weights are private personal inputs/),
   ).toBeVisible();
   await expect(page.getByText(/Harmonic mean:/)).toBeVisible();
+  await expect(page.getByText(/Selection: exploration/)).toBeVisible();
+  await expect(page.getByText(/public seed \d{4}-\d{2}-\d{2}/)).toBeVisible();
   await expectAccessible(page);
 
   await page.getByRole("button", { name: "Interested" }).click();

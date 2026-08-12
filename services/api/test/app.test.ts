@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { POLITE_CLOSE_MESSAGE } from "@openmatch/matching";
+import { POLITE_CLOSE_MESSAGE, publicWeeklySeed } from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
 import { Store } from "../src/store.ts";
 
@@ -30,7 +30,7 @@ test("account reset is atomic when storage rejects a deletion", () => {
       .prepare("SELECT COUNT(*) AS count FROM state")
       .get() as { count: number };
     assert.equal(decisionCount.count, 1);
-    assert.equal(stateCount.count, 7);
+    assert.equal(stateCount.count, 8);
   } finally {
     store.close();
   }
@@ -86,6 +86,13 @@ test("the public data inventory covers every current storage and export field", 
     onboarding: ["complete"],
     accountStatus: ["status"],
     deliverySettings: ["batchSize"],
+    introductionBatch: [
+      "weeklySeed",
+      "batchSize",
+      "profileId",
+      "selectionMode",
+      "selectionProbability",
+    ],
     consentReceipt: [
       "adultConfirmed",
       "prototypeDataUseAccepted",
@@ -144,7 +151,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       false,
     );
     assert.deepEqual(await (await request("/v1/transparency/version")).json(), {
-      matching: "1.0.0-draft.2",
+      matching: "1.0.0-draft.3",
       hiddenFactors: false,
       privatePersonalInputsMayBeRedacted: true,
       status: "prototype",
@@ -302,6 +309,8 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       items: [],
       finite: true,
       remaining: 0,
+      weeklySeed: publicWeeklySeed(),
+      explorationSlots: 0,
     });
     assert.equal(
       (
@@ -320,11 +329,36 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     const introductionsText = await introductionsResponse.text();
     const introductions = JSON.parse(introductionsText) as {
       items: Array<{
-        explanation: { candidateTrace: string; factorsForB: unknown };
+        profile: { id: string };
+        explanation: {
+          candidateTrace: string;
+          factorsForB: unknown;
+          selectionMode: string;
+          selectionProbability: number;
+          weeklySeed: string;
+        };
       }>;
+      weeklySeed: string;
+      explorationSlots: number;
     };
     assert.equal(introductions.items[0].explanation.candidateTrace, "private");
     assert.equal(introductions.items[0].explanation.factorsForB, null);
+    assert.equal(introductions.weeklySeed, publicWeeklySeed());
+    assert.equal(introductions.explorationSlots, 1);
+    assert.equal(
+      introductions.items.filter(
+        ({ explanation }) => explanation.selectionMode === "exploration",
+      ).length,
+      1,
+    );
+    assert.ok(
+      introductions.items.every(
+        ({ explanation }) =>
+          explanation.weeklySeed === introductions.weeklySeed &&
+          explanation.selectionProbability > 0 &&
+          explanation.selectionProbability <= 1,
+      ),
+    );
     assert.doesNotMatch(introductionsText, /"preferences"/);
     assert.doesNotMatch(introductionsText, /"distanceKm"/);
     assert.match(introductionsText, /"distanceBand":"Within 5 km"/);
@@ -340,12 +374,32 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ["lea"],
     );
     const afterSave = (await (await request("/v1/introductions")).json()) as {
-      items: Array<{ profile: { id: string } }>;
+      items: Array<{
+        profile: { id: string };
+        explanation: {
+          selectionMode: string;
+          selectionProbability: number;
+        };
+      }>;
     };
     assert.equal(
       afterSave.items.some((item) => item.profile.id === "lea"),
       false,
     );
+    for (const item of afterSave.items) {
+      const original = introductions.items.find(
+        ({ profile }) => profile.id === item.profile.id,
+      );
+      assert.ok(original);
+      assert.equal(
+        item.explanation.selectionMode,
+        original.explanation.selectionMode,
+      );
+      assert.equal(
+        item.explanation.selectionProbability,
+        original.explanation.selectionProbability,
+      );
+    }
     assert.equal(
       (
         await request("/v1/reports", {
@@ -486,11 +540,16 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       profile: { id: string };
       reports: unknown[];
       blocks: unknown[];
-      preferenceObservations: unknown[];
+      preferenceObservations: Array<{ selectionProbability: number }>;
       messages: Array<{ text: string }>;
       connections: Array<{ muted: boolean }>;
       accountStatus: string;
       deliverySettings: { batchSize: number };
+      introductionBatch: {
+        weeklySeed: string;
+        batchSize: number;
+        entries: unknown[];
+      };
       consentReceipt: { noticeVersion: string };
       researchConsentReceipt: {
         participating: boolean;
@@ -503,12 +562,19 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(dataExport.blocks.length, 2);
     assert.equal(dataExport.preferenceObservations.length, 1);
     assert.equal(
+      dataExport.preferenceObservations[0].selectionProbability,
+      1 / 3,
+    );
+    assert.equal(
       dataExport.messages.some(({ text }) => text === POLITE_CLOSE_MESSAGE),
       true,
     );
     assert.equal(dataExport.connections[0].muted, true);
     assert.equal(dataExport.accountStatus, "active");
     assert.equal(dataExport.deliverySettings.batchSize, 5);
+    assert.equal(dataExport.introductionBatch.weeklySeed, publicWeeklySeed());
+    assert.equal(dataExport.introductionBatch.batchSize, 5);
+    assert.ok(dataExport.introductionBatch.entries.length > 0);
     assert.equal(dataExport.consentReceipt.noticeVersion, "prototype-0.1");
     assert.deepEqual(
       {
@@ -552,6 +618,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       researchConsentReceipt: unknown;
       accountStatus: string;
       deliverySettings: { batchSize: number };
+      introductionBatch: unknown;
       decisions: unknown[];
       preferenceObservations: unknown[];
       connections: unknown[];
@@ -566,6 +633,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(resetExport.researchConsentReceipt, null);
     assert.equal(resetExport.accountStatus, "active");
     assert.deepEqual(resetExport.deliverySettings, { batchSize: 5 });
+    assert.equal(resetExport.introductionBatch, null);
     for (const collection of [
       "decisions",
       "preferenceObservations",

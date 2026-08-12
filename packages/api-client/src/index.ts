@@ -150,9 +150,13 @@ export function createApiClient(
     transparencyVersion: () =>
       request<TransparencyVersion>("/v1/transparency/version"),
     introductions: () =>
-      request<{ items: Introduction[]; finite: true; remaining: number }>(
-        "/v1/introductions",
-      ),
+      request<{
+        items: Introduction[];
+        finite: true;
+        remaining: number;
+        weeklySeed: string;
+        explorationSlots: number;
+      }>("/v1/introductions"),
     savedIntroductions: () =>
       request<{ items: Introduction[] }>("/v1/introductions/saved"),
     saveIntroduction: (profileId: string) =>

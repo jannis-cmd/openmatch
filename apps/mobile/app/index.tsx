@@ -451,6 +451,18 @@ export default function App() {
                 </View>
                 <View style={styles.scoreCard}>
                   <Text style={styles.eyebrow}>Why this introduction</Text>
+                  {current.explanation.selectionMode === "exploration" && (
+                    <View style={styles.explorationNote}>
+                      <Text style={styles.explorationTitle}>
+                        Public lottery slot
+                      </Text>
+                      <Text style={styles.scoreNote}>
+                        One place in this five-person batch is selected
+                        reproducibly from eligible profiles. It does not change
+                        anyone’s score.
+                      </Text>
+                    </View>
+                  )}
                   <Text style={styles.score}>
                     {Math.round(current.explanation.finalScore * 100)}%
                   </Text>
@@ -511,6 +523,17 @@ export default function App() {
                         {Math.round(current.explanation.reciprocalFit * 100)}% ·
                         Algorithm {ALGORITHM_VERSION} · No undocumented system
                         factors.
+                      </Text>
+                      <Text style={styles.mathNote}>
+                        Selection {current.explanation.selectionMode} ·
+                        probability{" "}
+                        {Math.round(
+                          current.explanation.selectionProbability * 100,
+                        )}
+                        %
+                        {current.explanation.weeklySeed
+                          ? ` · public seed ${current.explanation.weeklySeed}`
+                          : ""}
                       </Text>
                     </View>
                   )}
@@ -1126,6 +1149,11 @@ export default function App() {
                 ],
                 [
                   "3",
+                  "One public lottery place",
+                  "A five-person batch reserves one place for a reproducible weekly lottery. The score never changes.",
+                ],
+                [
+                  "4",
                   "Human judgment",
                   "Feedback may suggest an edit, but never changes preferences silently.",
                 ],
@@ -1964,6 +1992,19 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     marginBottom: 5,
+  },
+  explorationNote: {
+    backgroundColor: "#F1F5F1",
+    borderRadius: 12,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: "#CBD5CD",
+    marginTop: 10,
+  },
+  explorationTitle: {
+    color: "#294536",
+    fontWeight: "700",
+    marginBottom: 4,
   },
   score: {
     fontSize: 60,

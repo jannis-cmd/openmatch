@@ -6,8 +6,10 @@ import {
 import {
   ALGORITHM_VERSION,
   POLITE_CLOSE_MESSAGE,
+  createIntroduction,
   createIntroductions,
   demoCandidates,
+  publicWeeklySeed,
   toPublicProfile,
 } from "@openmatch/matching";
 import { Store } from "./store.js";
@@ -38,6 +40,67 @@ const readJson = async (request: IncomingMessage) => {
 };
 const demoSession = (request: IncomingMessage) =>
   request.headers["x-demo-session"] === "openmatch-local-demo";
+const introductionOptions = (store: Store) => ({
+  weeklySeed: publicWeeklySeed(),
+  explorationSlots: store.deliverySettings().batchSize === 5 ? 1 : 0,
+  limit: store.deliverySettings().batchSize,
+});
+const currentBatchIntroductions = (store: Store, excluded: Set<string>) => {
+  const weeklySeed = publicWeeklySeed();
+  const batchSize = store.deliverySettings().batchSize;
+  let batch = store.introductionBatch();
+  if (
+    !batch ||
+    batch.weeklySeed !== weeklySeed ||
+    batch.batchSize !== batchSize
+  ) {
+    const unavailable = new Set([
+      ...store.decidedIds(),
+      ...store.hiddenIds(),
+      ...store.savedIds(),
+    ]);
+    const items = createIntroductions(
+      store.profile(),
+      demoCandidates.filter(({ profile }) => !unavailable.has(profile.id)),
+      store.preferences(),
+      introductionOptions(store),
+    );
+    batch = {
+      weeklySeed,
+      batchSize,
+      entries: items.map(({ profile, explanation }) => ({
+        profileId: profile.id,
+        selectionMode: explanation.selectionMode,
+        selectionProbability: explanation.selectionProbability,
+      })),
+    };
+    store.saveIntroductionBatch(batch);
+  }
+  return batch.entries.flatMap((entry) => {
+    if (excluded.has(entry.profileId)) return [];
+    const candidate = demoCandidates.find(
+      ({ profile }) => profile.id === entry.profileId,
+    );
+    if (!candidate) return [];
+    const item = createIntroduction(
+      store.profile(),
+      candidate,
+      store.preferences(),
+    );
+    if (!item.explanation.eligible) return [];
+    return [
+      {
+        ...item,
+        explanation: {
+          ...item.explanation,
+          selectionMode: entry.selectionMode,
+          selectionProbability: entry.selectionProbability,
+          weeklySeed: batch.weeklySeed,
+        },
+      },
+    ];
+  });
+};
 
 export function createApp(
   options: {
@@ -256,23 +319,23 @@ export function createApp(
             items: [],
             finite: true,
             remaining: 0,
+            weeklySeed: publicWeeklySeed(),
+            explorationSlots: 0,
           });
         const hidden = new Set([
           ...store.decidedIds(),
           ...store.hiddenIds(),
           ...store.savedIds(),
         ]);
-        const items = createIntroductions(
-          store.profile(),
-          demoCandidates,
-          store.preferences(),
-        )
-          .filter((item) => !hidden.has(item.profile.id))
-          .slice(0, store.deliverySettings().batchSize);
+        const items = currentBatchIntroductions(store, hidden);
         return send(response, 200, {
           items,
           finite: true,
           remaining: items.length,
+          weeklySeed: publicWeeklySeed(),
+          explorationSlots: items.filter(
+            ({ explanation }) => explanation.selectionMode === "exploration",
+          ).length,
         });
       }
       if (
@@ -330,11 +393,23 @@ export function createApp(
       if (request.method === "POST" && decision) {
         if (!knownProfile(decision[1]))
           return send(response, 404, { error: "profile_not_found" });
-        const introduction = createIntroductions(
-          store.profile(),
-          demoCandidates,
-          store.preferences(),
-        ).find((item) => item.profile.id === decision[1]);
+        const unavailable = new Set([
+          ...store.decidedIds(),
+          ...store.hiddenIds(),
+        ]);
+        const introduction =
+          currentBatchIntroductions(store, unavailable).find(
+            (item) => item.profile.id === decision[1],
+          ) ??
+          (store.savedIds().has(decision[1])
+            ? createIntroductions(
+                store.profile(),
+                demoCandidates.filter(
+                  ({ profile }) => profile.id === decision[1],
+                ),
+                store.preferences(),
+              )[0]
+            : undefined);
         if (!introduction)
           return send(response, 409, { error: "profile_not_eligible" });
         const body = (await readJson(request)) as { decision?: string };
@@ -350,7 +425,7 @@ export function createApp(
                 factor.compatibility,
               ]),
             ),
-            selectionProbability: 1,
+            selectionProbability: introduction.explanation.selectionProbability,
           }),
         );
       }

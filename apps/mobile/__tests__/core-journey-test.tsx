@@ -113,9 +113,11 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       });
     if (path === "/v1/introductions/saved")
       return response({
-        items: createIntroductions(profile, demoCandidates, preferences).filter(
-          (item) => savedIds.has(item.profile.id),
-        ),
+        items: createIntroductions(profile, demoCandidates, preferences, {
+          weeklySeed: "s0",
+          explorationSlots: 1,
+          limit: 5,
+        }).filter((item) => savedIds.has(item.profile.id)),
       });
     const saved = path.match(/^\/v1\/introductions\/([^/]+)\/saved$/);
     if (saved && init.method === "POST") {
@@ -131,7 +133,11 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/introductions")
       return response({
-        items: createIntroductions(profile, demoCandidates, preferences)
+        items: createIntroductions(profile, demoCandidates, preferences, {
+          weeklySeed: "s0",
+          explorationSlots: 1,
+          limit: 5,
+        })
           .filter((item) => !savedIds.has(item.profile.id))
           .slice(0, batchSize),
         finite: true,
@@ -181,6 +187,11 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     expect(screen.getByText("Your introductions")).toBeTruthy(),
   );
   expect(screen.getByText("Mara, 30")).toBeTruthy();
+  expect(screen.getByText("Public lottery slot")).toBeTruthy();
+  await fireEvent.press(screen.getByText("See the full calculation"));
+  expect(screen.getByText(/Selection exploration/)).toBeTruthy();
+  expect(screen.getByText(/public seed s0/)).toBeTruthy();
+  await fireEvent.press(screen.getByText("Hide calculation"));
   await fireEvent.press(screen.getByText("Save for later"));
   await waitFor(() => expect(screen.getByText("Noah, 34")).toBeTruthy());
   await fireEvent.press(screen.getByText("Saved (1)"));

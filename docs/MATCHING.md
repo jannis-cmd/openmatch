@@ -43,8 +43,10 @@ This design follows two evidence constraints: stated and revealed preferences ca
 3. Calculate both directed fits from explicit current weights.
 4. Combine with the harmonic mean.
 5. Apply only the governed bounded exposure uplift.
-6. Fill the declared exploration allocation from eligible candidates using the public seeded lottery.
+6. For a five-person batch, reserve one slot (20%) from all eligible candidates using an FNV-1a lottery keyed by the user's internal ID, candidate internal ID, and the public UTC Monday date. Smaller user-selected batches currently reserve no exploration slot rather than making an outsized fraction experimental.
 7. Sort non-exploration candidates by score and resolve exact ties with that same lottery.
+
+The exploratory profile's position within the batch is also selected by the same public seed, avoiding a systematic first- or last-position advantage. The entire batch, mode, probability, and seed are then snapshotted so Save, Pass, refresh, or an app restart cannot redraw extra exploratory profiles. Profile, preference, batch-size, or weekly-seed changes intentionally create a fresh snapshot. Its selection probability is `1 / eligibleCandidateCount`; that value is recorded only if the person explicitly chooses Interested or Pass. The lottery changes selection, never eligibility or any score. This 20% allocation is a testable prototype hypothesis, not an evidence-backed optimum, and must be preregistered and compared against other allocations before a pilot.
 
 No swipe trains a global model of human desirability. Feedback belongs to the person who gave it, can be exported/deleted, and cannot reduce another person’s standing.
 
@@ -59,6 +61,7 @@ Every result returns:
 - every factor name, input compatibility, weight, and contribution;
 - exposure adjustment and reason;
 - whether the slot was exploratory;
+- the exploration selection probability and public weekly seed;
 - no hidden factors.
 
 Algorithm transparency is not permission to expose another person's private settings. Candidate factor traces therefore default to private. A person may explicitly opt into sharing their trace; otherwise the explanation still states the public formula, both aggregate directed scores, the reciprocal result, and that private explicit inputs—but no undocumented system factors—were used. Redaction happens only after scoring and cannot change the result. The service never calls undisclosed personal data “public.” Whether even the aggregate candidate-directed score should be coarsened requires user research and privacy review before a real pilot.

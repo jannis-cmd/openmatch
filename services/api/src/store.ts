@@ -26,6 +26,15 @@ export type Message = {
 };
 export type AccountStatus = "active" | "paused" | "hidden";
 export type DeliverySettings = { batchSize: 1 | 2 | 3 | 4 | 5 };
+export type IntroductionBatch = {
+  weeklySeed: string;
+  batchSize: number;
+  entries: Array<{
+    profileId: string;
+    selectionMode: "score" | "exploration";
+    selectionProbability: number;
+  }>;
+};
 export type ConsentReceipt = {
   adultConfirmed: true;
   prototypeDataUseAccepted: true;
@@ -74,6 +83,7 @@ export class Store {
     insert.run("onboarding_complete", JSON.stringify(false));
     insert.run("account_status", JSON.stringify("active"));
     insert.run("delivery_settings", JSON.stringify({ batchSize: 5 }));
+    insert.run("introduction_batch", JSON.stringify(null));
     insert.run("consent_receipt", JSON.stringify(null));
     insert.run("research_consent_receipt", JSON.stringify(null));
     const profile = this.getState<Record<string, unknown>>("profile");
@@ -105,6 +115,7 @@ export class Store {
   updateProfile(patch: Partial<Profile>) {
     const next = validateProfile({ ...this.profile(), ...patch, id: "me" });
     this.setState("profile", next);
+    this.clearIntroductionBatch();
     return next;
   }
   preferences() {
@@ -118,6 +129,7 @@ export class Store {
       weights: { ...current.weights, ...patch.weights },
     });
     this.setState("preferences", next);
+    this.clearIntroductionBatch();
     return next;
   }
   onboardingComplete() {
@@ -166,7 +178,17 @@ export class Store {
   }
   updateDeliverySettings(settings: DeliverySettings) {
     this.setState("delivery_settings", settings);
+    this.clearIntroductionBatch();
     return settings;
+  }
+  introductionBatch() {
+    return this.getState<IntroductionBatch | null>("introduction_batch");
+  }
+  saveIntroductionBatch(batch: IntroductionBatch) {
+    this.setState("introduction_batch", batch);
+  }
+  clearIntroductionBatch() {
+    this.setState("introduction_batch", null);
   }
   decidedIds() {
     return new Set(
@@ -393,6 +415,7 @@ export class Store {
       researchConsentReceipt: this.researchConsentReceipt(),
       accountStatus: this.accountStatus(),
       deliverySettings: this.deliverySettings(),
+      introductionBatch: this.introductionBatch(),
       decisions: this.db
         .prepare(
           "SELECT profile_id AS profileId,decision,created_at AS createdAt FROM decisions ORDER BY created_at",
