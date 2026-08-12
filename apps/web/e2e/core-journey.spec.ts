@@ -40,6 +40,19 @@ test("public privacy and support pages describe the real prototype", async ({
   ).toHaveAttribute("href", "tel:142");
   await expect(page.getByText(/no staffed customer-support/i)).toBeVisible();
   await expectAccessible(page);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page.getByRole("heading", {
+      name: "Help, without pretending we are ready.",
+    }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await expectAccessible(page);
 });
 
 test("first run through a persistent connection and safety action", async ({
