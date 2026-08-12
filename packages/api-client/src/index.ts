@@ -12,6 +12,7 @@ export type Connection = {
   profileId: string;
   createdAt: string;
   closedAt: string | null;
+  muted: boolean;
   profile?: PublicProfile;
 };
 export type Message = {
@@ -180,6 +181,11 @@ export function createApiClient(
       request<{ message: Message; closed: true }>(
         `/v1/connections/${encodeURIComponent(connectionId)}/close-politely`,
         json("POST"),
+      ),
+    updateConnectionMute: (connectionId: string, muted: boolean) =>
+      request<{ muted: boolean }>(
+        `/v1/connections/${encodeURIComponent(connectionId)}/mute`,
+        json("PATCH", { muted }),
       ),
     block: (profileId: string) =>
       request<{ profileId: string; blocked: true }>(

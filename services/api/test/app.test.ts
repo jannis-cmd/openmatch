@@ -74,7 +74,7 @@ test("the public data inventory covers every current storage and export field", 
       "selectionProbability",
       "createdAt",
     ],
-    connections: ["id", "profileId", "createdAt", "closedAt"],
+    connections: ["id", "profileId", "createdAt", "closedAt", "muted"],
     savedIntroductions: ["profileId", "createdAt"],
     messages: ["id", "connectionId", "senderId", "text", "createdAt"],
     blocks: ["profileId", "createdAt"],
@@ -352,10 +352,37 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(suggestions.minimumObservations, 20);
     assert.equal(suggestions.automaticChanges, false);
     const connections = (await (await request("/v1/connections")).json()) as {
-      items: Array<{ id: string }>;
+      items: Array<{ id: string; muted: boolean }>;
     };
     assert.equal(connections.items.length, 1);
+    assert.equal(connections.items[0].muted, false);
     const id = connections.items[0].id;
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/mute`, {
+          method: "PATCH",
+          body: JSON.stringify({ muted: true }),
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        (await (await request("/v1/connections")).json()) as {
+          items: Array<{ muted: boolean }>;
+        }
+      ).items[0].muted,
+      true,
+    );
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/mute`, {
+          method: "PATCH",
+          body: JSON.stringify({ muted: "yes" }),
+        })
+      ).status,
+      400,
+    );
     assert.equal(
       (
         await request(`/v1/connections/${id}/messages`, {
@@ -425,6 +452,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       blocks: unknown[];
       preferenceObservations: unknown[];
       messages: Array<{ text: string }>;
+      connections: Array<{ muted: boolean }>;
       accountStatus: string;
       deliverySettings: { batchSize: number };
       consentReceipt: { noticeVersion: string };
@@ -442,6 +470,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       dataExport.messages.some(({ text }) => text === POLITE_CLOSE_MESSAGE),
       true,
     );
+    assert.equal(dataExport.connections[0].muted, true);
     assert.equal(dataExport.accountStatus, "active");
     assert.equal(dataExport.deliverySettings.batchSize, 5);
     assert.equal(dataExport.consentReceipt.noticeVersion, "prototype-0.1");

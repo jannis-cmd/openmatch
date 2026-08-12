@@ -136,7 +136,7 @@
       "purpose": "Represent mutual interest and whether a conversation is open or closed.",
       "retention": "prototype",
       "access": ["person", "service", "operator"],
-      "fields": ["id", "profileId", "createdAt", "closedAt"]
+      "fields": ["id", "profileId", "createdAt", "closedAt", "muted"]
     },
     {
       "id": "savedIntroductions",

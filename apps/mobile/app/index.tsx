@@ -650,6 +650,24 @@ export default function App() {
                     ])
                   }
                 />
+                <Action
+                  label={
+                    connection.muted
+                      ? "Unmute conversation"
+                      : "Mute conversation"
+                  }
+                  secondary
+                  onPress={() =>
+                    void api
+                      .updateConnectionMute(connection.id, !connection.muted)
+                      .then(load)
+                  }
+                />
+                <Text style={styles.mathNote}>
+                  {connection.muted
+                    ? "Muted. Future message notifications would be suppressed. Messages remain available."
+                    : "This prototype sends no notifications yet; the preference is stored for future delivery."}
+                </Text>
                 <View style={styles.scoreCard}>
                   {safetyNotice && (
                     <Text

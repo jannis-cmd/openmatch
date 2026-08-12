@@ -100,6 +100,10 @@ test("first run through a persistent connection and safety action", async ({
       name: "Close politely with a standard message",
     }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Mute conversation" }).click();
+  await expect(
+    page.getByRole("button", { name: "Unmute conversation" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByRole("textbox", { name: "Message Mara" })
     .fill("Hello from the repeatable journey");

@@ -15,6 +15,7 @@ export type Connection = {
   profileId: string;
   createdAt: string;
   closedAt: string | null;
+  muted: boolean;
 };
 export type Message = {
   id: number;
@@ -54,6 +55,13 @@ export class Store {
       CREATE TABLE IF NOT EXISTS saved_introductions (profile_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS preference_observations (profile_id TEXT PRIMARY KEY, interested INTEGER NOT NULL CHECK(interested IN (0,1)), factors_json TEXT NOT NULL, selection_probability REAL NOT NULL, created_at TEXT NOT NULL);
     `);
+    const connectionColumns = this.db
+      .prepare("PRAGMA table_info(connections)")
+      .all() as Array<{ name: string }>;
+    if (!connectionColumns.some(({ name }) => name === "muted"))
+      this.db.exec(
+        "ALTER TABLE connections ADD COLUMN muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1))",
+      );
     this.seed();
   }
 
@@ -259,18 +267,26 @@ export class Store {
   }
 
   connections() {
-    return this.db
-      .prepare(
-        "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt FROM connections WHERE closed_at IS NULL ORDER BY created_at DESC",
-      )
-      .all() as unknown as Connection[];
+    return (
+      this.db
+        .prepare(
+          "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted FROM connections WHERE closed_at IS NULL ORDER BY created_at DESC",
+        )
+        .all() as unknown as Array<
+        Omit<Connection, "muted"> & { muted: number }
+      >
+    ).map((connection) => ({ ...connection, muted: connection.muted === 1 }));
   }
   connection(id: string) {
-    return this.db
+    const connection = this.db
       .prepare(
-        "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt FROM connections WHERE id=? AND closed_at IS NULL",
+        "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted FROM connections WHERE id=? AND closed_at IS NULL",
       )
-      .get(id) as unknown as Connection | undefined;
+      .get(id) as unknown as
+      (Omit<Connection, "muted"> & { muted: number }) | undefined;
+    return connection
+      ? { ...connection, muted: connection.muted === 1 }
+      : undefined;
   }
   messages(connectionId: string) {
     return this.db
@@ -315,6 +331,14 @@ export class Store {
       this.db.exec("ROLLBACK");
       throw error;
     }
+  }
+  updateConnectionMute(id: string, muted: boolean) {
+    const result = this.db
+      .prepare(
+        "UPDATE connections SET muted=? WHERE id=? AND closed_at IS NULL",
+      )
+      .run(muted ? 1 : 0, id);
+    return result.changes ? { muted } : undefined;
   }
   block(profileId: string) {
     const now = new Date().toISOString();
@@ -373,11 +397,16 @@ export class Store {
           "SELECT profile_id AS profileId,interested,factors_json AS factors,selection_probability AS selectionProbability,created_at AS createdAt FROM preference_observations ORDER BY created_at",
         )
         .all(),
-      connections: this.db
-        .prepare(
-          "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt FROM connections ORDER BY created_at",
-        )
-        .all(),
+      connections: (
+        this.db
+          .prepare(
+            "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted FROM connections ORDER BY created_at",
+          )
+          .all() as Array<Record<string, unknown> & { muted: number }>
+      ).map((connection) => ({
+        ...connection,
+        muted: connection.muted === 1,
+      })),
       messages: this.db
         .prepare(
           "SELECT id,connection_id AS connectionId,sender_id AS senderId,text,created_at AS createdAt FROM messages ORDER BY id",

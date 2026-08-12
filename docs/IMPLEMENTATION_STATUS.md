@@ -25,6 +25,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Preference privacy | Candidate factor traces default private; sharing is explicit; redaction is tested not to change scores |
 | Basic safety | Report/block from introductions and conversations, mutual-only user-written text messaging, no read receipts, confirmed destructive actions, categorized reports with optional user context, private report history/status, visible report receipts, and always-reachable safer-dating/scam guidance |
 | Polite conversation close | Web and mobile can atomically send a published standard closing message and close the connection; the final message remains in export while silence and unmatching remain unpenalized alternatives |
+| Private conversation mute | Web and mobile persist mute independently from unmatch/block/report, export it, and explain that it will suppress future message notifications while the current prototype sends none |
 | Local API hardening | SQLite, validation, 64 KiB body limit, allowlisted browser origins, no-store responses, known-profile checks, explicit demo boundary |
 | Accessibility baseline | Semantic controls, visible/non-color states, automated WCAG 2.2 A/AA scans at four web states, native component queries, contrast fixes |
 | Open development | AGPL software license, CC BY documentation license, governance, research proposal template, evidence register, decision log, and formatting gate |

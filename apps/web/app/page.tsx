@@ -575,6 +575,12 @@ function AppExperience({ exit }: { exit: () => void }) {
                       await load();
                     }
                   }}
+                  setMuted={async (muted) => {
+                    if (connections[0]) {
+                      await api.updateConnectionMute(connections[0].id, muted);
+                      await load();
+                    }
+                  }}
                   block={async () => {
                     if (connections[0]) {
                       await api.block(connections[0].profileId);
@@ -1741,6 +1747,7 @@ function ConnectionsView({
   send,
   unmatch,
   closePolitely,
+  setMuted,
   block,
   report,
 }: {
@@ -1752,6 +1759,7 @@ function ConnectionsView({
   send: () => void | Promise<void>;
   unmatch: () => Promise<void>;
   closePolitely: () => Promise<void>;
+  setMuted: (muted: boolean) => Promise<void>;
   block: () => Promise<void>;
   report: (reason: ReportReason, details: string) => Promise<void>;
 }) {
@@ -1788,6 +1796,18 @@ function ConnectionsView({
       >
         Close politely with a standard message
       </button>
+      <button
+        className="text-button"
+        aria-pressed={connection.muted}
+        onClick={() => void setMuted(!connection.muted)}
+      >
+        {connection.muted ? "Unmute conversation" : "Mute conversation"}
+      </button>
+      <p className="help">
+        {connection.muted
+          ? "Muted. Future message notifications would be suppressed. Messages remain available."
+          : "This prototype sends no notifications yet; the preference is stored for future delivery."}
+      </p>
       <section className="settings-card conversation">
         <div className="connection-head">
           <div>

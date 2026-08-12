@@ -320,6 +320,21 @@ export function createApp(
       const politeClose = url.pathname.match(
         /^\/v1\/connections\/([^/]+)\/close-politely$/,
       );
+      const connectionMute = url.pathname.match(
+        /^\/v1\/connections\/([^/]+)\/mute$/,
+      );
+      if (request.method === "PATCH" && connectionMute) {
+        const body = (await readJson(request)) as { muted?: unknown };
+        if (typeof body.muted !== "boolean")
+          return send(response, 400, { error: "invalid_mute_state" });
+        const result = store.updateConnectionMute(
+          connectionMute[1],
+          body.muted,
+        );
+        return result
+          ? send(response, 200, result)
+          : send(response, 404, { error: "connection_not_found" });
+      }
       if (request.method === "POST" && politeClose) {
         const result = store.closePolitely(
           politeClose[1],
