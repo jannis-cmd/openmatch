@@ -15,6 +15,11 @@ contains no endpoint. EAS injects the selected HTTPS origin at build time.
 - Android signing uses the remote EAS keystore.
 - iOS signing is waiting for active Apple Developer Program membership. A free
   Apple account cannot distribute through TestFlight.
+- The tailnet beta exposes a prototype privacy notice at
+  `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/privacy` and support
+  information at `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/support`.
+  These are usable for owner/internal testing only. Store submission requires
+  public HTTPS URLs plus an accountable operator and private contact channel.
 
 Do not commit signing material, recovery credentials, Apple sessions, API
 tokens, or a private service address to the repository.
