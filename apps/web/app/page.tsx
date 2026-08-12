@@ -16,6 +16,7 @@ import {
   type ReportRecord,
   type ReportReason,
   type ResearchConsentReceipt,
+  type SecurityNotificationStatus,
   type TransparencyVersion,
 } from "@openmatch/api-client";
 import {
@@ -49,6 +50,9 @@ export default function Home() {
   );
   const [siteView, setSiteView] = useState<SiteView>("landing");
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [accountEntryNotice, setAccountEntryNotice] = useState<string | null>(
+    null,
+  );
   useEffect(() => {
     const storedToken = window.sessionStorage.getItem("openmatch-auth-token");
     const storedDemo = window.sessionStorage.getItem("openmatch-demo-session");
@@ -73,13 +77,23 @@ export default function Home() {
     window.sessionStorage.removeItem("openmatch-demo-session");
     window.sessionStorage.removeItem("openmatch-auth-token");
     setAuthToken(null);
+    setAccountEntryNotice(null);
     setSiteView("landing");
   };
 
-  const openAuthenticatedApp = (token: string) => {
+  const openAuthenticatedApp = (
+    token: string,
+    notification?: SecurityNotificationStatus,
+  ) => {
     window.sessionStorage.removeItem("openmatch-demo-session");
     window.sessionStorage.setItem("openmatch-auth-token", token);
     setAuthToken(token);
+    setAccountEntryNotice(
+      notification
+        ? "Account recovered. Every previous session and recovery code was invalidated." +
+            securityNotice(notification)
+        : null,
+    );
     setSiteView("app");
   };
 
@@ -109,6 +123,7 @@ export default function Home() {
       exit={exitApp}
       apiUrl={demoConfiguration.url}
       authToken={authToken}
+      accountEntryNotice={accountEntryNotice}
     />
   ) : (
     <LandingPage
@@ -123,10 +138,12 @@ function AppExperience({
   exit,
   apiUrl,
   authToken,
+  accountEntryNotice,
 }: {
   exit: () => void;
   apiUrl: string;
   authToken: string | null;
+  accountEntryNotice: string | null;
 }) {
   const api = useMemo(
     () =>
@@ -349,6 +366,11 @@ function AppExperience({
           </aside>
         )}
         <section className="content">
+          {accountEntryNotice && (
+            <div className="account-status" role="status">
+              {accountEntryNotice}
+            </div>
+          )}
           {loading && (
             <div className="empty">
               <p>Loading your private local data…</p>
@@ -841,11 +863,12 @@ function AppExperience({
                   changePassword={
                     authToken
                       ? async (currentPassword, newPassword) => {
-                          await api.changePassword(
+                          const result = await api.changePassword(
                             currentPassword,
                             newPassword,
                           );
                           setAccountSessions((await api.sessions()).items);
+                          return result.securityNotification;
                         }
                       : undefined
                   }
@@ -929,6 +952,16 @@ function Mark() {
       <span />
     </span>
   );
+}
+
+function securityNotice(status: SecurityNotificationStatus) {
+  return status === "sent"
+    ? " A separate security notice was sent to your confirmed email."
+    : status === "failed"
+      ? " The change succeeded, but the security email could not be delivered."
+      : status === "unverified"
+        ? " The change succeeded, but this inbox is not confirmed, so no security email was sent."
+        : " Security-email delivery is not configured on this server.";
 }
 
 function LandingPage({
@@ -1235,7 +1268,10 @@ function SignInPage({
 }: {
   back: () => void;
   apiUrl: string | null;
-  continueToApp: (token: string) => void;
+  continueToApp: (
+    token: string,
+    notification?: SecurityNotificationStatus,
+  ) => void;
   demoError: string | null;
 }) {
   const [email, setEmail] = useState("");
@@ -1274,7 +1310,12 @@ function SignInPage({
                 : mode === "recover"
                   ? await api.recoverAccount(email, recoveryCode, password)
                   : await api.signIn(email, password);
-            continueToApp(session.token);
+            continueToApp(
+              session.token,
+              mode === "recover" && "securityNotification" in session
+                ? (session.securityNotification as SecurityNotificationStatus)
+                : undefined,
+            );
           } catch (error) {
             const code = error instanceof Error ? error.message : "";
             setAuthError(
@@ -2099,10 +2140,12 @@ function ProfileView({
   changePassword?: (
     currentPassword: string,
     newPassword: string,
-  ) => Promise<void>;
-  generateRecoveryCodes?: (
-    currentPassword: string,
-  ) => Promise<{ codes: string[]; createdAt: string }>;
+  ) => Promise<SecurityNotificationStatus>;
+  generateRecoveryCodes?: (currentPassword: string) => Promise<{
+    codes: string[];
+    createdAt: string;
+    securityNotification: SecurityNotificationStatus;
+  }>;
   revokeSession: (sessionId: string) => Promise<void>;
   setResearchConsent: (participating: boolean) => Promise<void>;
   setAccountStatus: (status: AccountStatus) => Promise<void>;
@@ -2118,6 +2161,7 @@ function ProfileView({
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [recoveryPassword, setRecoveryPassword] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationNotice, setVerificationNotice] = useState<string | null>(
@@ -2434,12 +2478,16 @@ function ProfileView({
                 return;
               }
               try {
-                await changePassword(currentPassword, newPassword);
+                const notification = await changePassword(
+                  currentPassword,
+                  newPassword,
+                );
                 setCurrentPassword("");
                 setNewPassword("");
                 setConfirmPassword("");
                 setPasswordNotice(
-                  "Passphrase changed. Every other session was signed out.",
+                  "Passphrase changed. Every other session was signed out." +
+                    securityNotice(notification),
                 );
               } catch (error) {
                 setPasswordError(
@@ -2539,10 +2587,15 @@ function ProfileView({
               onSubmit={async (event) => {
                 event.preventDefault();
                 setRecoveryError(null);
+                setRecoveryNotice(null);
                 try {
                   const result = await generateRecoveryCodes(recoveryPassword);
                   setRecoveryPassword("");
                   setRecoveryCodes(result.codes);
+                  setRecoveryNotice(
+                    "Every older recovery code is now invalid." +
+                      securityNotice(result.securityNotification),
+                  );
                 } catch (error) {
                   setRecoveryError(
                     error instanceof ApiError &&
@@ -2568,6 +2621,7 @@ function ProfileView({
               </button>
             </form>
           )}
+          {recoveryNotice && <p role="status">{recoveryNotice}</p>}
           {recoveryError && <p role="alert">{recoveryError}</p>}
         </section>
       )}

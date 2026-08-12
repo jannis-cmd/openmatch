@@ -84,6 +84,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         expiresAt: "2026-08-13T00:00:00.000Z",
         authentication: true,
         otherSessionsRevoked: true,
+        securityNotification: "not_configured",
       });
     }
     if (path === "/v1/account/recovery-codes" && init.method === "POST") {
@@ -95,6 +96,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
             (_, index) => `${index}111-2222-3333-4444-5555-6666-7777-8888`,
           ),
           createdAt: "2026-08-12T12:00:00.000Z",
+          securityNotification: "not_configured",
         },
         201,
       );

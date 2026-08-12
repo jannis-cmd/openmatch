@@ -19,8 +19,10 @@ import {
 import { Store } from "./store.js";
 import { AccountError, Accounts } from "./accounts.js";
 import {
-  smtpEmailVerificationSender,
+  smtpAccountEmailSenders,
   type EmailVerificationSender,
+  type SecurityNotificationEvent,
+  type SecurityNotificationSender,
 } from "./email-verification.js";
 
 const send = (response: ServerResponse, status: number, body: unknown) => {
@@ -134,6 +136,7 @@ export function createApp(
     accounts?: Accounts | false;
     authRateLimit?: { maximum: number; windowMs: number };
     emailVerificationSender?: EmailVerificationSender | null;
+    securityNotificationSender?: SecurityNotificationSender | null;
   } = {},
 ) {
   const demoStore = options.store ?? new Store();
@@ -147,10 +150,19 @@ export function createApp(
   const demoSessionsEnabled =
     options.demoSessionsEnabled ??
     process.env.OPENMATCH_ENABLE_DEMO_SESSIONS === "true";
+  const configuredEmailSenders =
+    options.emailVerificationSender === undefined ||
+    options.securityNotificationSender === undefined
+      ? smtpAccountEmailSenders()
+      : null;
   const emailVerificationSender =
     options.emailVerificationSender === undefined
-      ? smtpEmailVerificationSender()
+      ? (configuredEmailSenders?.verification ?? null)
       : options.emailVerificationSender;
+  const securityNotificationSender =
+    options.securityNotificationSender === undefined
+      ? (configuredEmailSenders?.security ?? null)
+      : options.securityNotificationSender;
   const demoSessionTtlMs = options.demoSessionTtlMs ?? 12 * 60 * 60 * 1000;
   if (!Number.isInteger(demoSessionTtlMs) || demoSessionTtlMs < 60_000)
     throw new RangeError("demo session lifetime must be at least one minute");
@@ -247,6 +259,26 @@ export function createApp(
       return "sent" as const;
     } catch {
       accounts.cancelEmailVerification(accountId);
+      return "failed" as const;
+    }
+  };
+  const deliverSecurityNotification = async (
+    accountId: string,
+    event: SecurityNotificationEvent,
+    occurredAt: string,
+  ) => {
+    if (!accounts || !securityNotificationSender)
+      return "not_configured" as const;
+    const status = accounts.emailStatus(accountId);
+    if (!status.verifiedAt) return "unverified" as const;
+    try {
+      await securityNotificationSender({
+        email: status.email,
+        event,
+        occurredAt,
+      });
+      return "sent" as const;
+    } catch {
       return "failed" as const;
     }
   };
@@ -362,12 +394,18 @@ export function createApp(
             body.newPassword,
             body.client,
           );
+          const notification = await deliverSecurityNotification(
+            session.accountId,
+            "account_recovered",
+            new Date().toISOString(),
+          );
           return send(response, 200, {
             token: session.token,
             expiresAt: session.expiresAt,
             authentication: true,
             otherSessionsRevoked: true,
             recoveryCodesRevoked: true,
+            securityNotification: notification,
           });
         } catch (error) {
           if (error instanceof AccountError)
@@ -548,11 +586,17 @@ export function createApp(
             body.currentPassword,
             body.newPassword,
           );
+          const notification = await deliverSecurityNotification(
+            accountSession.accountId,
+            "password_changed",
+            new Date().toISOString(),
+          );
           return send(response, 200, {
             token: session.token,
             expiresAt: session.expiresAt,
             authentication: true,
             otherSessionsRevoked: true,
+            securityNotification: notification,
           });
         } catch (error) {
           if (error instanceof AccountError)
@@ -576,14 +620,19 @@ export function createApp(
           currentPassword?: unknown;
         };
         try {
-          return send(
-            response,
-            201,
-            accounts.generateRecoveryCodes(
-              accountSession.accountId,
-              body.currentPassword,
-            ),
+          const result = accounts.generateRecoveryCodes(
+            accountSession.accountId,
+            body.currentPassword,
           );
+          const notification = await deliverSecurityNotification(
+            accountSession.accountId,
+            "recovery_codes_replaced",
+            result.createdAt,
+          );
+          return send(response, 201, {
+            ...result,
+            securityNotification: notification,
+          });
         } catch (error) {
           if (error instanceof AccountError)
             return send(response, error.status, { error: error.code });

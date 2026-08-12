@@ -223,7 +223,7 @@ test("first run through a persistent connection and safety action", async ({
     .fill("a replacement browser test passphrase");
   await page.getByRole("button", { name: "Change passphrase" }).click();
   await expect(
-    page.getByText("Passphrase changed. Every other session was signed out."),
+    page.getByText(/Passphrase changed. Every other session was signed out/),
   ).toBeVisible();
   await expect(page.getByText("Web browser · This session")).toBeVisible();
   const recoveryCard = page
@@ -260,7 +260,8 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: firstIntroduction ?? "" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Return to batch" }).click();
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  await expect(page.locator(".profile-card")).toBeVisible();
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     if (await page.getByRole("heading", { name: "Mara, 30" }).isVisible())
       break;
     if (await page.getByRole("heading", { name: "Noah, 34" }).isVisible()) {

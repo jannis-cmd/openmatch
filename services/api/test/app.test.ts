@@ -124,6 +124,11 @@ test("email confirmation is delivered out of band, hashed, expiring, and single 
     code: string;
     expiresAt: string;
   }> = [];
+  const securityNotifications: Array<{
+    email: string;
+    event: string;
+    occurredAt: string;
+  }> = [];
   const server = createApp({
     store: new Store(":memory:"),
     accounts,
@@ -131,6 +136,9 @@ test("email confirmation is delivered out of band, hashed, expiring, and single 
     authRateLimit: { maximum: 20, windowMs: 60_000 },
     emailVerificationSender: async (message) => {
       deliveries.push(message);
+    },
+    securityNotificationSender: async (message) => {
+      securityNotifications.push(message);
     },
   }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -285,6 +293,63 @@ test("email confirmation is delivered out of band, hashed, expiring, and single 
       await fetch(base + "/v1/account/email-verification", { headers })
     ).json()) as { verifiedAt: string | null };
     assert.equal(status.verifiedAt, confirmedBody.verifiedAt);
+    const recoveryCodesResponse = await fetch(
+      base + "/v1/account/recovery-codes",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          currentPassword: "a verification test passphrase",
+        }),
+      },
+    );
+    const recoveryCodes = (await recoveryCodesResponse.json()) as {
+      codes: string[];
+      securityNotification: string;
+    };
+    assert.equal(recoveryCodes.securityNotification, "sent");
+    const changedResponse = await fetch(base + "/v1/account/password", {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        currentPassword: "a verification test passphrase",
+        newPassword: "a different verification test passphrase",
+      }),
+    });
+    const changed = (await changedResponse.json()) as {
+      token: string;
+      securityNotification: string;
+    };
+    assert.equal(changed.securityNotification, "sent");
+    const recoveredResponse = await fetch(base + "/v1/account/recover", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "verify@example.org",
+        recoveryCode: recoveryCodes.codes[0],
+        newPassword: "a recovered verification test passphrase",
+        client: "web",
+      }),
+    });
+    assert.equal(recoveredResponse.status, 200);
+    assert.equal(
+      ((await recoveredResponse.json()) as { securityNotification: string })
+        .securityNotification,
+      "sent",
+    );
+    assert.deepEqual(
+      securityNotifications.map(({ email, event }) => ({ email, event })),
+      [
+        { email: "verify@example.org", event: "recovery_codes_replaced" },
+        { email: "verify@example.org", event: "password_changed" },
+        { email: "verify@example.org", event: "account_recovered" },
+      ],
+    );
+    assert.ok(
+      securityNotifications.every(({ occurredAt }) =>
+        Number.isFinite(Date.parse(occurredAt)),
+      ),
+    );
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

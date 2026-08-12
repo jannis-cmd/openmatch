@@ -110,6 +110,7 @@ test("changes a passphrase and adopts the rotated session", async () => {
             expiresAt: "2026-08-13T00:00:00.000Z",
             authentication: true,
             otherSessionsRevoked: true,
+            securityNotification: "sent",
           }),
           { status: 200 },
         );
@@ -156,6 +157,7 @@ test("creates recovery codes and adopts a recovered session", async () => {
           JSON.stringify({
             codes: ["1111-2222-3333-4444-5555-6666-7777-8888"],
             createdAt: "2026-08-12T00:00:00.000Z",
+            securityNotification: "sent",
           }),
           { status: 201 },
         );
@@ -166,6 +168,7 @@ test("creates recovery codes and adopts a recovered session", async () => {
           authentication: true,
           otherSessionsRevoked: true,
           recoveryCodesRevoked: true,
+          securityNotification: "sent",
         }),
         { status: 200 },
       );

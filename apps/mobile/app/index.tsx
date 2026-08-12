@@ -33,6 +33,7 @@ import {
   type ReportRecord,
   type ReportReason,
   type ResearchConsentReceipt,
+  type SecurityNotificationStatus,
   type TransparencyVersion,
 } from "@openmatch/api-client";
 import {
@@ -59,6 +60,16 @@ function sessionClientLabel(client: AccountSession["client"]) {
   if (client === "ios") return "iPhone or iPad app";
   if (client === "android") return "Android app";
   return "Earlier OpenMatch client";
+}
+
+function securityNotice(status: SecurityNotificationStatus) {
+  return status === "sent"
+    ? " A separate security notice was sent to your confirmed email."
+    : status === "failed"
+      ? " The change succeeded, but the security email could not be delivered."
+      : status === "unverified"
+        ? " The change succeeded, but this inbox is not confirmed, so no security email was sent."
+        : " Security-email delivery is not configured on this server.";
 }
 
 export default function App() {
@@ -143,6 +154,7 @@ export default function App() {
   const [recoveryPassword, setRecoveryPassword] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationNotice, setVerificationNotice] = useState<string | null>(
     null,
@@ -350,9 +362,15 @@ export default function App() {
       <MobileAuthentication
         api={api}
         notice={sessionNotice}
-        onAuthenticated={async (token) => {
+        onAuthenticated={async (token, notification) => {
           await persistSessionToken(token);
           setAuthToken(token);
+          if (notification)
+            setPasswordNotice(
+              "Account recovered. Every previous session and recovery code was invalidated." +
+                securityNotice(notification),
+            );
+          if (notification) setTab("Profile");
           setAccessMode("account");
           setLoading(true);
         }}
@@ -1593,11 +1611,16 @@ export default function App() {
                         disabled={!recoveryPassword}
                         onPress={() => {
                           setRecoveryError(null);
+                          setRecoveryNotice(null);
                           void api
                             .generateRecoveryCodes(recoveryPassword)
-                            .then(({ codes }) => {
+                            .then(({ codes, securityNotification }) => {
                               setRecoveryPassword("");
                               setRecoveryCodes(codes);
+                              setRecoveryNotice(
+                                "Every older recovery code is now invalid." +
+                                  securityNotice(securityNotification),
+                              );
                             })
                             .catch((error) =>
                               setRecoveryError(
@@ -1610,6 +1633,14 @@ export default function App() {
                         }}
                       />
                     </>
+                  )}
+                  {recoveryNotice && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      {recoveryNotice}
+                    </Text>
                   )}
                   {recoveryError && (
                     <Text accessibilityRole="alert" style={styles.errorText}>
@@ -1686,7 +1717,8 @@ export default function App() {
                             setNewPassword("");
                             setConfirmPassword("");
                             setPasswordNotice(
-                              "Passphrase changed. Every other session was signed out.",
+                              "Passphrase changed. Every other session was signed out." +
+                                securityNotice(session.securityNotification),
                             );
                           } catch {
                             await api.signOut().catch(() => undefined);
@@ -2203,7 +2235,10 @@ function MobileAuthentication({
   notice,
 }: {
   api: ReturnType<typeof createApiClient>;
-  onAuthenticated: (token: string) => Promise<void>;
+  onAuthenticated: (
+    token: string,
+    notification?: SecurityNotificationStatus,
+  ) => Promise<void>;
   tryDemo?: () => void;
   notice?: string | null;
 }) {
@@ -2224,7 +2259,12 @@ function MobileAuthentication({
             ? await api.recoverAccount(email, recoveryCode, password)
             : await api.signIn(email, password);
       try {
-        await onAuthenticated(session.token);
+        await onAuthenticated(
+          session.token,
+          mode === "recover" && "securityNotification" in session
+            ? (session.securityNotification as SecurityNotificationStatus)
+            : undefined,
+        );
       } catch {
         await api.signOut().catch(() => undefined);
         throw new ApiError(503, "secure_session_storage_unavailable");

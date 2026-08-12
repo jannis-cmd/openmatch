@@ -95,8 +95,11 @@ export type EmailVerificationStatus = {
   verifiedAt: string | null;
   deliveryConfigured: boolean;
 };
+export type SecurityNotificationStatus =
+  "sent" | "failed" | "not_configured" | "unverified";
 export type PasswordChangeSession = AuthSession & {
   otherSessionsRevoked: true;
+  securityNotification: SecurityNotificationStatus;
 };
 export type RecoverySession = PasswordChangeSession & {
   recoveryCodesRevoked: true;
@@ -104,6 +107,7 @@ export type RecoverySession = PasswordChangeSession & {
 export type RecoveryCodeSet = {
   codes: string[];
   createdAt: string;
+  securityNotification: SecurityNotificationStatus;
 };
 export type ApiClientOptions = {
   initialToken?: string | null;
@@ -127,6 +131,11 @@ export class ApiError extends Error {
     super(`OpenMatch API request failed (${status}: ${code})`);
   }
 }
+
+const isSecurityNotificationStatus = (
+  value: unknown,
+): value is SecurityNotificationStatus =>
+  ["sent", "failed", "not_configured", "unverified"].includes(String(value));
 
 export function createApiClient(
   baseUrl: string,
@@ -248,18 +257,23 @@ export function createApiClient(
       if (
         typeof session.token !== "string" ||
         typeof session.expiresAt !== "string" ||
-        session.otherSessionsRevoked !== true
+        session.otherSessionsRevoked !== true ||
+        !isSecurityNotificationStatus(session.securityNotification)
       )
         throw new ApiError(500, "invalid_session");
       sessionPromise = Promise.resolve(session.token);
       options.onTokenChange?.(session.token);
       return session;
     },
-    generateRecoveryCodes: (currentPassword: string) =>
-      request<RecoveryCodeSet>(
+    generateRecoveryCodes: async (currentPassword: string) => {
+      const result = await request<RecoveryCodeSet>(
         "/v1/account/recovery-codes",
         json("POST", { currentPassword }),
-      ),
+      );
+      if (!isSecurityNotificationStatus(result.securityNotification))
+        throw new ApiError(500, "invalid_security_notification_status");
+      return result;
+    },
     recoverAccount: async (
       email: string,
       recoveryCode: string,
@@ -282,7 +296,8 @@ export function createApiClient(
         throw new ApiError(response.status, body.error ?? "recovery_failed");
       if (
         body.otherSessionsRevoked !== true ||
-        body.recoveryCodesRevoked !== true
+        body.recoveryCodesRevoked !== true ||
+        !isSecurityNotificationStatus(body.securityNotification)
       )
         throw new ApiError(500, "invalid_session");
       adoptSession(body);

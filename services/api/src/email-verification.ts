@@ -10,12 +10,30 @@ export type EmailVerificationSender = (
   message: EmailVerificationMessage,
 ) => Promise<void>;
 
+export type SecurityNotificationEvent =
+  "password_changed" | "recovery_codes_replaced" | "account_recovered";
+
+export type SecurityNotificationMessage = {
+  email: string;
+  event: SecurityNotificationEvent;
+  occurredAt: string;
+};
+
+export type SecurityNotificationSender = (
+  message: SecurityNotificationMessage,
+) => Promise<void>;
+
+export type AccountEmailSenders = {
+  verification: EmailVerificationSender;
+  security: SecurityNotificationSender;
+};
+
 const SIMPLE_MAILBOX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function smtpEmailVerificationSender(
+export function smtpAccountEmailSenders(
   smtpUrl = process.env.OPENMATCH_SMTP_URL,
   from = process.env.OPENMATCH_EMAIL_FROM,
-): EmailVerificationSender | null {
+): AccountEmailSenders | null {
   if (!smtpUrl && !from) return null;
   if (!smtpUrl || !from || !SIMPLE_MAILBOX.test(from))
     throw new RangeError(
@@ -35,12 +53,13 @@ export function smtpEmailVerificationSender(
     disableFileAccess: true,
     disableUrlAccess: true,
   });
-  return async ({ email, code, expiresAt }) => {
-    await transport.sendMail({
-      from,
-      to: email,
-      subject: "Confirm your OpenMatch email",
-      text: [
+  const send = (to: string, subject: string, lines: string[]) =>
+    transport
+      .sendMail({ from, to, subject, text: lines.join("\n") })
+      .then(() => undefined);
+  return {
+    verification: ({ email, code, expiresAt }) =>
+      send(email, "Confirm your OpenMatch email", [
         "Confirm that you can receive OpenMatch account messages.",
         "",
         `Confirmation code: ${code}`,
@@ -48,7 +67,30 @@ export function smtpEmailVerificationSender(
         "",
         "If you did not create this account, you can ignore this message.",
         "OpenMatch will never ask you to send this code to another person.",
-      ].join("\n"),
-    });
+      ]),
+    security: ({ email, event, occurredAt }) => {
+      const description = {
+        password_changed: "Your OpenMatch passphrase was changed.",
+        recovery_codes_replaced:
+          "A new set of OpenMatch recovery codes was created. Every older recovery code is now invalid.",
+        account_recovered:
+          "Your OpenMatch account was recovered with an offline recovery code. The passphrase changed, every previous session ended, and every recovery code is now invalid.",
+      }[event];
+      return send(email, "Security change to your OpenMatch account", [
+        description,
+        `Time: ${occurredAt}`,
+        "",
+        "This message contains no passphrase, recovery code, device details, or sign-in link.",
+        "If you did not make this change, open OpenMatch directly, change the passphrase, replace recovery codes, and revoke sessions you do not recognize.",
+        "This development service does not yet have a staffed account-takeover support channel.",
+      ]);
+    },
   };
+}
+
+export function smtpEmailVerificationSender(
+  smtpUrl = process.env.OPENMATCH_SMTP_URL,
+  from = process.env.OPENMATCH_EMAIL_FROM,
+): EmailVerificationSender | null {
+  return smtpAccountEmailSenders(smtpUrl, from)?.verification ?? null;
 }
