@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { resolveWebApiConfiguration } from "../lib/api-configuration.mjs";
 import {
+  ApiError,
   createApiClient,
   type AccountStatus,
   type AccountSession,
@@ -810,6 +811,17 @@ function AppExperience({
                     await load();
                   }}
                   sessions={authToken ? accountSessions : []}
+                  changePassword={
+                    authToken
+                      ? async (currentPassword, newPassword) => {
+                          await api.changePassword(
+                            currentPassword,
+                            newPassword,
+                          );
+                          setAccountSessions((await api.sessions()).items);
+                        }
+                      : undefined
+                  }
                   revokeSession={async (sessionId) => {
                     await api.revokeSession(sessionId);
                     setAccountSessions((await api.sessions()).items);
@@ -1234,9 +1246,11 @@ function SignInPage({
                 ? "An account already uses that email. Sign in instead."
                 : code.includes("invalid_email")
                   ? "Enter a valid email address."
-                  : code.includes("invalid_password")
-                    ? "Use a passphrase between 12 and 128 characters."
-                    : "Email or passphrase was not accepted.",
+                  : code.includes("common_password")
+                    ? "Choose a less common passphrase."
+                    : code.includes("invalid_password")
+                      ? "Use a passphrase between 15 and 128 characters."
+                      : "Email or passphrase was not accepted.",
             );
           } finally {
             setSubmitting(false);
@@ -1269,7 +1283,7 @@ function SignInPage({
           id="sign-in-password"
           type="password"
           autoComplete={mode === "create" ? "new-password" : "current-password"}
-          minLength={12}
+          minLength={mode === "create" ? 15 : undefined}
           maxLength={128}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -1977,6 +1991,7 @@ function ProfileView({
   directoryConsent,
   setDirectoryConsent,
   sessions,
+  changePassword,
   revokeSession,
   setResearchConsent,
   setAccountStatus,
@@ -1992,6 +2007,10 @@ function ProfileView({
   directoryConsent: DirectoryConsentReceipt | null;
   setDirectoryConsent: (participating: boolean) => Promise<void>;
   sessions: AccountSession[];
+  changePassword?: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<void>;
   revokeSession: (sessionId: string) => Promise<void>;
   setResearchConsent: (participating: boolean) => Promise<void>;
   setAccountStatus: (status: AccountStatus) => Promise<void>;
@@ -2000,6 +2019,11 @@ function ProfileView({
   deleteAccount?: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [draft, setDraft] = useState(profile);
   useEffect(() => setDraft(profile), [profile]);
   const draftValid =
@@ -2188,6 +2212,96 @@ function ProfileView({
                 "."
               : "Disabled. No account-matching consent has been recorded."}
           </p>
+        </section>
+      )}
+      {changePassword && (
+        <section className="settings-card">
+          <h2>Change passphrase</h2>
+          <p>
+            Enter your current passphrase, then choose at least 15 characters.
+            Spaces and password managers are welcome; there are no symbol or
+            periodic-change rules. A successful change signs out every other
+            session and securely replaces this session.
+          </p>
+          <form
+            className="profile-fields"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setPasswordNotice(null);
+              setPasswordError(null);
+              if (newPassword !== confirmPassword) {
+                setPasswordError("The new passphrases do not match.");
+                return;
+              }
+              try {
+                await changePassword(currentPassword, newPassword);
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmPassword("");
+                setPasswordNotice(
+                  "Passphrase changed. Every other session was signed out.",
+                );
+              } catch (error) {
+                setPasswordError(
+                  error instanceof ApiError &&
+                    error.code === "invalid_current_password"
+                    ? "The current passphrase was not accepted."
+                    : error instanceof ApiError &&
+                        error.code === "common_password"
+                      ? "Choose a less common passphrase."
+                      : error instanceof ApiError &&
+                          error.code === "password_unchanged"
+                        ? "Choose a passphrase different from the current one."
+                        : "The passphrase could not be changed.",
+                );
+              }
+            }}
+          >
+            <label>
+              Current passphrase
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                maxLength={128}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+              />
+            </label>
+            <label>
+              New passphrase
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                minLength={15}
+                maxLength={128}
+                onChange={(event) => setNewPassword(event.target.value)}
+              />
+            </label>
+            <label>
+              Confirm new passphrase
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                minLength={15}
+                maxLength={128}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={
+                !currentPassword ||
+                newPassword.length < 15 ||
+                confirmPassword.length < 15
+              }
+            >
+              Change passphrase
+            </button>
+          </form>
+          {passwordNotice && <p role="status">{passwordNotice}</p>}
+          {passwordError && <p role="alert">{passwordError}</p>}
         </section>
       )}
       <section className="settings-card">

@@ -65,7 +65,7 @@ The repository now contains a thin, local-first vertical slice:
 - genuine two-sided eligibility and directed fit from both people's explicit demo preferences;
 - profile and privacy views;
 - self-service JSON export and synchronous local demo-data deletion with a non-retained completion receipt;
-- optional email/passphrase accounts with scrypt-protected credentials, expiring opaque sessions, privacy-minimal active-session inspection/revocation, account-isolated SQLite data, and device-secure iOS/Android session restoration;
+- optional email/passphrase accounts with NIST-aligned length/usability rules, scrypt-protected credentials, authenticated passphrase change with complete session rotation, expiring opaque sessions, privacy-minimal active-session inspection/revocation, account-isolated SQLite data, and device-secure iOS/Android session restoration;
 - the same shared matching package on web, iOS, Android, and API;
 - a SQLite development API with profile, preferences, introductions, decisions, reset, and transparency endpoints.
 
@@ -85,7 +85,7 @@ visitor's localhost. See `docs/WEB_DEPLOYMENT.md`. Do not configure a hosted
 interactive demo until the shared demo identity has been replaced by production
 authentication and user-partitioned storage.
 
-Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, accessible author-labeled text-only messages, unmatch, block, structured reports, opt-in expiring local demo sessions, and a minimal account-isolation foundation with active-session revocation and synchronous account deletion. Completed active accounts with a separate reversible account-matching opt-in in an exactly matching self-entered approximate region can exercise a non-production reciprocal introduction, mutual connection, synchronized message, and closure flow; demo mode keeps its fictional candidates. Native account sessions restore from device-only Expo SecureStore. The account system is intentionally incomplete: verified email/passkeys, recovery, privacy-reviewed coarse location, transactional production migrations/authorization, moderation staffing/tools, encryption key management, independent security review, and deployment remain future milestones.
+Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, accessible author-labeled text-only messages, unmatch, block, structured reports, opt-in expiring local demo sessions, and a minimal account-isolation foundation with authenticated passphrase/session rotation, active-session revocation, and synchronous account deletion. Completed active accounts with a separate reversible account-matching opt-in in an exactly matching self-entered approximate region can exercise a non-production reciprocal introduction, mutual connection, synchronized message, and closure flow; demo mode keeps its fictional candidates. Native account sessions restore from device-only Expo SecureStore, including after passphrase rotation. The account system is intentionally incomplete: verified email/passkeys, recovery, privacy-reviewed coarse location, transactional production migrations/authorization, moderation staffing/tools, encryption key management, independent security review, and deployment remain future milestones.
 
 ## License
 

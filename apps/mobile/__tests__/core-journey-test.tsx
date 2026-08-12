@@ -43,6 +43,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let accountRequests = 0;
   let restoredBearerUsed = false;
   let otherSessionRevoked = false;
+  let passwordChanged = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -73,6 +74,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/session" && init.method === "DELETE")
       return response(null, 204);
+    if (path === "/v1/account/password" && init.method === "PATCH") {
+      passwordChanged = true;
+      otherSessionRevoked = true;
+      return response({
+        token: "p".repeat(43),
+        expiresAt: "2026-08-13T00:00:00.000Z",
+        authentication: true,
+        otherSessionsRevoked: true,
+      });
+    }
     if (path === "/v1/sessions" && init.method !== "DELETE")
       return response({
         items:
@@ -559,6 +570,28 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Sign out this session"));
   await waitFor(() => expect(otherSessionRevoked).toBe(true));
   await waitFor(() => expect(screen.queryByText("Web browser")).toBeNull());
+  await fireEvent.changeText(
+    screen.getByLabelText("Current passphrase"),
+    "a native test passphrase",
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText("New passphrase"),
+    "a replacement native passphrase",
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText("Confirm new passphrase"),
+    "a replacement native passphrase",
+  );
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Change passphrase" }),
+  );
+  await waitFor(() => expect(passwordChanged).toBe(true));
+  await waitFor(() =>
+    expect(persistSessionToken).toHaveBeenCalledWith("p".repeat(43)),
+  );
+  expect(
+    screen.getByText(/Passphrase changed. Every other session was signed out/),
+  ).toBeTruthy();
   await screen.unmount();
   (restoreSessionToken as jest.Mock).mockResolvedValueOnce("r".repeat(43));
   const previousDemoRequests = demoSessionRequests;

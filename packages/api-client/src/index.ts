@@ -87,6 +87,9 @@ export type AuthSession = {
   expiresAt: string;
   authentication: boolean;
 };
+export type PasswordChangeSession = AuthSession & {
+  otherSessionsRevoked: true;
+};
 export type ApiClientOptions = {
   initialToken?: string | null;
   demoSessions?: boolean;
@@ -216,6 +219,21 @@ export function createApiClient(
       authenticate("/v1/accounts", email, password),
     signIn: (email: string, password: string) =>
       authenticate("/v1/sessions", email, password),
+    changePassword: async (currentPassword: string, newPassword: string) => {
+      const session = await request<PasswordChangeSession>(
+        "/v1/account/password",
+        json("PATCH", { currentPassword, newPassword }),
+      );
+      if (
+        typeof session.token !== "string" ||
+        typeof session.expiresAt !== "string" ||
+        session.otherSessionsRevoked !== true
+      )
+        throw new ApiError(500, "invalid_session");
+      sessionPromise = Promise.resolve(session.token);
+      options.onTokenChange?.(session.token);
+      return session;
+    },
     signOut: async () => {
       if (sessionPromise) {
         const token = await sessionPromise;

@@ -22,7 +22,7 @@
       "retention": "Until the person deletes the authenticated account or the operator removes the authentication database.",
       "access": ["service", "operator"],
       "fields": ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
-      "disclosure": "Email is normalized to lowercase. Passphrases are processed with scrypt and a random per-account salt; plaintext passphrases and raw session tokens are never persisted. Credentials are excluded from the application-data export."
+      "disclosure": "Email is normalized to lowercase. New and changed passphrases are normalized to Unicode NFC, checked at 15–128 characters and against a small disclosed common-value blocklist, then processed with scrypt and a new random per-account salt. Plaintext passphrases are used only for the request and never persisted. Credentials are excluded from the application-data export."
     },
     {
       "id": "accountSessions",
@@ -31,7 +31,7 @@
       "retention": "At most 12 hours by default, until sign-out, or until the account record is removed.",
       "access": ["service", "operator"],
       "fields": ["id", "tokenHash", "accountId", "client", "expiresAt", "createdAt"],
-      "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. The person can see the opaque session identifier, broad allowlisted client type (web, iOS, Android, or unknown), creation time, expiry, and whether it is current, and can revoke another session. OpenMatch does not store an IP address, exact device model, user agent, fingerprint, or activity history for this feature. Session records and credentials are not included in the application-data export."
+      "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. The person can see the opaque session identifier, broad allowlisted client type (web, iOS, Android, or unknown), creation time, expiry, and whether it is current, and can revoke another session. A successful passphrase change atomically deletes every prior session and issues a replacement token with the same broad client label. OpenMatch does not store an IP address, exact device model, user agent, fingerprint, or activity history for this feature. Session records and credentials are not included in the application-data export."
     },
     {
       "id": "mobileSession",

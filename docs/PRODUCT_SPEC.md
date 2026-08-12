@@ -65,6 +65,7 @@ The system must distinguish:
 - Export, pause, hide, and delete controls available from Profile without contacting support.
 - The executable prototype implements JSON export, deletion/reset, pause, and hide across web, iOS, and Android. These controls still require threat-model and assistive-technology review before any pilot.
 - Research consent defaults off and can be withdrawn prospectively at any time.
+- The executable passphrase prototype accepts 15–128 characters without composition or periodic-change rules, allows password-manager autofill/paste, verifies the current passphrase before a change, and atomically replaces all sessions. Passkeys and verified recovery remain the production direction.
 
 The first-run product setup is intentionally short: public name, adult age, short biography, mutual age/distance boundaries, and four named priority levels (Off, Low, Medium, High). Because values, smoking/children compatibility, and schedule are active prototype factors, the executable clients also expose those profile-side inputs and the human-written conversation prompt during setup and later editing; no demo answer is silently treated as the user’s own. It does not use a personality test or claim that questionnaire length improves relationship outcomes. Identity, inclusion, consent, and safety fields required for a real pilot must be added through focused research rather than inferred from this demo.
 

@@ -12,7 +12,24 @@ import { Store } from "./store.js";
 import type { Candidate, PublicProfile } from "@openmatch/matching";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PASSWORD_MINIMUM = 12;
+const PASSWORD_MINIMUM = 15;
+const COMMON_PASSWORDS = new Set([
+  "123456789012345",
+  "adminadminadminadmin",
+  "correcthorsebatterystaple",
+  "dragonballzdragon",
+  "footballfootball",
+  "iloveyouiloveyou",
+  "letmeinletmeinletmein",
+  "monkeymonkeymonkey",
+  "openmatchopenmatch",
+  "passwordpassword",
+  "princessprincess",
+  "qwertyqwertyqwerty",
+  "sunshinesunshine",
+  "trustno1trustno1",
+  "welcomecomewelcome",
+]);
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const SCRYPT_OPTIONS = { N: 32_768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
@@ -123,17 +140,38 @@ export class Accounts {
   }
 
   private validatePassword(value: unknown) {
+    const password = typeof value === "string" ? value.normalize("NFC") : "";
     if (
-      typeof value !== "string" ||
-      value.length < PASSWORD_MINIMUM ||
-      value.length > 128
+      Array.from(password).length < PASSWORD_MINIMUM ||
+      Array.from(password).length > 128
     )
       throw new AccountError("invalid_password", 400);
-    return value;
+    if (COMMON_PASSWORDS.has(password.toLocaleLowerCase()))
+      throw new AccountError("common_password", 400);
+    return password;
   }
 
   private passwordHash(password: string, salt: Buffer) {
     return scryptSync(password, salt, 64, SCRYPT_OPTIONS);
+  }
+
+  private passwordMatches(account: AccountRow | undefined, value: unknown) {
+    const raw = typeof value === "string" && value.length <= 128 ? value : "";
+    const salt = account
+      ? Buffer.from(account.password_salt, "base64url")
+      : Buffer.alloc(16);
+    const expected = account
+      ? Buffer.from(account.password_hash, "base64url")
+      : Buffer.alloc(64);
+    const normalized = raw.normalize("NFC");
+    const normalizedMatch = timingSafeEqual(
+      this.passwordHash(normalized, salt),
+      expected,
+    );
+    const legacyMatch =
+      raw !== normalized &&
+      timingSafeEqual(this.passwordHash(raw, salt), expected);
+    return Boolean(account) && (normalizedMatch || legacyMatch);
   }
 
   private store(accountId: string) {
@@ -295,25 +333,93 @@ export class Accounts {
 
   signIn(emailValue: unknown, passwordValue: unknown, client?: unknown) {
     const email = this.normalizeEmail(emailValue);
-    const password =
-      typeof passwordValue === "string" && passwordValue.length <= 128
-        ? passwordValue
-        : "";
     const account = this.db
       .prepare(
         "SELECT id,email,password_hash,password_salt,created_at FROM accounts WHERE email=?",
       )
       .get(email) as AccountRow | undefined;
-    const salt = account
-      ? Buffer.from(account.password_salt, "base64url")
-      : Buffer.alloc(16);
-    const expected = account
-      ? Buffer.from(account.password_hash, "base64url")
-      : Buffer.alloc(64);
-    const actual = this.passwordHash(password, salt);
-    if (!account || !timingSafeEqual(actual, expected))
+    if (!account || !this.passwordMatches(account, passwordValue))
       throw new AccountError("invalid_credentials", 401);
     return this.issueSession(account.id, client);
+  }
+
+  changePassword(
+    accountId: string,
+    currentSessionId: string,
+    currentPasswordValue: unknown,
+    newPasswordValue: unknown,
+  ) {
+    const account = this.db
+      .prepare(
+        "SELECT id,email,password_hash,password_salt,created_at FROM accounts WHERE id=?",
+      )
+      .get(accountId) as AccountRow | undefined;
+    if (!account) throw new AccountError("invalid_current_password", 400);
+    const expected = Buffer.from(account.password_hash, "base64url");
+    if (!this.passwordMatches(account, currentPasswordValue))
+      throw new AccountError("invalid_current_password", 400);
+    const newPassword = this.validatePassword(newPasswordValue);
+    if (
+      timingSafeEqual(
+        this.passwordHash(
+          newPassword,
+          Buffer.from(account.password_salt, "base64url"),
+        ),
+        expected,
+      )
+    )
+      throw new AccountError("password_unchanged", 400);
+    const session = this.db
+      .prepare(
+        "SELECT client FROM account_sessions WHERE account_id=? AND id=?",
+      )
+      .get(accountId, currentSessionId) as
+      { client: SessionClient } | undefined;
+    if (!session) throw new AccountError("session_required", 401);
+    const salt = randomBytes(16);
+    const token = randomBytes(32).toString("base64url");
+    const tokenHash = createHash("sha256").update(token).digest("base64url");
+    const sessionId = randomUUID();
+    const expiresAt = Date.now() + this.sessionTtlMs;
+    const createdAt = new Date().toISOString();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare(
+          "UPDATE accounts SET password_hash=?,password_salt=? WHERE id=?",
+        )
+        .run(
+          this.passwordHash(newPassword, salt).toString("base64url"),
+          salt.toString("base64url"),
+          accountId,
+        );
+      this.db
+        .prepare("DELETE FROM account_sessions WHERE account_id=?")
+        .run(accountId);
+      this.db
+        .prepare(
+          "INSERT INTO account_sessions(token_hash,id,account_id,client,expires_at,created_at) VALUES (?,?,?,?,?,?)",
+        )
+        .run(
+          tokenHash,
+          sessionId,
+          accountId,
+          session.client,
+          expiresAt,
+          createdAt,
+        );
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return {
+      accountId,
+      sessionId,
+      token,
+      expiresAt: new Date(expiresAt).toISOString(),
+      store: this.store(accountId),
+    };
   }
 
   authenticate(token: string) {

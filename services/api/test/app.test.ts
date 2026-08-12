@@ -488,6 +488,153 @@ test("authenticated accounts have hashed credentials and isolated application da
   }
 });
 
+test("changing a passphrase verifies the current secret and atomically rotates every session", async () => {
+  const accounts = new Accounts(":memory:", { dataDirectory: null });
+  const server = createApp({
+    store: new Store(":memory:"),
+    accounts,
+    demoSessionsEnabled: false,
+    authRateLimit: { maximum: 20, windowMs: 60_000 },
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = "http://127.0.0.1:" + address.port;
+  const oldPassword = "an original secure passphrase";
+  const newPassword = "a distinct replacement passphrase";
+  const auth = (token: string) => ({
+    "content-type": "application/json",
+    authorization: "Bearer " + token,
+  });
+  try {
+    assert.equal(
+      (
+        await accountSession(
+          base,
+          "/v1/accounts",
+          "blocked@example.org",
+          "passwordpassword",
+        )
+      ).body.error,
+      "common_password",
+    );
+    const created = await accountSession(
+      base,
+      "/v1/accounts",
+      "change@example.org",
+      oldPassword,
+      "web",
+    );
+    const second = await accountSession(
+      base,
+      "/v1/sessions",
+      "change@example.org",
+      oldPassword,
+      "ios",
+    );
+    assert.ok(created.body.token && second.body.token);
+    const change = (token: string, currentPassword: string, newValue: string) =>
+      fetch(base + "/v1/account/password", {
+        method: "PATCH",
+        headers: auth(token),
+        body: JSON.stringify({
+          currentPassword,
+          newPassword: newValue,
+        }),
+      });
+    assert.equal(
+      (
+        await change(
+          created.body.token,
+          "the wrong current secret",
+          newPassword,
+        )
+      ).status,
+      400,
+    );
+    assert.equal(
+      (await change(created.body.token, oldPassword, oldPassword)).status,
+      400,
+    );
+    assert.equal(
+      (await change(created.body.token, oldPassword, "passwordpassword"))
+        .status,
+      400,
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/me", {
+          headers: auth(created.body.token),
+        })
+      ).status,
+      200,
+    );
+    const changed = await change(created.body.token, oldPassword, newPassword);
+    assert.equal(changed.status, 200);
+    const changedBody = (await changed.json()) as {
+      token: string;
+      authentication: boolean;
+      otherSessionsRevoked: boolean;
+    };
+    assert.equal(changedBody.authentication, true);
+    assert.equal(changedBody.otherSessionsRevoked, true);
+    assert.notEqual(changedBody.token, created.body.token);
+    for (const revoked of [created.body.token, second.body.token])
+      assert.equal(
+        (
+          await fetch(base + "/v1/me", {
+            headers: auth(revoked),
+          })
+        ).status,
+        401,
+      );
+    assert.equal(
+      (
+        await fetch(base + "/v1/me", {
+          headers: auth(changedBody.token),
+        })
+      ).status,
+      200,
+    );
+    const sessions = (await (
+      await fetch(base + "/v1/sessions", {
+        headers: auth(changedBody.token),
+      })
+    ).json()) as {
+      items: Array<{ client: string; current: boolean }>;
+    };
+    assert.equal(sessions.items.length, 1);
+    assert.equal(sessions.items[0]?.client, "web");
+    assert.equal(sessions.items[0]?.current, true);
+    assert.equal(
+      (
+        await accountSession(
+          base,
+          "/v1/sessions",
+          "change@example.org",
+          oldPassword,
+        )
+      ).response.status,
+      401,
+    );
+    assert.equal(
+      (
+        await accountSession(
+          base,
+          "/v1/sessions",
+          "change@example.org",
+          newPassword,
+        )
+      ).response.status,
+      200,
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("account reset is atomic when storage rejects a deletion", () => {
   const store = new Store(":memory:");
   try {

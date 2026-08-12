@@ -201,6 +201,20 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("button", { name: /Revoke Web browser session/ }),
   ).toHaveCount(0);
+  await page
+    .getByLabel("Current passphrase")
+    .fill("a repeatable browser test passphrase");
+  await page
+    .getByLabel("New passphrase", { exact: true })
+    .fill("a replacement browser test passphrase");
+  await page
+    .getByLabel("Confirm new passphrase")
+    .fill("a replacement browser test passphrase");
+  await page.getByRole("button", { name: "Change passphrase" }).click();
+  await expect(
+    page.getByText("Passphrase changed. Every other session was signed out."),
+  ).toBeVisible();
+  await expect(page.getByText("Web browser · This session")).toBeVisible();
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByLabel("Profile prompt")).toBeVisible();
   await expect(page.getByLabel(/Values 1–5/)).toBeVisible();

@@ -94,6 +94,54 @@ test("creates an authenticated account, reuses its token, and signs out", async 
   assert.equal(requests[2].init?.method, "DELETE");
 });
 
+test("changes a passphrase and adopts the rotated session", async () => {
+  const oldToken = "o".repeat(43);
+  const newToken = "n".repeat(43);
+  const tokenChanges: Array<string | null> = [];
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async (url, init) => {
+      requests.push({ url: String(url), init });
+      if (String(url).endsWith("/v1/account/password"))
+        return new Response(
+          JSON.stringify({
+            token: newToken,
+            expiresAt: "2026-08-13T00:00:00.000Z",
+            authentication: true,
+            otherSessionsRevoked: true,
+          }),
+          { status: 200 },
+        );
+      return new Response(JSON.stringify({ complete: true }), { status: 200 });
+    }) as typeof fetch,
+    {
+      initialToken: oldToken,
+      demoSessions: false,
+      onTokenChange: (token) => tokenChanges.push(token),
+    },
+  );
+  const changed = await client.changePassword(
+    "the current passphrase",
+    "the replacement passphrase",
+  );
+  assert.equal(changed.otherSessionsRevoked, true);
+  assert.deepEqual(JSON.parse(String(requests[0].init?.body)), {
+    currentPassword: "the current passphrase",
+    newPassword: "the replacement passphrase",
+  });
+  assert.equal(
+    new Headers(requests[0].init?.headers).get("authorization"),
+    "Bearer " + oldToken,
+  );
+  await client.onboarding();
+  assert.equal(
+    new Headers(requests[1].init?.headers).get("authorization"),
+    "Bearer " + newToken,
+  );
+  assert.deepEqual(tokenChanges, [newToken]);
+});
+
 test("turns API failures into inspectable errors", async () => {
   const client = createApiClient(
     "http://example.test",

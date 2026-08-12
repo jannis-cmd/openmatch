@@ -132,6 +132,11 @@ export default function App() {
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const [directoryAccepted, setDirectoryAccepted] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [introductionReportOpen, setIntroductionReportOpen] = useState(false);
   const [connectionReportOpen, setConnectionReportOpen] = useState(false);
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
@@ -1379,6 +1384,116 @@ export default function App() {
               )}
               {accessMode === "account" && (
                 <View style={styles.scoreCard}>
+                  <Text style={styles.name}>Change passphrase</Text>
+                  <Text style={styles.scoreNote}>
+                    Enter your current passphrase, then choose at least 15
+                    characters. Spaces and password managers are welcome; there
+                    are no symbol or periodic-change rules. A successful change
+                    signs out every other session and securely replaces this
+                    session.
+                  </Text>
+                  <Text style={styles.setting}>Current passphrase</Text>
+                  <TextInput
+                    accessibilityLabel="Current passphrase"
+                    autoCapitalize="none"
+                    autoComplete="current-password"
+                    secureTextEntry
+                    value={currentPassword}
+                    maxLength={128}
+                    onChangeText={setCurrentPassword}
+                    style={styles.textField}
+                  />
+                  <Text style={styles.setting}>New passphrase</Text>
+                  <TextInput
+                    accessibilityLabel="New passphrase"
+                    autoCapitalize="none"
+                    autoComplete="new-password"
+                    secureTextEntry
+                    value={newPassword}
+                    maxLength={128}
+                    onChangeText={setNewPassword}
+                    style={styles.textField}
+                  />
+                  <Text style={styles.setting}>Confirm new passphrase</Text>
+                  <TextInput
+                    accessibilityLabel="Confirm new passphrase"
+                    autoCapitalize="none"
+                    autoComplete="new-password"
+                    secureTextEntry
+                    value={confirmPassword}
+                    maxLength={128}
+                    onChangeText={setConfirmPassword}
+                    style={styles.textField}
+                  />
+                  <Action
+                    label="Change passphrase"
+                    secondary
+                    disabled={
+                      !currentPassword ||
+                      newPassword.length < 15 ||
+                      confirmPassword.length < 15
+                    }
+                    onPress={() => {
+                      setPasswordNotice(null);
+                      setPasswordError(null);
+                      if (newPassword !== confirmPassword) {
+                        setPasswordError("The new passphrases do not match.");
+                        return;
+                      }
+                      void api
+                        .changePassword(currentPassword, newPassword)
+                        .then(async (session) => {
+                          try {
+                            await persistSessionToken(session.token);
+                            setAuthToken(session.token);
+                            setCurrentPassword("");
+                            setNewPassword("");
+                            setConfirmPassword("");
+                            setPasswordNotice(
+                              "Passphrase changed. Every other session was signed out.",
+                            );
+                          } catch {
+                            await api.signOut().catch(() => undefined);
+                            setAuthToken(null);
+                            setAccessMode("signed-out");
+                            setPasswordError(
+                              "The passphrase changed, but this device could not protect the new session. Sign in again.",
+                            );
+                          }
+                        })
+                        .catch((error) =>
+                          setPasswordError(
+                            error instanceof ApiError &&
+                              error.code === "invalid_current_password"
+                              ? "The current passphrase was not accepted."
+                              : error instanceof ApiError &&
+                                  error.code === "common_password"
+                                ? "Choose a less common passphrase."
+                                : error instanceof ApiError &&
+                                    error.code === "password_unchanged"
+                                  ? "Choose a passphrase different from the current one."
+                                  : "The passphrase could not be changed.",
+                          ),
+                        );
+                    }}
+                  />
+                  {passwordNotice && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      {passwordNotice}
+                    </Text>
+                  )}
+                  {passwordError && (
+                    <Text accessibilityRole="alert" style={styles.errorText}>
+                      {passwordError}
+                    </Text>
+                  )}
+                </View>
+              )}
+              {accessMode === "account" && (
+                <View style={styles.scoreCard}>
                   <Text style={styles.name}>Active sessions</Text>
                   <Text style={styles.scoreNote}>
                     See where your account is signed in and end sessions you no
@@ -1882,11 +1997,13 @@ function MobileAuthentication({
           ? "An account already uses that email. Sign in instead."
           : code === "invalid_email"
             ? "Enter a valid email address."
-            : code === "invalid_password"
-              ? "Use a passphrase between 12 and 128 characters."
-              : code === "secure_session_storage_unavailable"
-                ? "This device could not protect the session. No account session was kept."
-                : "Email or passphrase was not accepted.",
+            : code === "common_password"
+              ? "Choose a less common passphrase."
+              : code === "invalid_password"
+                ? "Use a passphrase between 15 and 128 characters."
+                : code === "secure_session_storage_unavailable"
+                  ? "This device could not protect the session. No account session was kept."
+                  : "Email or passphrase was not accepted.",
       );
     } finally {
       setSubmitting(false);
@@ -1940,7 +2057,11 @@ function MobileAuthentication({
                 ? "Create account"
                 : "Sign in"
           }
-          disabled={submitting || !email.trim() || password.length < 12}
+          disabled={
+            submitting ||
+            !email.trim() ||
+            (mode === "create" ? password.length < 15 : !password)
+          }
           onPress={() => void submit()}
         />
         <Action

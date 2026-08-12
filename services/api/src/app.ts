@@ -202,6 +202,34 @@ export function createApp(
     string,
     { startedAt: number; count: number }
   >();
+  const consumeAuthenticationAttempt = (
+    key: string,
+    now: number,
+    response: ServerResponse,
+  ) => {
+    const previous = authenticationWindows.get(key);
+    const window =
+      !previous || now - previous.startedAt >= authRateLimit.windowMs
+        ? { startedAt: now, count: 0 }
+        : previous;
+    window.count += 1;
+    authenticationWindows.set(key, window);
+    response.setHeader(
+      "authentication-ratelimit-remaining",
+      String(Math.max(0, authRateLimit.maximum - window.count)),
+    );
+    if (window.count <= authRateLimit.maximum) return true;
+    response.setHeader(
+      "retry-after",
+      String(
+        Math.max(
+          1,
+          Math.ceil((authRateLimit.windowMs - (now - window.startedAt)) / 1000),
+        ),
+      ),
+    );
+    return false;
+  };
   const server = createServer(async (request, response) => {
     const origin = request.headers.origin;
     if (origin && !allowedOrigins.has(origin))
@@ -260,31 +288,10 @@ export function createApp(
       ) {
         if (!accounts)
           return send(response, 404, { error: "accounts_disabled" });
-        const previousAuth = authenticationWindows.get(key);
-        const authWindow =
-          !previousAuth ||
-          now - previousAuth.startedAt >= authRateLimit.windowMs
-            ? { startedAt: now, count: 0 }
-            : previousAuth;
-        authWindow.count += 1;
-        authenticationWindows.set(key, authWindow);
-        if (authWindow.count > authRateLimit.maximum) {
-          response.setHeader(
-            "retry-after",
-            String(
-              Math.max(
-                1,
-                Math.ceil(
-                  (authRateLimit.windowMs - (now - authWindow.startedAt)) /
-                    1000,
-                ),
-              ),
-            ),
-          );
+        if (!consumeAuthenticationAttempt(key, now, response))
           return send(response, 429, {
             error: "authentication_rate_limit_exceeded",
           });
-        }
         const body = (await readJson(request)) as {
           email?: unknown;
           password?: unknown;
@@ -379,6 +386,41 @@ export function createApp(
           sessionsRevoked: true,
           applicationBackups: "none",
         });
+      }
+      if (
+        request.method === "PATCH" &&
+        url.pathname === "/v1/account/password"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          currentPassword?: unknown;
+          newPassword?: unknown;
+        };
+        try {
+          const session = accounts.changePassword(
+            accountSession.accountId,
+            accountSession.sessionId,
+            body.currentPassword,
+            body.newPassword,
+          );
+          return send(response, 200, {
+            token: session.token,
+            expiresAt: session.expiresAt,
+            authentication: true,
+            otherSessionsRevoked: true,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
       }
       if (request.method === "GET" && url.pathname === "/v1/me")
         return send(response, 200, store.profile());
