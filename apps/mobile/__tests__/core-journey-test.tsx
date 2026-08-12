@@ -148,4 +148,6 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Method"));
   expect(screen.getByText("Known limits")).toBeTruthy();
   expect(screen.getByText("Open matching source code")).toBeTruthy();
+  expect(screen.getByText("Safer dating")).toBeTruthy();
+  expect(screen.getByText("Open FTC romance-scam guidance")).toBeTruthy();
 });

@@ -974,6 +974,42 @@ export default function App() {
                   and independent evaluation.
                 </Text>
               </View>
+              <View style={styles.scoreCard}>
+                <Text style={styles.name}>Safer dating</Text>
+                <Text style={styles.scoreNote}>
+                  No app can guarantee safety. Keep personal details private
+                  until you trust someone. For a first meeting, choose a busy
+                  public place, tell a trusted person your plans, control your
+                  own transport, and leave if you feel uncomfortable.
+                </Text>
+                <Text style={styles.scoreNote}>
+                  Never send money, gift cards, bank transfers, or
+                  cryptocurrency to an online love interest. If someone asks,
+                  stop contact and report them.
+                </Text>
+                <Text style={styles.scoreNote}>
+                  If you are in immediate danger, contact your local emergency
+                  services. OpenMatch cannot provide emergency help.
+                </Text>
+                <Action
+                  label="Open RAINN safer-dating guidance"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://rainn.org/strategies-to-reduce-risk-increase-safety/tips-for-safer-dating-online-and-in-person/",
+                    )
+                  }
+                />
+                <Action
+                  label="Open FTC romance-scam guidance"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://consumer.ftc.gov/articles/what-know-about-romance-scams",
+                    )
+                  }
+                />
+              </View>
             </>
           )}
         </>

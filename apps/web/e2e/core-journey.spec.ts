@@ -142,6 +142,12 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "Known limits" }),
   ).toBeVisible();
   await expect(
+    page.getByRole("heading", { name: "Safer dating" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "FTC romance-scam guidance ↗" }),
+  ).toHaveAttribute("href", /consumer\.ftc\.gov/);
+  await expect(
     page.getByRole("link", { name: "Matching source code ↗" }),
   ).toHaveAttribute("href", /packages\/matching\/src\/index\.ts/);
   await page.getByRole("button", { name: "Your profile" }).click();

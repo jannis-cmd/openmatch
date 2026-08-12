@@ -25,6 +25,7 @@ Grades: **A** systematic review/large multi-study evidence; **B** peer-reviewed 
 | Disabled users face access barriers, stigma, disclosure dilemmas, and security concerns | Liddiard et al. (2023), *Sexuality and Disability*, DOI 10.1007/s11195-022-09771-x | A | Small heterogeneous evidence base, including grey literature | Co-design disclosure, accessibility, date needs, and fetishization reporting |
 | A verification interface can raise perceived trust but does not demonstrate actual safety | Huang et al. (2013), “Bootstrapping Trust in Online Dating” | C | 161-person perception study; social-graph privacy cost | Badges state narrow assurance and limitations; no “safe user” badge |
 | Online/offline meeting venue has inconsistent small associations with later outcomes | Cacioppo et al. (2013); Hu et al. (2024), DOI 10.1089/cyber.2024.0136 | C | Observational, selection/cohort effects, conflicting direction | Do not claim online formation is superior; measure local outcomes prospectively |
+| Practical risk-reduction and scam guidance should be reachable before harm is reported | RAINN, “Tips for Safer Dating: Online & IRL” (2026); U.S. FTC, “What To Know About Romance Scams” (reviewed 2026) | D | Authoritative practice guidance, not evidence that warnings prevent harm; emergency and support services vary by location | Keep concise guidance always reachable; link maintained sources; state that the app cannot guarantee safety or provide emergency help |
 
 ## Preliminary user-needs synthesis
 

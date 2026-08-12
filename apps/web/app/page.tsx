@@ -1784,6 +1784,37 @@ function AboutView({
           evaluation.
         </p>
       </section>
+      <section className="transparency-links settings-card">
+        <h2>Safer dating</h2>
+        <p>
+          No app can guarantee safety. Keep personal details private until you
+          trust someone. For a first meeting, choose a busy public place, tell a
+          trusted person your plans, control your own transport, and leave if
+          you feel uncomfortable.
+        </p>
+        <p>
+          Never send money, gift cards, bank transfers, or cryptocurrency to an
+          online love interest. If someone asks, stop contact and report them.
+        </p>
+        <p>
+          If you are in immediate danger, contact your local emergency services.
+          OpenMatch cannot provide emergency help.
+        </p>
+        <a
+          href="https://rainn.org/strategies-to-reduce-risk-increase-safety/tips-for-safer-dating-online-and-in-person/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          RAINN safer-dating guidance ↗
+        </a>
+        <a
+          href="https://consumer.ftc.gov/articles/what-know-about-romance-scams"
+          target="_blank"
+          rel="noreferrer"
+        >
+          FTC romance-scam guidance ↗
+        </a>
+      </section>
     </div>
   );
 }
