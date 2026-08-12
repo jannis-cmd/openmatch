@@ -12,6 +12,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | User-controlled mutual boundaries | Age range, accepted relationship intentions, smoking, children, and distance boundaries are editable independently from ordering priorities on web and mobile |
 | Explicit prototype consent | Server-enforced adult confirmation and local data-use acknowledgement produce a timestamped, versioned receipt that is exported and cleared on deletion |
 | Transparent reciprocal matching | Shared deterministic kernel; mutual boundaries; separate A→B and B→A compatibility and weights; harmonic mean; versioned explanations |
+| Matching invariant tests | 2,000 deterministic generated cases verify hard-boundary exclusion, two-sided symmetry, monotonicity, score bounds, bounded exposure, and zero-priority behavior alongside concrete adversarial cases |
 | In-app transparency center | Deployed algorithm version, objective, source code, evidence register, decision history, privacy distinction, and known limitations are reachable on web and mobile |
 | Local score calculator | Web, iOS, and Android call the shared deterministic kernel with adjustable synthetic two-sided fit and boundary inputs; no API request is involved |
 | Machine-readable data inventory | Every current local storage/export collection lists its fields, purpose, retention rule, access roles, disclosure, and notable exclusions in `docs/DATA_INVENTORY.json` |

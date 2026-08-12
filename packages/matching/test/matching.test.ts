@@ -238,3 +238,98 @@ test("the public priority scale has four understandable levels", () => {
   assert.equal(priorityLabel(0.7), "Medium");
   assert.equal(nearestPriority(0.95), 1);
 });
+
+test("generated adversarial cases preserve matching invariants", () => {
+  let state = 0x4f50454e;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+
+  for (let index = 0; index < 2000; index += 1) {
+    const factors = Array.from(
+      { length: 1 + (index % 5) },
+      (_, factorIndex) => ({
+        id: `factor-${factorIndex}`,
+        label: `Factor ${factorIndex}`,
+        compatibilityA: random(),
+        compatibilityB: random(),
+        weightA: random(),
+        weightB: random(),
+      }),
+    );
+    const exposureFactor = 1 + random() * 0.1;
+    const baseline = explainMatch({ boundaries: [], factors, exposureFactor });
+    assert.ok(baseline.directedFitA >= 0 && baseline.directedFitA <= 1);
+    assert.ok(baseline.directedFitB >= 0 && baseline.directedFitB <= 1);
+    assert.ok(baseline.reciprocalFit >= 0 && baseline.reciprocalFit <= 1);
+    assert.ok(baseline.finalScore >= 0 && baseline.finalScore <= 1);
+
+    const swapped = explainMatch({
+      boundaries: [],
+      exposureFactor,
+      factors: factors.map((factor) => ({
+        ...factor,
+        compatibilityA: factor.compatibilityB,
+        compatibilityB: factor.compatibilityA,
+        weightA: factor.weightB,
+        weightB: factor.weightA,
+      })),
+    });
+    assert.ok(Math.abs(baseline.reciprocalFit - swapped.reciprocalFit) < 1e-12);
+    assert.ok(Math.abs(baseline.finalScore - swapped.finalScore) < 1e-12);
+
+    const improvedFactors = structuredClone(factors);
+    improvedFactors[0].compatibilityA = Math.min(
+      1,
+      improvedFactors[0].compatibilityA + 0.1,
+    );
+    const improved = explainMatch({
+      boundaries: [],
+      factors: improvedFactors,
+      exposureFactor,
+    });
+    assert.ok(improved.directedFitA + 1e-12 >= baseline.directedFitA);
+    assert.ok(improved.reciprocalFit + 1e-12 >= baseline.reciprocalFit);
+    assert.ok(improved.finalScore + 1e-12 >= baseline.finalScore);
+
+    for (const [satisfiedForA, satisfiedForB] of [
+      [false, false],
+      [false, true],
+      [true, false],
+    ] as const) {
+      const rejected = explainMatch({
+        factors,
+        exposureFactor,
+        boundaries: [
+          {
+            id: "adversarial-boundary",
+            label: "Adversarial boundary",
+            satisfiedForA,
+            satisfiedForB,
+          },
+        ],
+      });
+      assert.equal(rejected.eligible, false);
+      assert.equal(rejected.finalScore, 0);
+      assert.deepEqual(rejected.failedBoundaries, ["Adversarial boundary"]);
+    }
+  }
+
+  const noPriorities = explainMatch({
+    boundaries: [],
+    factors: [
+      {
+        id: "off",
+        label: "Turned off",
+        compatibilityA: 0,
+        compatibilityB: 0,
+        weightA: 0,
+        weightB: 0,
+      },
+    ],
+  });
+  assert.equal(noPriorities.directedFitA, 1);
+  assert.equal(noPriorities.directedFitB, 1);
+  assert.equal(noPriorities.finalScore, 1);
+});
