@@ -405,7 +405,26 @@ export function createApp(
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
       if (request.method === "GET" && url.pathname === "/health")
-        return send(response, 200, { status: "ok", service: "openmatch-api" });
+        return send(response, 200, {
+          status:
+            accounts &&
+            (accounts.pendingDeliveryCount() ||
+              accounts.pendingSecurityNotificationCount())
+              ? "degraded"
+              : "ok",
+          service: "openmatch-api",
+          delivery: accounts
+            ? {
+                accountActions: accounts.pendingDeliveryCount()
+                  ? "retrying"
+                  : "clear",
+                securityNotifications:
+                  accounts.pendingSecurityNotificationCount()
+                    ? "retrying"
+                    : "clear",
+              }
+            : { accountActions: "disabled", securityNotifications: "disabled" },
+        });
       const now = Date.now();
       const key = request.socket.remoteAddress ?? "unknown";
       const previous = requestWindows.get(key);

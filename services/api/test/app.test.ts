@@ -659,6 +659,14 @@ test("failed security notices remain durable until an authenticated retry succee
         .lastAttemptAt,
       automaticDiscard: false,
     });
+    assert.deepEqual(await (await fetch(base + "/health")).json(), {
+      status: "degraded",
+      service: "openmatch-api",
+      delivery: {
+        accountActions: "clear",
+        securityNotifications: "retrying",
+      },
+    });
     unavailable = false;
     accounts.db
       .prepare(
@@ -680,6 +688,14 @@ test("failed security notices remain durable until an authenticated retry succee
       automaticDiscard: false,
     });
     assert.deepEqual(deliveries, ["notice-retry@example.org"]);
+    assert.deepEqual(await (await fetch(base + "/health")).json(), {
+      status: "ok",
+      service: "openmatch-api",
+      delivery: {
+        accountActions: "clear",
+        securityNotifications: "clear",
+      },
+    });
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

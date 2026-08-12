@@ -340,6 +340,16 @@ export class Accounts {
     ).count;
   }
 
+  pendingSecurityNotificationCount() {
+    return (
+      this.db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM account_security_notification_outbox",
+        )
+        .get() as { count: number }
+    ).count;
+  }
+
   deliveryStatus(accountId: string) {
     const row = this.db
       .prepare(
