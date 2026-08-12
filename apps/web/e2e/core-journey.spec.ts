@@ -101,7 +101,19 @@ test("first run through a persistent connection and safety action", async ({
   const maraAccount = await seedAccount("Mara", 30, "Ready to meet in person");
   const noahAccount = await seedAccount("Noah", 34, "Prefer to chat first");
   await seedAccount("Imani", 31, "Prefer to chat first");
-  await page.goto("/");
+  const landingResponse = await page.goto("/");
+  expect(landingResponse).not.toBeNull();
+  const landingHeaders = landingResponse?.headers() ?? {};
+  expect(landingHeaders["content-security-policy"]).toContain(
+    "frame-ancestors 'none'",
+  );
+  expect(landingHeaders["permissions-policy"]).toBe(
+    "camera=(), microphone=(), geolocation=()",
+  );
+  expect(landingHeaders["referrer-policy"]).toBe("no-referrer");
+  expect(landingHeaders["x-content-type-options"]).toBe("nosniff");
+  expect(landingHeaders["x-frame-options"]).toBe("DENY");
+  expect(landingHeaders["x-powered-by"]).toBeUndefined();
   await expect(
     page.getByRole("heading", { name: "Made to help you leave." }),
   ).toBeVisible();
