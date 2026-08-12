@@ -385,6 +385,37 @@ export default function App() {
       setError("Preferences could not be saved.");
     }
   };
+  const handleDeliveryFailure = async (error: unknown, fallback: string) => {
+    if (
+      error instanceof ApiError &&
+      error.code === "account_delivery_incomplete"
+    ) {
+      setError(null);
+      setSafetyNotice(
+        "This action is safely queued, but delivery is not complete. Do not assume the other person received it yet.",
+      );
+      try {
+        setAccountDeliveryStatus(await api.accountDeliveryStatus());
+      } catch {
+        // Preserve the explicit queued-delivery notice if status refresh also
+        // fails; the unchanged action can still be retried safely.
+      }
+      return true;
+    }
+    setError(operationLimitMessage(error, fallback));
+    return false;
+  };
+  const runCrossAccountAction = async (
+    action: () => Promise<unknown>,
+    fallback: string,
+  ) => {
+    try {
+      await action();
+      await load();
+    } catch (error) {
+      await handleDeliveryFailure(error, fallback);
+    }
+  };
   const decide = async (value: "interested" | "passed") => {
     if (!current) return;
     try {
@@ -393,9 +424,7 @@ export default function App() {
       setShowSaved(false);
       await load();
     } catch (error) {
-      setError(
-        operationLimitMessage(error, "Your decision could not be saved."),
-      );
+      await handleDeliveryFailure(error, "Your decision could not be saved.");
     }
   };
 
@@ -946,10 +975,10 @@ export default function App() {
                             text: "Block",
                             style: "destructive",
                             onPress: () =>
-                              void api.block(current.profile.id).then(() => {
-                                setSafetyNotice(null);
-                                return load();
-                              }),
+                              void runCrossAccountAction(
+                                () => api.block(current.profile.id),
+                                "The block could not be completed.",
+                              ),
                           },
                         ],
                       )
@@ -1118,7 +1147,10 @@ export default function App() {
                       {
                         text: "Send and close",
                         onPress: () =>
-                          void api.closePolitely(connection.id).then(load),
+                          void runCrossAccountAction(
+                            () => api.closePolitely(connection.id),
+                            "The polite close could not be delivered.",
+                          ),
                       },
                     ])
                   }
@@ -1298,11 +1330,9 @@ export default function App() {
                             setPendingMessageAttempt(null);
                           })
                           .catch((error) =>
-                            setSafetyNotice(
-                              operationLimitMessage(
-                                error,
-                                "Message could not be sent. Retry.",
-                              ),
+                            handleDeliveryFailure(
+                              error,
+                              "Message could not be sent. Retry.",
                             ),
                           );
                       };
@@ -1335,7 +1365,10 @@ export default function App() {
                             text: "Unmatch",
                             style: "destructive",
                             onPress: () =>
-                              void api.unmatch(connection.id).then(load),
+                              void runCrossAccountAction(
+                                () => api.unmatch(connection.id),
+                                "The conversation could not be closed.",
+                              ),
                           },
                         ],
                       )
@@ -1355,7 +1388,10 @@ export default function App() {
                             text: "Block",
                             style: "destructive",
                             onPress: () =>
-                              void api.block(connection.profileId).then(load),
+                              void runCrossAccountAction(
+                                () => api.block(connection.profileId),
+                                "The block could not be completed.",
+                              ),
                           },
                         ],
                       )

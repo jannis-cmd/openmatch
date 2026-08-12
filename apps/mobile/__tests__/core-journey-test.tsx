@@ -26,6 +26,7 @@ const response = (body: unknown, status = 200) =>
   ({
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers(),
     json: async () => body,
   }) as Response;
 
@@ -316,6 +317,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     if (path === "/v1/introductions/mara/decision" && init.method === "POST") {
       connectionActive = body.decision === "interested";
       preferenceObservationCount = 1;
+      if (deliveryRetrying)
+        return response({ error: "account_delivery_incomplete" }, 503);
       return response({
         profileId: "mara",
         decision: body.decision,
@@ -494,8 +497,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     expect(screen.getByText("Delivery is retrying")).toBeTruthy(),
   );
   expect(
-    screen.getByText(/Do not assume the other person received it yet/),
-  ).toBeTruthy();
+    screen.getAllByText(/Do not assume the other person received it yet/),
+  ).not.toHaveLength(0);
   deliveryRetrying = false;
   await fireEvent.press(screen.getByText("Check again"));
   await waitFor(() =>

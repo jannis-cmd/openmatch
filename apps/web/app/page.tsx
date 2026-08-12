@@ -339,6 +339,39 @@ function AppExperience({
     }
   };
 
+  const handleDeliveryFailure = async (error: unknown, fallback: string) => {
+    if (
+      error instanceof ApiError &&
+      error.code === "account_delivery_incomplete"
+    ) {
+      setError(null);
+      setNotice(
+        "This action is safely queued, but delivery is not complete. Do not assume the other person received it yet.",
+      );
+      try {
+        setAccountDeliveryStatus(await api.accountDeliveryStatus());
+      } catch {
+        // Preserve the explicit queued-delivery notice when status refresh also
+        // fails; the unchanged action can still be retried safely.
+      }
+      return true;
+    }
+    setError(operationLimitMessage(error, fallback));
+    return false;
+  };
+
+  const runCrossAccountAction = async (
+    action: () => Promise<unknown>,
+    fallback: string,
+  ) => {
+    try {
+      await action();
+      await load();
+    } catch (error) {
+      await handleDeliveryFailure(error, fallback);
+    }
+  };
+
   const decide = async (decision: "interested" | "passed") => {
     if (!current) return;
     try {
@@ -347,11 +380,9 @@ function AppExperience({
       setShowSaved(false);
       await load();
     } catch (error) {
-      setError(
-        operationLimitMessage(
-          error,
-          "Your decision could not be saved. Please retry.",
-        ),
+      await handleDeliveryFailure(
+        error,
+        "Your decision could not be saved. Please retry.",
       );
     }
   };
@@ -738,8 +769,10 @@ function AppExperience({
                                 `Block ${current.profile.name}? They will no longer appear in your introductions.`,
                               )
                             ) {
-                              await api.block(current.profile.id);
-                              await load();
+                              await runCrossAccountAction(
+                                () => api.block(current.profile.id),
+                                "The block could not be completed.",
+                              );
                             }
                           }}
                           report={async (reason, reportDetails) => {
@@ -880,24 +913,26 @@ function AppExperience({
                       setDraft("");
                       setPendingMessageAttempt(null);
                     } catch (error) {
-                      setError(
-                        operationLimitMessage(
-                          error,
-                          "Message could not be sent.",
-                        ),
+                      await handleDeliveryFailure(
+                        error,
+                        "Message could not be sent.",
                       );
                     }
                   }}
                   unmatch={async () => {
                     if (selectedConnection) {
-                      await api.unmatch(selectedConnection.id);
-                      await load();
+                      await runCrossAccountAction(
+                        () => api.unmatch(selectedConnection.id),
+                        "The conversation could not be closed.",
+                      );
                     }
                   }}
                   closePolitely={async () => {
                     if (selectedConnection) {
-                      await api.closePolitely(selectedConnection.id);
-                      await load();
+                      await runCrossAccountAction(
+                        () => api.closePolitely(selectedConnection.id),
+                        "The polite close could not be delivered.",
+                      );
                     }
                   }}
                   setMuted={async (muted) => {
@@ -920,8 +955,10 @@ function AppExperience({
                   }}
                   block={async () => {
                     if (selectedConnection) {
-                      await api.block(selectedConnection.profileId);
-                      await load();
+                      await runCrossAccountAction(
+                        () => api.block(selectedConnection.profileId),
+                        "The block could not be completed.",
+                      );
                     }
                   }}
                   report={async (reason, reportDetails) => {
