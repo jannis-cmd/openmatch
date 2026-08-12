@@ -599,6 +599,86 @@ test("email confirmation is delivered out of band, hashed, expiring, and single 
   }
 });
 
+test("failed security notices remain durable until an authenticated retry succeeds", async () => {
+  const accounts = new Accounts(":memory:", { dataDirectory: null });
+  const session = accounts.register(
+    "notice-retry@example.org",
+    "a sufficiently long original passphrase",
+    "web",
+  );
+  accounts.db
+    .prepare("UPDATE accounts SET email_verified_at=? WHERE id=?")
+    .run(new Date().toISOString(), session.accountId);
+  let unavailable = true;
+  const deliveries: string[] = [];
+  const server = createApp({
+    accounts,
+    demoSessionsEnabled: false,
+    emailVerificationSender: null,
+    securityNotificationSender: async ({ email }) => {
+      if (unavailable) throw new Error("simulated mail outage");
+      deliveries.push(email);
+    },
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  try {
+    const changedResponse = await fetch(base + "/v1/account/password", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${session.token}`,
+      },
+      body: JSON.stringify({
+        currentPassword: "a sufficiently long original passphrase",
+        newPassword: "a sufficiently long replacement passphrase",
+      }),
+    });
+    assert.equal(changedResponse.status, 200);
+    const changed = (await changedResponse.json()) as {
+      token: string;
+      securityNotification: string;
+    };
+    assert.equal(changed.securityNotification, "failed");
+    const headers = { authorization: `Bearer ${changed.token}` };
+    const pending = await fetch(
+      base + "/v1/account/security-notification-status",
+      { headers },
+    );
+    assert.deepEqual(await pending.json(), {
+      state: "retrying",
+      pendingCount: 1,
+      oldestCreatedAt: (
+        await accounts.securityNotificationStatus(session.accountId)
+      ).oldestCreatedAt,
+      retryAttempts: 1,
+      lastAttemptAt: accounts.securityNotificationStatus(session.accountId)
+        .lastAttemptAt,
+      automaticDiscard: false,
+    });
+    unavailable = false;
+    const retried = await fetch(
+      base + "/v1/account/security-notification-status",
+      { method: "POST", headers },
+    );
+    assert.deepEqual(await retried.json(), {
+      state: "clear",
+      pendingCount: 0,
+      oldestCreatedAt: null,
+      retryAttempts: 0,
+      lastAttemptAt: null,
+      automaticDiscard: false,
+    });
+    assert.deepEqual(deliveries, ["notice-retry@example.org"]);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("authenticated accounts have hashed credentials and isolated application data", async () => {
   const accounts = new Accounts(":memory:", { dataDirectory: null });
   const server = createApp({

@@ -38,6 +38,7 @@ import {
   type ReportReason,
   type ReportUpdateKind,
   type ResearchConsentReceipt,
+  type SecurityNotificationDeliveryStatus,
   type SecurityNotificationStatus,
   type TransparencyVersion,
 } from "@openmatch/api-client";
@@ -173,6 +174,8 @@ export default function App() {
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [accountDeliveryStatus, setAccountDeliveryStatus] =
     useState<AccountDeliveryStatus | null>(null);
+  const [securityNotificationDelivery, setSecurityNotificationDelivery] =
+    useState<SecurityNotificationDeliveryStatus | null>(null);
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
@@ -289,6 +292,7 @@ export default function App() {
         nextEmailVerification,
         nextNotificationEmail,
         nextAccountDeliveryStatus,
+        nextSecurityNotificationDelivery,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -311,6 +315,9 @@ export default function App() {
           ? api.notificationEmail()
           : Promise.resolve(null),
         api.accountDeliveryStatus(),
+        accessMode === "account"
+          ? api.securityNotificationStatus()
+          : Promise.resolve(null),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -332,6 +339,7 @@ export default function App() {
       setEmailVerification(nextEmailVerification);
       setNotificationEmail(nextNotificationEmail);
       setAccountDeliveryStatus(nextAccountDeliveryStatus);
+      setSecurityNotificationDelivery(nextSecurityNotificationDelivery);
     } catch {
       setError(
         "OpenMatch could not reach its configured service. Check your connection and retry.",
@@ -740,6 +748,32 @@ export default function App() {
                 </Text>
               </View>
               <Action label="Check again" onPress={() => void load()} />
+            </View>
+          )}
+          {securityNotificationDelivery?.state === "retrying" && (
+            <View style={styles.statusBanner} accessibilityLiveRegion="polite">
+              <View style={styles.statusCopy}>
+                <Text style={styles.statusTitle}>
+                  Security email is retrying
+                </Text>
+                <Text style={styles.mathNote}>
+                  {securityNotificationDelivery.pendingCount} security notice
+                  {securityNotificationDelivery.pendingCount === 1
+                    ? " has"
+                    : "s have"}{" "}
+                  not reached every confirmed inbox. It remains queued and is
+                  never silently discarded.
+                </Text>
+              </View>
+              <Action
+                label="Retry email"
+                onPress={() =>
+                  void api
+                    .retrySecurityNotifications()
+                    .then(setSecurityNotificationDelivery)
+                    .catch(() => setError("Security email retry failed."))
+                }
+              />
             </View>
           )}
           {accountStatus !== "active" && (

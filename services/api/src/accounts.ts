@@ -10,6 +10,7 @@ import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "node:path";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { Store, type AccountDeliveryAction } from "./store.js";
+import type { SecurityNotificationEvent } from "./email-verification.js";
 import type { Candidate, PublicProfile } from "@openmatch/matching";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -161,6 +162,17 @@ export class Accounts {
         attempt_count INTEGER NOT NULL DEFAULT 0,
         last_attempt_at TEXT,
         last_error_code TEXT
+      );
+      CREATE TABLE IF NOT EXISTS account_security_notification_outbox (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        event TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        recipients_json TEXT NOT NULL,
+        delivered_json TEXT NOT NULL DEFAULT '[]',
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        last_attempt_at TEXT,
+        created_at TEXT NOT NULL
       );
     `);
     const accountColumns = this.db
@@ -319,6 +331,114 @@ export class Accounts {
          WHERE first_account_id=? OR second_account_id=?`,
       )
       .get(accountId, accountId) as {
+      pendingCount: number;
+      oldestCreatedAt: string | null;
+      retryAttempts: number | null;
+      lastAttemptAt: string | null;
+    };
+    return {
+      state: row.pendingCount ? ("retrying" as const) : ("clear" as const),
+      pendingCount: row.pendingCount,
+      oldestCreatedAt: row.oldestCreatedAt,
+      retryAttempts: row.retryAttempts ?? 0,
+      lastAttemptAt: row.lastAttemptAt,
+      automaticDiscard: false as const,
+    };
+  }
+
+  enqueueSecurityNotification(
+    accountId: string,
+    event: SecurityNotificationEvent,
+    occurredAt: string,
+  ) {
+    const recipients = this.notificationEmails(accountId);
+    if (!recipients.length) return null;
+    const id = randomUUID();
+    this.db
+      .prepare(
+        `INSERT INTO account_security_notification_outbox(
+          id,account_id,event,occurred_at,recipients_json,created_at
+        ) VALUES (?,?,?,?,?,?)`,
+      )
+      .run(
+        id,
+        accountId,
+        event,
+        occurredAt,
+        JSON.stringify(recipients),
+        new Date().toISOString(),
+      );
+    return id;
+  }
+
+  securityNotificationJobs(accountId: string) {
+    return (
+      this.db
+        .prepare(
+          `SELECT id,event,occurred_at AS occurredAt,recipients_json AS recipientsJson,
+                  delivered_json AS deliveredJson
+           FROM account_security_notification_outbox
+           WHERE account_id=? ORDER BY created_at`,
+        )
+        .all(accountId) as Array<{
+        id: string;
+        event: SecurityNotificationEvent;
+        occurredAt: string;
+        recipientsJson: string;
+        deliveredJson: string;
+      }>
+    ).map((row) => {
+      const delivered = new Set(JSON.parse(row.deliveredJson) as string[]);
+      return {
+        id: row.id,
+        event: row.event,
+        occurredAt: row.occurredAt,
+        recipients: JSON.parse(row.recipientsJson) as string[],
+        delivered,
+      };
+    });
+  }
+
+  recordSecurityNotificationAttempt(
+    accountId: string,
+    jobId: string,
+    deliveredEmails: string[],
+  ) {
+    const job = this.securityNotificationJobs(accountId).find(
+      ({ id }) => id === jobId,
+    );
+    if (!job) return;
+    for (const email of deliveredEmails) job.delivered.add(email);
+    if (job.recipients.every((email) => job.delivered.has(email))) {
+      this.db
+        .prepare(
+          "DELETE FROM account_security_notification_outbox WHERE id=? AND account_id=?",
+        )
+        .run(jobId, accountId);
+      return;
+    }
+    this.db
+      .prepare(
+        `UPDATE account_security_notification_outbox
+         SET delivered_json=?,attempt_count=attempt_count+1,last_attempt_at=?
+         WHERE id=? AND account_id=?`,
+      )
+      .run(
+        JSON.stringify([...job.delivered]),
+        new Date().toISOString(),
+        jobId,
+        accountId,
+      );
+  }
+
+  securityNotificationStatus(accountId: string) {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS pendingCount,MIN(created_at) AS oldestCreatedAt,
+                MAX(attempt_count) AS retryAttempts,MAX(last_attempt_at) AS lastAttemptAt
+         FROM account_security_notification_outbox WHERE account_id=?`,
+      )
+      .get(accountId) as {
       pendingCount: number;
       oldestCreatedAt: string | null;
       retryAttempts: number | null;

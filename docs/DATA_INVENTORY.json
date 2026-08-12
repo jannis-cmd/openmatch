@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "status": "local-prototype",
-  "updated": "2026-08-12",
+  "updated": "2026-08-13",
   "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
@@ -68,6 +68,15 @@
       "access": ["service", "operator"],
       "fields": ["sequence", "id", "firstAccountId", "secondAccountId", "firstActionJson", "secondActionJson", "createdAt", "attemptCount", "lastAttemptAt", "lastErrorCode"],
       "disclosure": "A pending action can temporarily duplicate the minimum payload needed for retry, including message text. Each target store applies the event and records its opaque ID in one local transaction, so retry cannot duplicate the visible action. Retry metadata stores only a count, timestamp, and generic error category. Completed payloads are deleted rather than retained as an activity log. Affected people can see a privacy-minimal pending count and retry state, but not payload or peer details. Pending delivery metadata is excluded from personal export; the resulting profile decision, connection, message, or block appears in the normal export."
+    },
+    {
+      "id": "accountSecurityNotificationOutbox",
+      "storage": "account_security_notification_outbox table in the authentication SQLite database",
+      "purpose": "Retain a sparse account-security notice until it has reached every confirmed inbox that was eligible when the security event occurred.",
+      "retention": "Only while delivery is incomplete. The row is deleted immediately after every snapshotted recipient succeeds, or cascades with account deletion; it is never automatically discarded.",
+      "access": ["service", "operator"],
+      "fields": ["id", "accountId", "event", "occurredAt", "recipients", "deliveredRecipients", "attemptCount", "lastAttemptAt", "createdAt"],
+      "disclosure": "The outbox temporarily duplicates confirmed email addresses plus a narrow event category and timestamp. It never contains a passphrase, recovery code, session token, IP address, device detail, sign-in link, or message content. Web, iOS, and Android show a privacy-minimal pending count and allow an authenticated retry. Successful recipients are not emailed twice by later retries; the completed row is deleted. Outbox metadata is excluded from personal export."
     },
     {
       "id": "processedAccountEvents",

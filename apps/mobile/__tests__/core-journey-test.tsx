@@ -215,6 +215,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         lastAttemptAt: deliveryRetrying ? "2026-08-12T12:01:00.000Z" : null,
         automaticDiscard: false,
       });
+    if (path === "/v1/account/security-notification-status")
+      return response({
+        state: "clear",
+        pendingCount: 0,
+        oldestCreatedAt: null,
+        retryAttempts: 0,
+        lastAttemptAt: null,
+        automaticDiscard: false,
+      });
     if (path === "/v1/delivery" && init.method === "PATCH") {
       batchSize = body.batchSize;
       return response({ batchSize });

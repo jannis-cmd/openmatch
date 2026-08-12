@@ -20,6 +20,7 @@ import {
   type ReportUpdateKind,
   type ResearchConsentReceipt,
   type SecurityNotificationStatus,
+  type SecurityNotificationDeliveryStatus,
   type TransparencyVersion,
 } from "@openmatch/api-client";
 import {
@@ -214,6 +215,8 @@ function AppExperience({
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [accountDeliveryStatus, setAccountDeliveryStatus] =
     useState<AccountDeliveryStatus | null>(null);
+  const [securityNotificationDelivery, setSecurityNotificationDelivery] =
+    useState<SecurityNotificationDeliveryStatus | null>(null);
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
@@ -253,6 +256,7 @@ function AppExperience({
         nextEmailVerification,
         nextNotificationEmail,
         nextAccountDeliveryStatus,
+        nextSecurityNotificationDelivery,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -271,6 +275,7 @@ function AppExperience({
         authToken ? api.emailVerification() : Promise.resolve(null),
         authToken ? api.notificationEmail() : Promise.resolve(null),
         api.accountDeliveryStatus(),
+        authToken ? api.securityNotificationStatus() : Promise.resolve(null),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -291,6 +296,7 @@ function AppExperience({
       setEmailVerification(nextEmailVerification);
       setNotificationEmail(nextNotificationEmail);
       setAccountDeliveryStatus(nextAccountDeliveryStatus);
+      setSecurityNotificationDelivery(nextSecurityNotificationDelivery);
     } catch {
       setError(
         "OpenMatch could not reach its configured service. Check your connection and retry.",
@@ -453,6 +459,28 @@ function AppExperience({
                 received it yet.
               </span>
               <button onClick={() => void load()}>Check delivery again</button>
+            </div>
+          )}
+          {securityNotificationDelivery?.state === "retrying" && (
+            <div className="account-status" role="status">
+              <strong>Security email is retrying</strong>
+              <span>
+                {securityNotificationDelivery.pendingCount} security notice
+                {securityNotificationDelivery.pendingCount === 1
+                  ? " has"
+                  : "s have"}{" "}
+                not reached every confirmed inbox. It remains queued and is
+                never silently discarded.
+              </span>
+              <button
+                onClick={async () => {
+                  setSecurityNotificationDelivery(
+                    await api.retrySecurityNotifications(),
+                  );
+                }}
+              >
+                Retry security email
+              </button>
             </div>
           )}
           {accountEntryNotice && (

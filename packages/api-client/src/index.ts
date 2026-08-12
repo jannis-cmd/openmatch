@@ -54,6 +54,7 @@ export type AccountDeliveryStatus = {
   lastAttemptAt: string | null;
   automaticDiscard: false;
 };
+export type SecurityNotificationDeliveryStatus = AccountDeliveryStatus;
 export type IntroductionBatch = {
   items: Introduction[];
   finite: true;
@@ -422,6 +423,15 @@ export function createApiClient(
     deliverySettings: () => request<DeliverySettings>("/v1/delivery"),
     accountDeliveryStatus: () =>
       request<AccountDeliveryStatus>("/v1/account/delivery-status"),
+    securityNotificationStatus: () =>
+      request<SecurityNotificationDeliveryStatus>(
+        "/v1/account/security-notification-status",
+      ),
+    retrySecurityNotifications: () =>
+      request<SecurityNotificationDeliveryStatus>(
+        "/v1/account/security-notification-status",
+        json("POST"),
+      ),
     updateDeliverySettings: (batchSize: DeliverySettings["batchSize"]) =>
       request<DeliverySettings>("/v1/delivery", json("PATCH", { batchSize })),
     completeOnboarding: () =>

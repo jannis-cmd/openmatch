@@ -329,6 +329,37 @@ export function createApp(
       return "failed" as const;
     }
   };
+  const retrySecurityNotifications = async (
+    accountId: string,
+    currentJobId?: string,
+  ) => {
+    if (!accounts || !securityNotificationSender) return null;
+    let currentSent = 0;
+    let currentRecipients = 0;
+    for (const job of accounts.securityNotificationJobs(accountId)) {
+      const pending = job.recipients.filter(
+        (email) => !job.delivered.has(email),
+      );
+      const results = await Promise.allSettled(
+        pending.map((email) =>
+          securityNotificationSender({
+            email,
+            event: job.event,
+            occurredAt: job.occurredAt,
+          }),
+        ),
+      );
+      const delivered = pending.filter(
+        (_email, index) => results[index]?.status === "fulfilled",
+      );
+      accounts.recordSecurityNotificationAttempt(accountId, job.id, delivered);
+      if (job.id === currentJobId) {
+        currentSent = delivered.length;
+        currentRecipients = pending.length;
+      }
+    }
+    return { currentSent, currentRecipients };
+  };
   const deliverSecurityNotification = async (
     accountId: string,
     event: SecurityNotificationEvent,
@@ -336,16 +367,17 @@ export function createApp(
   ) => {
     if (!accounts || !securityNotificationSender)
       return "not_configured" as const;
-    const emails = accounts.notificationEmails(accountId);
-    if (!emails.length) return "unverified" as const;
-    const results = await Promise.allSettled(
-      emails.map((email) =>
-        securityNotificationSender({ email, event, occurredAt }),
-      ),
+    const jobId = accounts.enqueueSecurityNotification(
+      accountId,
+      event,
+      occurredAt,
     );
-    const sent = results.filter(({ status }) => status === "fulfilled").length;
-    if (sent === emails.length) return "sent" as const;
-    return sent ? ("partial" as const) : ("failed" as const);
+    if (!jobId) return "unverified" as const;
+    const result = await retrySecurityNotifications(accountId, jobId);
+    const currentSent = result?.currentSent ?? 0;
+    const currentRecipients = result?.currentRecipients ?? 0;
+    if (currentSent === currentRecipients) return "sent" as const;
+    return currentSent ? ("partial" as const) : ("failed" as const);
   };
   const server = createServer(async (request, response) => {
     const origin = request.headers.origin;
@@ -532,6 +564,22 @@ export function createApp(
                 lastAttemptAt: null,
                 automaticDiscard: false,
               },
+        );
+      }
+      if (
+        ["GET", "POST"].includes(request.method ?? "") &&
+        url.pathname === "/v1/account/security-notification-status"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (request.method === "POST")
+          await retrySecurityNotifications(accountSession.accountId);
+        return send(
+          response,
+          200,
+          accounts.securityNotificationStatus(accountSession.accountId),
         );
       }
       const consumeOperation = (
