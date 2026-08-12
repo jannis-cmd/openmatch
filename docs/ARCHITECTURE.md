@@ -32,6 +32,8 @@ The release gate is intentionally layered: pure matching invariants, API/client 
 
 The temporary `x-demo-session: openmatch-local-demo` header makes the lack of production authentication explicit. It is not a security mechanism and must be replaced by passkey/email session authentication before any networked pilot.
 
+Release builds set `OPENMATCH_COMMIT_SHA` to the exact 7–40 character hexadecimal source revision. The API validates and publishes it through the transparency contract; web and native clients link that immutable revision. Development builds without it are visibly labeled `development-unpinned` and never substitute the current branch name or an invented hash.
+
 ## Service boundaries
 
 - Identity service knows credentials and internal user ID.

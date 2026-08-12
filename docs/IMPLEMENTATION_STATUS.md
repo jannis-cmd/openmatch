@@ -15,7 +15,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Separate research consent | Optional research enrollment defaults to no receipt, can be opted into and withdrawn independently on web/mobile, never changes matching, and is versioned/exported/deleted |
 | Transparent reciprocal matching | Shared deterministic kernel; mutual boundaries; separate A→B and B→A compatibility and weights; harmonic mean; versioned explanations |
 | Matching invariant tests | 2,000 deterministic generated cases verify hard-boundary exclusion, two-sided symmetry, monotonicity, score bounds, bounded exposure, and zero-priority behavior alongside concrete adversarial cases |
-| In-app transparency center | Deployed algorithm version, objective, source code, evidence register, decision history, privacy distinction, and known limitations are reachable on web and mobile |
+| In-app transparency center | Deployed algorithm version, validated commit link (or explicit unpinned-development state), objective, source code, evidence register, decision history, privacy distinction, and known limitations are reachable on web and mobile |
 | Local score calculator | Web, iOS, and Android call the shared deterministic kernel with adjustable synthetic two-sided fit and boundary inputs; no API request is involved |
 | Machine-readable data inventory | Every current local storage/export collection lists its fields, purpose, retention rule, access roles, disclosure, and notable exclusions in `docs/DATA_INVENTORY.json` |
 | Proximity without public precision | Internal coarse-region estimate; only five public distance bands leave the matching boundary |

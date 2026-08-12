@@ -51,6 +51,8 @@ export type TransparencyVersion = {
   privatePersonalInputsMayBeRedacted: true;
   status: "prototype";
   objective: "useful introductions, not engagement";
+  deployedCommit: string | null;
+  buildStatus: "pinned" | "development-unpinned";
 };
 
 export class ApiError extends Error {

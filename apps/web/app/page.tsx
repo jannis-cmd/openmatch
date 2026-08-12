@@ -2009,6 +2009,19 @@ function AboutView({
         Algorithm {transparency?.matching ?? ALGORITHM_VERSION} · Deterministic
         · No hidden factors · Prototype
       </div>
+      <div className="version">
+        {transparency?.deployedCommit ? (
+          <a
+            href={`https://github.com/jannis-cmd/openmatch/commit/${transparency.deployedCommit}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Deployed code {transparency.deployedCommit.slice(0, 12)} ↗
+          </a>
+        ) : (
+          "Deployed code: unpinned development build"
+        )}
+      </div>
       <ScoreCalculator />
       <section className="transparency-links settings-card">
         <h2>Inspect the work</h2>

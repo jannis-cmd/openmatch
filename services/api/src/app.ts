@@ -44,6 +44,7 @@ export function createApp(
     store?: Store;
     allowedOrigins?: string[];
     rateLimit?: { maximum: number; windowMs: number };
+    deployedCommit?: string | null;
   } = {},
 ) {
   const store = options.store ?? new Store();
@@ -69,6 +70,18 @@ export function createApp(
     maximum: Number(process.env.OPENMATCH_RATE_LIMIT_MAX ?? 600),
     windowMs: Number(process.env.OPENMATCH_RATE_LIMIT_WINDOW_MS ?? 60_000),
   };
+  const configuredCommit =
+    options.deployedCommit === undefined
+      ? (process.env.OPENMATCH_COMMIT_SHA ?? null)
+      : options.deployedCommit;
+  const deployedCommit =
+    configuredCommit && /^[0-9a-f]{7,40}$/i.test(configuredCommit)
+      ? configuredCommit.toLowerCase()
+      : null;
+  if (configuredCommit && !deployedCommit)
+    throw new RangeError(
+      "OPENMATCH_COMMIT_SHA must be a 7–40 character hex hash",
+    );
   if (
     !Number.isInteger(rateLimit.maximum) ||
     rateLimit.maximum < 1 ||
@@ -444,6 +457,8 @@ export function createApp(
           privatePersonalInputsMayBeRedacted: true,
           status: "prototype",
           objective: "useful introductions, not engagement",
+          deployedCommit,
+          buildStatus: deployedCommit ? "pinned" : "development-unpinned",
         });
       return send(response, 404, { error: "not_found" });
     } catch (error) {

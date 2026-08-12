@@ -214,6 +214,9 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "Known limits" }),
   ).toBeVisible();
   await expect(
+    page.getByText("Deployed code: unpinned development build"),
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", { name: "Safer dating" }),
   ).toBeVisible();
   await expect(

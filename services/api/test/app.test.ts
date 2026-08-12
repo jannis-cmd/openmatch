@@ -98,10 +98,10 @@ test("the public data inventory covers every current storage and export field", 
 });
 
 test("persists profile/preferences, creates a mutual connection, messages, and handles safety actions", async () => {
-  const server = createApp({ store: new Store(":memory:") }).listen(
-    0,
-    "127.0.0.1",
-  );
+  const server = createApp({
+    store: new Store(":memory:"),
+    deployedCommit: null,
+  }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
@@ -117,6 +117,15 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ).complete,
       false,
     );
+    assert.deepEqual(await (await request("/v1/transparency/version")).json(), {
+      matching: "1.0.0-draft.2",
+      hiddenFactors: false,
+      privatePersonalInputsMayBeRedacted: true,
+      status: "prototype",
+      objective: "useful introductions, not engagement",
+      deployedCommit: null,
+      buildStatus: "development-unpinned",
+    });
     assert.deepEqual(await (await request("/v1/consents")).json(), {
       receipt: null,
     });
@@ -544,6 +553,35 @@ test("throttles authenticated API traffic with a retry window", async () => {
     assert.equal(limited.status, 429);
     assert.equal(limited.headers.get("retry-after"), "60");
     assert.deepEqual(await limited.json(), { error: "rate_limit_exceeded" });
+  } finally {
+    server.close();
+  }
+});
+
+test("publishes only a validated deployed revision", async () => {
+  assert.throws(
+    () =>
+      createApp({
+        store: new Store(":memory:"),
+        deployedCommit: "not-a-commit",
+      }),
+    /7–40 character hex hash/,
+  );
+  const server = createApp({
+    store: new Store(":memory:"),
+    deployedCommit: "ABCDEF1234567",
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  try {
+    const result = (await (
+      await fetch(`http://127.0.0.1:${address.port}/v1/transparency/version`, {
+        headers,
+      })
+    ).json()) as { deployedCommit: string; buildStatus: string };
+    assert.equal(result.deployedCommit, "abcdef1234567");
+    assert.equal(result.buildStatus, "pinned");
   } finally {
     server.close();
   }

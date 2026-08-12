@@ -1123,6 +1123,21 @@ export default function App() {
                 Algorithm {transparency?.matching ?? ALGORITHM_VERSION} · No
                 hidden factors · Prototype
               </Text>
+              {transparency?.deployedCommit ? (
+                <Action
+                  label={`Open deployed code ${transparency.deployedCommit.slice(0, 12)}`}
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      `https://github.com/jannis-cmd/openmatch/commit/${transparency.deployedCommit}`,
+                    )
+                  }
+                />
+              ) : (
+                <Text style={styles.version}>
+                  Deployed code: unpinned development build
+                </Text>
+              )}
               <MobileScoreCalculator />
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Inspect the work</Text>

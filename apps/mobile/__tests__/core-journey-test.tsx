@@ -94,6 +94,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         privatePersonalInputsMayBeRedacted: true,
         status: "prototype",
         objective: "useful introductions, not engagement",
+        deployedCommit: null,
+        buildStatus: "development-unpinned",
       });
     if (path === "/v1/introductions/saved")
       return response({
@@ -229,6 +231,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(accountStatus).toBe("paused");
   await fireEvent.press(screen.getByText("Method"));
   expect(screen.getByText("Reciprocal score calculator")).toBeTruthy();
+  expect(
+    screen.getByText("Deployed code: unpinned development build"),
+  ).toBeTruthy();
   expect(screen.getByText("Final score: 69%")).toBeTruthy();
   await fireEvent.press(screen.getByLabelText("Lower your directed fit"));
   expect(screen.getByText("Final score: 65%")).toBeTruthy();
