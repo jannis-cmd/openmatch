@@ -2369,12 +2369,9 @@ test("publishes only a validated deployed revision", async () => {
   const address = server.address();
   assert.ok(address && typeof address === "object");
   const base = `http://127.0.0.1:${address.port}`;
-  const headers = await sessionHeaders(base);
   try {
     const result = (await (
-      await fetch(`http://127.0.0.1:${address.port}/v1/transparency/version`, {
-        headers,
-      })
+      await fetch(`http://127.0.0.1:${address.port}/v1/transparency/version`)
     ).json()) as { deployedCommit: string; buildStatus: string };
     assert.equal(result.deployedCommit, "abcdef1234567");
     assert.equal(result.buildStatus, "pinned");

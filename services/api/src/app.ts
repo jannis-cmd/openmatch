@@ -478,6 +478,19 @@ export function createApp(
           throw error;
         }
       }
+      if (
+        request.method === "GET" &&
+        url.pathname === "/v1/transparency/version"
+      )
+        return send(response, 200, {
+          matching: ALGORITHM_VERSION,
+          hiddenFactors: false,
+          privatePersonalInputsMayBeRedacted: true,
+          status: "prototype",
+          objective: "useful introductions, not engagement",
+          deployedCommit,
+          buildStatus: deployedCommit ? "pinned" : "development-unpinned",
+        });
       const authorization = request.headers.authorization;
       const token = authorization?.startsWith("Bearer ")
         ? authorization.slice("Bearer ".length)
@@ -1512,19 +1525,6 @@ export function createApp(
         store.reset();
         return send(response, 200, { reset: true });
       }
-      if (
-        request.method === "GET" &&
-        url.pathname === "/v1/transparency/version"
-      )
-        return send(response, 200, {
-          matching: ALGORITHM_VERSION,
-          hiddenFactors: false,
-          privatePersonalInputsMayBeRedacted: true,
-          status: "prototype",
-          objective: "useful introductions, not engagement",
-          deployedCommit,
-          buildStatus: deployedCommit ? "pinned" : "development-unpinned",
-        });
       return send(response, 404, { error: "not_found" });
     } catch (error) {
       return send(response, 400, {
