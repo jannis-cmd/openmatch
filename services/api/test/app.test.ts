@@ -64,6 +64,7 @@ test("the public data inventory covers every current storage and export field", 
       "noticeVersion",
       "acceptedAt",
     ],
+    researchConsentReceipt: ["participating", "noticeVersion", "updatedAt"],
     decisions: ["profileId", "decision", "createdAt"],
     preferenceObservations: [
       "profileId",
@@ -116,6 +117,31 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     );
     assert.deepEqual(await (await request("/v1/consents")).json(), {
       receipt: null,
+    });
+    assert.deepEqual(await (await request("/v1/consents/research")).json(), {
+      receipt: null,
+    });
+    assert.equal(
+      (
+        await request("/v1/consents/research", {
+          method: "PATCH",
+          body: JSON.stringify({ participating: "yes" }),
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request("/v1/consents/research", {
+          method: "PATCH",
+          body: JSON.stringify({ participating: true }),
+        })
+      ).status,
+      200,
+    );
+    await request("/v1/consents/research", {
+      method: "PATCH",
+      body: JSON.stringify({ participating: false }),
     });
     assert.equal(
       (
@@ -379,6 +405,10 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       accountStatus: string;
       deliverySettings: { batchSize: number };
       consentReceipt: { noticeVersion: string };
+      researchConsentReceipt: {
+        participating: boolean;
+        noticeVersion: string;
+      };
       savedIntroductions: Array<{ profileId: string }>;
     };
     assert.equal(dataExport.profile.id, "me");
@@ -388,6 +418,16 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(dataExport.accountStatus, "active");
     assert.equal(dataExport.deliverySettings.batchSize, 5);
     assert.equal(dataExport.consentReceipt.noticeVersion, "prototype-0.1");
+    assert.deepEqual(
+      {
+        participating: dataExport.researchConsentReceipt.participating,
+        noticeVersion: dataExport.researchConsentReceipt.noticeVersion,
+      },
+      {
+        participating: false,
+        noticeVersion: "research-prototype-0.1",
+      },
+    );
     assert.equal(dataExport.savedIntroductions.length, 1);
     assert.equal(dataExport.savedIntroductions[0].profileId, "lea");
     assert.equal((await request("/v1/me", { method: "DELETE" })).status, 204);
@@ -399,6 +439,9 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ).complete,
       false,
     );
+    assert.deepEqual(await (await request("/v1/consents/research")).json(), {
+      receipt: null,
+    });
   } finally {
     server.close();
   }

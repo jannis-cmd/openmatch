@@ -39,6 +39,11 @@ export type ConsentReceipt = {
   noticeVersion: "prototype-0.1";
   acceptedAt: string;
 };
+export type ResearchConsentReceipt = {
+  participating: boolean;
+  noticeVersion: "research-prototype-0.1";
+  updatedAt: string;
+};
 export type TransparencyVersion = {
   matching: string;
   hiddenFactors: false;
@@ -116,6 +121,15 @@ export function createApiClient(
     completeOnboarding: () =>
       request<{ complete: true }>("/v1/onboarding/complete", json("POST")),
     consent: () => request<{ receipt: ConsentReceipt | null }>("/v1/consents"),
+    researchConsent: () =>
+      request<{ receipt: ResearchConsentReceipt | null }>(
+        "/v1/consents/research",
+      ),
+    updateResearchConsent: (participating: boolean) =>
+      request<ResearchConsentReceipt>(
+        "/v1/consents/research",
+        json("PATCH", { participating }),
+      ),
     acceptPrototypeConsent: () =>
       request<ConsentReceipt>(
         "/v1/consents",

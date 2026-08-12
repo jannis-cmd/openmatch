@@ -21,6 +21,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let accountStatus = "active";
   let batchSize: 1 | 2 | 3 | 4 | 5 = 5;
   let consentAccepted = false;
+  let researchParticipating: boolean | null = null;
   const savedIds = new Set<string>();
   let reportPayload: { reason?: string; details?: string } | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
@@ -67,6 +68,25 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/consents")
       return response({ receipt: consentAccepted ? {} : null });
+    if (path === "/v1/consents/research" && init.method === "PATCH") {
+      researchParticipating = body.participating;
+      return response({
+        participating: researchParticipating,
+        noticeVersion: "research-prototype-0.1",
+        updatedAt: "2026-08-12T12:00:00.000Z",
+      });
+    }
+    if (path === "/v1/consents/research")
+      return response({
+        receipt:
+          researchParticipating === null
+            ? null
+            : {
+                participating: researchParticipating,
+                noticeVersion: "research-prototype-0.1",
+                updatedAt: "2026-08-12T12:00:00.000Z",
+              },
+      });
     if (path === "/v1/transparency/version")
       return response({
         matching: "v0.1.0",
@@ -178,6 +198,19 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     expect(preferences.intents).toContain("Still figuring it out"),
   );
   await fireEvent.press(screen.getByText("Profile"));
+  expect(screen.getByText(/Not enrolled/)).toBeTruthy();
+  await fireEvent.press(
+    screen.getByText("Opt in to future prototype research"),
+  );
+  await waitFor(() => expect(researchParticipating).toBe(true));
+  expect(
+    screen.getByText(/Opted in under research-prototype-0.1/),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByText("Withdraw research consent"));
+  await waitFor(() => expect(researchParticipating).toBe(false));
+  expect(
+    screen.getByText(/Opted out under research-prototype-0.1/),
+  ).toBeTruthy();
   expect(screen.getByText("Your safety reports")).toBeTruthy();
   expect(screen.getByText("Report #1")).toBeTruthy();
   await fireEvent.press(screen.getByText("Edit profile"));

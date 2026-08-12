@@ -9,6 +9,7 @@ import {
   type Message,
   type ReportRecord,
   type ReportReason,
+  type ResearchConsentReceipt,
   type TransparencyVersion,
 } from "@openmatch/api-client";
 import {
@@ -88,6 +89,8 @@ function AppExperience({ exit }: { exit: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRecord[]>([]);
+  const [researchConsent, setResearchConsent] =
+    useState<ResearchConsentReceipt | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
@@ -114,6 +117,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         nextDelivery,
         nextTransparency,
         nextReports,
+        nextResearchConsent,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -126,6 +130,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         api.deliverySettings(),
         api.transparencyVersion(),
         api.reports(),
+        api.researchConsent(),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -138,6 +143,7 @@ function AppExperience({ exit }: { exit: () => void }) {
       setDelivery(nextDelivery);
       setTransparency(nextTransparency);
       setReports(nextReports.items);
+      setResearchConsent(nextResearchConsent.receipt);
       if (nextConnections.items[0])
         setMessages((await api.messages(nextConnections.items[0].id)).items);
       else setMessages([]);
@@ -592,6 +598,12 @@ function AppExperience({ exit }: { exit: () => void }) {
                   }}
                   accountStatus={accountStatus}
                   reports={reports}
+                  researchConsent={researchConsent}
+                  setResearchConsent={async (participating) => {
+                    setResearchConsent(
+                      await api.updateResearchConsent(participating),
+                    );
+                  }}
                   setAccountStatus={async (status) => {
                     const result = await api.updateAccountStatus(status);
                     setAccountStatus(result.status);
@@ -1409,6 +1421,8 @@ function ProfileView({
   saveProfile,
   accountStatus,
   reports,
+  researchConsent,
+  setResearchConsent,
   setAccountStatus,
   exportData,
   deleteData,
@@ -1417,6 +1431,8 @@ function ProfileView({
   saveProfile: (patch: Partial<Profile>) => Promise<void>;
   accountStatus: AccountStatus;
   reports: ReportRecord[];
+  researchConsent: ResearchConsentReceipt | null;
+  setResearchConsent: (participating: boolean) => Promise<void>;
   setAccountStatus: (status: AccountStatus) => Promise<void>;
   exportData: () => Promise<void>;
   deleteData: () => Promise<void>;
@@ -1553,6 +1569,33 @@ function ProfileView({
             <span key={value}>{value}</span>
           ))}
         </div>
+      </section>
+      <section className="settings-card">
+        <h2>Optional research</h2>
+        <p>
+          Research participation is separate from using OpenMatch and defaults
+          off. No study is active in this prototype, and this choice never
+          changes your introductions.
+        </p>
+        <div className="data-actions">
+          <button
+            aria-pressed={researchConsent?.participating === true}
+            onClick={() =>
+              void setResearchConsent(
+                !(researchConsent?.participating === true),
+              )
+            }
+          >
+            {researchConsent?.participating
+              ? "Withdraw research consent"
+              : "Opt in to future prototype research"}
+          </button>
+        </div>
+        <p className="help" role="status">
+          {researchConsent
+            ? `${researchConsent.participating ? "Opted in" : "Opted out"} under ${researchConsent.noticeVersion}.`
+            : "Not enrolled. No research consent has been recorded."}
+        </p>
       </section>
       <section className="settings-card">
         <h2>Your safety reports</h2>

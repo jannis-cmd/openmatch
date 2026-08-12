@@ -20,6 +20,7 @@ import {
   type Message,
   type ReportRecord,
   type ReportReason,
+  type ResearchConsentReceipt,
   type TransparencyVersion,
 } from "@openmatch/api-client";
 import {
@@ -63,6 +64,8 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [safetyNotice, setSafetyNotice] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRecord[]>([]);
+  const [researchConsent, setResearchConsent] =
+    useState<ResearchConsentReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +99,7 @@ export default function App() {
         nextDelivery,
         nextTransparency,
         nextReports,
+        nextResearchConsent,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -108,6 +112,7 @@ export default function App() {
         api.deliverySettings(),
         api.transparencyVersion(),
         api.reports(),
+        api.researchConsent(),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -121,6 +126,7 @@ export default function App() {
       setDelivery(nextDelivery);
       setTransparency(nextTransparency);
       setReports(nextReports.items);
+      setResearchConsent(nextResearchConsent.receipt);
       setMessages(
         nextConnections.items[0]
           ? (await api.messages(nextConnections.items[0].id)).items
@@ -882,6 +888,34 @@ export default function App() {
                     setEditingProfile(!editingProfile);
                   }}
                 />
+              </View>
+              <View style={styles.scoreCard}>
+                <Text style={styles.name}>Optional research</Text>
+                <Text style={styles.scoreNote}>
+                  Research participation is separate from using OpenMatch and
+                  defaults off. No study is active in this prototype, and this
+                  choice never changes your introductions.
+                </Text>
+                <Action
+                  label={
+                    researchConsent?.participating
+                      ? "Withdraw research consent"
+                      : "Opt in to future prototype research"
+                  }
+                  secondary
+                  onPress={() =>
+                    void api
+                      .updateResearchConsent(
+                        !(researchConsent?.participating === true),
+                      )
+                      .then(setResearchConsent)
+                  }
+                />
+                <Text accessibilityLiveRegion="polite" style={styles.mathNote}>
+                  {researchConsent
+                    ? `${researchConsent.participating ? "Opted in" : "Opted out"} under ${researchConsent.noticeVersion}.`
+                    : "Not enrolled. No research consent has been recorded."}
+                </Text>
               </View>
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Your safety reports</Text>

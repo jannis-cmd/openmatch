@@ -11,6 +11,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | User-controlled public profile | Name, adult age, approximate city/region, optional free-text pronouns, relationship intention, and biography are editable during setup and later on web and mobile |
 | User-controlled mutual boundaries | Age range, accepted relationship intentions, smoking, children, and distance boundaries are editable independently from ordering priorities on web and mobile |
 | Explicit prototype consent | Server-enforced adult confirmation and local data-use acknowledgement produce a timestamped, versioned receipt that is exported and cleared on deletion |
+| Separate research consent | Optional research enrollment defaults to no receipt, can be opted into and withdrawn independently on web/mobile, never changes matching, and is versioned/exported/deleted |
 | Transparent reciprocal matching | Shared deterministic kernel; mutual boundaries; separate A→B and B→A compatibility and weights; harmonic mean; versioned explanations |
 | Matching invariant tests | 2,000 deterministic generated cases verify hard-boundary exclusion, two-sided symmetry, monotonicity, score bounds, bounded exposure, and zero-priority behavior alongside concrete adversarial cases |
 | In-app transparency center | Deployed algorithm version, objective, source code, evidence register, decision history, privacy distinction, and known limitations are reachable on web and mobile |

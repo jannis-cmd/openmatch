@@ -141,6 +141,17 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByRole("button", { name: "Your profile" }).click();
   await expectAccessible(page);
+  await expect(page.getByText(/Not enrolled/)).toBeVisible();
+  await page
+    .getByRole("button", { name: "Opt in to future prototype research" })
+    .click();
+  await expect(
+    page.getByText(/Opted in under research-prototype-0.1/),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Withdraw research consent" }).click();
+  await expect(
+    page.getByText(/Opted out under research-prototype-0.1/),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Your safety reports" }),
   ).toBeVisible();
@@ -154,9 +165,11 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "Taylor Two, 31" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Pause introductions" }).click();
-  await expect(page.getByRole("status")).toContainText("Introductions paused");
+  await expect(
+    page.locator(".account-status").getByText("Introductions paused"),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Resume", exact: true }).click();
-  await expect(page.getByRole("status")).not.toBeVisible();
+  await expect(page.locator(".account-status")).not.toBeVisible();
   await page.getByRole("button", { name: "How it works" }).click();
   const calculator = page
     .getByRole("heading", {

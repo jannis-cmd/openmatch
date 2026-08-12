@@ -98,6 +98,15 @@
       ]
     },
     {
+      "id": "researchConsentReceipt",
+      "storage": "state.research_consent_receipt JSON",
+      "purpose": "Record a separate opt-in or withdrawal for future prototype research without changing service access or matching.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["participating", "noticeVersion", "updatedAt"],
+      "disclosure": "Defaults to no receipt and therefore no enrollment. No study is active in this prototype."
+    },
+    {
       "id": "decisions",
       "storage": "decisions table",
       "purpose": "Record Interested or Pass, prevent resolved profiles from reappearing, and open a mutual demo connection.",

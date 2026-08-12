@@ -31,6 +31,11 @@ export type ConsentReceipt = {
   noticeVersion: "prototype-0.1";
   acceptedAt: string;
 };
+export type ResearchConsentReceipt = {
+  participating: boolean;
+  noticeVersion: "research-prototype-0.1";
+  updatedAt: string;
+};
 
 export class Store {
   readonly db: DatabaseSync;
@@ -62,6 +67,7 @@ export class Store {
     insert.run("account_status", JSON.stringify("active"));
     insert.run("delivery_settings", JSON.stringify({ batchSize: 5 }));
     insert.run("consent_receipt", JSON.stringify(null));
+    insert.run("research_consent_receipt", JSON.stringify(null));
   }
 
   private getState<T>(key: string): T {
@@ -118,6 +124,20 @@ export class Store {
       acceptedAt: new Date().toISOString(),
     };
     this.setState("consent_receipt", receipt);
+    return receipt;
+  }
+  researchConsentReceipt() {
+    return this.getState<ResearchConsentReceipt | null>(
+      "research_consent_receipt",
+    );
+  }
+  updateResearchConsent(participating: boolean) {
+    const receipt: ResearchConsentReceipt = {
+      participating,
+      noticeVersion: "research-prototype-0.1",
+      updatedAt: new Date().toISOString(),
+    };
+    this.setState("research_consent_receipt", receipt);
     return receipt;
   }
   accountStatus() {
@@ -327,6 +347,7 @@ export class Store {
       preferences: this.preferences(),
       onboardingComplete: this.onboardingComplete(),
       consentReceipt: this.consentReceipt(),
+      researchConsentReceipt: this.researchConsentReceipt(),
       accountStatus: this.accountStatus(),
       deliverySettings: this.deliverySettings(),
       decisions: this.db

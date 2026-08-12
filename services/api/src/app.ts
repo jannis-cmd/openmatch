@@ -158,6 +158,23 @@ export function createApp(
           : send(response, 400, { error: "prototype_consent_required" });
       if (request.method === "GET" && url.pathname === "/v1/consents")
         return send(response, 200, { receipt: store.consentReceipt() });
+      if (request.method === "GET" && url.pathname === "/v1/consents/research")
+        return send(response, 200, {
+          receipt: store.researchConsentReceipt(),
+        });
+      if (
+        request.method === "PATCH" &&
+        url.pathname === "/v1/consents/research"
+      ) {
+        const body = (await readJson(request)) as { participating?: unknown };
+        if (typeof body.participating !== "boolean")
+          return send(response, 400, { error: "invalid_research_consent" });
+        return send(
+          response,
+          200,
+          store.updateResearchConsent(body.participating),
+        );
+      }
       if (request.method === "PATCH" && url.pathname === "/v1/consents") {
         const body = (await readJson(request)) as {
           adultConfirmed?: unknown;
