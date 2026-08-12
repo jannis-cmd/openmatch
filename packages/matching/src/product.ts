@@ -202,8 +202,36 @@ export function validateProfile(value: Profile): Profile {
     value.bio.length > 500
   )
     throw new RangeError("profile biography is invalid");
-  if (!value.lifestyle || !Array.isArray(value.values))
-    throw new RangeError("profile details are invalid");
+  if (
+    typeof value.prompt !== "string" ||
+    value.prompt.trim().length < 1 ||
+    value.prompt.length > 100 ||
+    typeof value.promptAnswer !== "string" ||
+    value.promptAnswer.trim().length < 1 ||
+    value.promptAnswer.length > 500
+  )
+    throw new RangeError("profile prompt is invalid");
+  if (
+    !Array.isArray(value.values) ||
+    value.values.length < 1 ||
+    value.values.length > 5 ||
+    value.values.some(
+      (item) =>
+        typeof item !== "string" ||
+        item.trim().length < 1 ||
+        item.trim().length > 40,
+    ) ||
+    new Set(value.values.map((item) => item.trim().toLocaleLowerCase()))
+      .size !== value.values.length
+  )
+    throw new RangeError("profile values are invalid");
+  if (
+    !value.lifestyle ||
+    !["no", "sometimes"].includes(value.lifestyle.smoking) ||
+    !["want", "open", "do not want"].includes(value.lifestyle.children) ||
+    !["early", "flexible", "late"].includes(value.lifestyle.schedule)
+  )
+    throw new RangeError("profile lifestyle is invalid");
   return value;
 }
 

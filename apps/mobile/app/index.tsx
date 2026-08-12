@@ -313,6 +313,7 @@ export default function App() {
               }
               style={styles.bioInput}
             />
+            <MatchingProfileFields value={profile} onChange={setProfile} />
           </View>
           <PreferencesScreen value={preferences} onChange={setPreferences} />
           <View style={styles.scoreCard}>
@@ -358,6 +359,9 @@ export default function App() {
                 !profile.name.trim() ||
                 !profile.city.trim() ||
                 !profile.bio.trim() ||
+                !profile.prompt.trim() ||
+                !profile.promptAnswer.trim() ||
+                !profile.values.length ||
                 !adultConfirmed ||
                 !dataUseAccepted
               }
@@ -371,6 +375,10 @@ export default function App() {
                     intent: profile.intent,
                     readiness: profile.readiness,
                     bio: profile.bio.trim(),
+                    prompt: profile.prompt.trim(),
+                    promptAnswer: profile.promptAnswer.trim(),
+                    values: profile.values,
+                    lifestyle: profile.lifestyle,
                   })
                   .then(() => api.updatePreferences(preferences))
                   .then(() => api.acceptPrototypeConsent())
@@ -1052,6 +1060,10 @@ export default function App() {
                       onChangeText={setBio}
                       style={styles.bioInput}
                     />
+                    <MatchingProfileFields
+                      value={profile}
+                      onChange={setProfile}
+                    />
                   </>
                 ) : (
                   <>
@@ -1084,7 +1096,10 @@ export default function App() {
                     editingProfile &&
                     (!profile.name.trim() ||
                       !profile.city.trim() ||
-                      !bio.trim())
+                      !bio.trim() ||
+                      !profile.prompt.trim() ||
+                      !profile.promptAnswer.trim() ||
+                      !profile.values.length)
                   }
                   onPress={() => {
                     if (editingProfile)
@@ -1097,6 +1112,10 @@ export default function App() {
                           intent: profile.intent,
                           readiness: profile.readiness,
                           bio: bio.trim(),
+                          prompt: profile.prompt.trim(),
+                          promptAnswer: profile.promptAnswer.trim(),
+                          values: profile.values,
+                          lifestyle: profile.lifestyle,
                         })
                         .then(setProfile)
                         .catch(() => setError("Profile could not be saved."));
@@ -1905,6 +1924,103 @@ function MobileReportForm({
           }}
         />
       </View>
+    </View>
+  );
+}
+
+function MatchingProfileFields({
+  value,
+  onChange,
+}: {
+  value: Profile;
+  onChange: (value: Profile) => void;
+}) {
+  const [valuesText, setValuesText] = useState(value.values.join(", "));
+  return (
+    <View>
+      <Text style={styles.setting}>Profile prompt</Text>
+      <TextInput
+        accessibilityLabel="Profile prompt"
+        value={value.prompt}
+        maxLength={100}
+        onChangeText={(prompt) => onChange({ ...value, prompt })}
+        style={styles.textField}
+      />
+      <Text style={styles.setting}>Your answer</Text>
+      <TextInput
+        accessibilityLabel="Profile prompt answer"
+        multiline
+        value={value.promptAnswer}
+        maxLength={500}
+        onChangeText={(promptAnswer) => onChange({ ...value, promptAnswer })}
+        style={styles.bioInput}
+      />
+      <Text style={styles.setting}>Values · 1–5, separated by commas</Text>
+      <TextInput
+        accessibilityLabel="Profile values separated by commas"
+        value={valuesText}
+        maxLength={210}
+        onChangeText={(text) => {
+          setValuesText(text);
+          onChange({
+            ...value,
+            values: text
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean)
+              .slice(0, 5),
+          });
+        }}
+        style={styles.textField}
+      />
+      <Text style={styles.setting}>Smoking</Text>
+      <ChoiceRows
+        value={value.lifestyle.smoking}
+        options={[
+          ["no", "Do not smoke"],
+          ["sometimes", "Smoke sometimes"],
+        ]}
+        onChange={(smoking) =>
+          onChange({
+            ...value,
+            lifestyle: { ...value.lifestyle, smoking },
+          })
+        }
+      />
+      <Text style={styles.setting}>Children</Text>
+      <ChoiceRows
+        value={value.lifestyle.children}
+        options={[
+          ["want", "Want children"],
+          ["open", "Open to children"],
+          ["do not want", "Do not want children"],
+        ]}
+        onChange={(children) =>
+          onChange({
+            ...value,
+            lifestyle: { ...value.lifestyle, children },
+          })
+        }
+      />
+      <Text style={styles.setting}>Typical schedule</Text>
+      <ChoiceRows
+        value={value.lifestyle.schedule}
+        options={[
+          ["early", "Usually early"],
+          ["flexible", "Flexible"],
+          ["late", "Usually late"],
+        ]}
+        onChange={(schedule) =>
+          onChange({
+            ...value,
+            lifestyle: { ...value.lifestyle, schedule },
+          })
+        }
+      />
+      <Text style={styles.mathNote}>
+        These are matching inputs. They are never inferred from your behavior,
+        and every change takes effect when you save.
+      </Text>
     </View>
   );
 }

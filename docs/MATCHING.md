@@ -20,6 +20,13 @@ If neither side selects soft factors, the reciprocal score is `1`: all mutually 
 
 The product UI intentionally exposes only four priority choices—Off, Low, Medium, and High—mapped publicly to `0`, `1/3`, `2/3`, and `1`. More granular numbers would suggest an unsupported precision. The kernel accepts continuous values so preregistered research can compare representations without silently changing the public mapping.
 
+Every active profile-side factor is user-entered and editable on web, iOS, and
+Android: selected values, smoking, children plans, and typical schedule. The
+human-written profile prompt is editable too, but it affects only disclosure and
+the optional conversation-starter draft—not the score. No client silently
+assigns these demo defaults after onboarding, and saving a profile change
+invalidates the current batch so explanations are recalculated.
+
 ### Proximity
 
 Proximity uses a coarse profile region, never live GPS. Each person chooses an ideal and maximum radius. Each directed compatibility is `1` inside that person's ideal radius, declines linearly and visibly, and reaches `0` at their maximum. Either maximum can make the pair ineligible. This reflects opportunity to meet, not a claim that closeness creates compatibility.

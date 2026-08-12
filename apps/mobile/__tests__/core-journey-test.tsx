@@ -228,6 +228,14 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByLabelText("Approximate city or region"),
     "Winterthur",
   );
+  await fireEvent.changeText(
+    screen.getByLabelText("Profile prompt answer"),
+    "Building a welcoming table.",
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText("Profile values separated by commas"),
+    "Care, Curiosity",
+  );
   expect(screen.getByLabelText("Lower proximity priority")).toBeTruthy();
   expect(screen.getByLabelText("Raise proximity priority")).toBeTruthy();
   await fireEvent.press(
@@ -241,6 +249,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.getByText("Your introductions")).toBeTruthy(),
   );
+  expect(profile.promptAnswer).toBe("Building a welcoming table.");
+  expect(profile.values).toEqual(["Care", "Curiosity"]);
   expect(screen.getByText("Mara, 30")).toBeTruthy();
   expect(screen.getByText("Public lottery slot")).toBeTruthy();
   await fireEvent.press(screen.getByText("See the full calculation"));
@@ -334,8 +344,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByLabelText("Profile display name"),
     "Taylor Two",
   );
+  await fireEvent.changeText(
+    screen.getByLabelText("Profile values separated by commas"),
+    "Care, Community",
+  );
+  await fireEvent.press(screen.getByText("Flexible"));
   await fireEvent.press(screen.getByText("Done"));
   await waitFor(() => expect(profile.name).toBe("Taylor Two"));
+  expect(profile.values).toEqual(["Care", "Community"]);
+  expect(profile.lifestyle.schedule).toBe("flexible");
   await fireEvent.press(screen.getByText("Pause introductions"));
   await waitFor(() =>
     expect(screen.getByText("Introductions paused")).toBeTruthy(),

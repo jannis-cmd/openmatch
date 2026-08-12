@@ -55,7 +55,8 @@ The matching package has no runtime dependencies. App versions are intentionally
 The repository now contains a thin, local-first vertical slice:
 
 - finite mutually eligible introductions;
-- a persisted first-run setup for profile, boundaries, and named priorities;
+- a persisted first-run setup where every active profile-side matching input,
+  mutual boundary, and named priority is visible and editable;
 - pass/interested decisions;
 - editable proximity and factor priorities;
 - a contribution-by-contribution score explanation;

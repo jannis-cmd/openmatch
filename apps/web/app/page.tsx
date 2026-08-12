@@ -196,7 +196,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         </button>
         <span className="nonprofit">Nonprofit · Open source</span>
       </header>
-      <div className="workspace">
+      <div className={`workspace ${onboarded ? "" : "workspace-single"}`}>
         {onboarded && (
           <aside className="sidebar" aria-label="Primary navigation">
             <Nav
@@ -273,6 +273,10 @@ function AppExperience({ exit }: { exit: () => void }) {
                       intent: profile.intent,
                       readiness: profile.readiness,
                       bio: profile.bio.trim(),
+                      prompt: profile.prompt.trim(),
+                      promptAnswer: profile.promptAnswer.trim(),
+                      values: profile.values,
+                      lifestyle: profile.lifestyle,
                     });
                     await api.updatePreferences(preferences);
                     await api.acceptPrototypeConsent();
@@ -1079,6 +1083,120 @@ function Nav({
   );
 }
 
+function MatchingProfileFields({
+  value,
+  onChange,
+}: {
+  value: Profile;
+  onChange: (value: Profile) => void;
+}) {
+  const [valuesText, setValuesText] = useState(value.values.join(", "));
+  const updateValues = (text: string) => {
+    setValuesText(text);
+    const values = text
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+    onChange({ ...value, values });
+  };
+
+  return (
+    <>
+      <label>
+        Profile prompt
+        <input
+          value={value.prompt}
+          maxLength={100}
+          onChange={(event) =>
+            onChange({ ...value, prompt: event.target.value })
+          }
+        />
+      </label>
+      <label>
+        Your answer
+        <textarea
+          value={value.promptAnswer}
+          maxLength={500}
+          onChange={(event) =>
+            onChange({ ...value, promptAnswer: event.target.value })
+          }
+        />
+      </label>
+      <label>
+        Values <span className="optional">1–5, separated by commas</span>
+        <input
+          value={valuesText}
+          maxLength={210}
+          onChange={(event) => updateValues(event.target.value)}
+        />
+      </label>
+      <label>
+        Smoking
+        <select
+          value={value.lifestyle.smoking}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              lifestyle: {
+                ...value.lifestyle,
+                smoking: event.target.value as Profile["lifestyle"]["smoking"],
+              },
+            })
+          }
+        >
+          <option value="no">Do not smoke</option>
+          <option value="sometimes">Smoke sometimes</option>
+        </select>
+      </label>
+      <label>
+        Children
+        <select
+          value={value.lifestyle.children}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              lifestyle: {
+                ...value.lifestyle,
+                children: event.target
+                  .value as Profile["lifestyle"]["children"],
+              },
+            })
+          }
+        >
+          <option value="want">Want children</option>
+          <option value="open">Open to children</option>
+          <option value="do not want">Do not want children</option>
+        </select>
+      </label>
+      <label>
+        Typical schedule
+        <select
+          value={value.lifestyle.schedule}
+          onChange={(event) =>
+            onChange({
+              ...value,
+              lifestyle: {
+                ...value.lifestyle,
+                schedule: event.target
+                  .value as Profile["lifestyle"]["schedule"],
+              },
+            })
+          }
+        >
+          <option value="early">Usually early</option>
+          <option value="flexible">Flexible</option>
+          <option value="late">Usually late</option>
+        </select>
+      </label>
+      <p className="help">
+        These are matching inputs. They are never inferred from your behavior,
+        and every change takes effect when you save.
+      </p>
+    </>
+  );
+}
+
 function OnboardingView({
   profile,
   preferences,
@@ -1098,6 +1216,9 @@ function OnboardingView({
     profile.name.trim().length > 0 &&
     profile.city.trim().length > 0 &&
     profile.bio.trim().length > 0 &&
+    profile.prompt.trim().length > 0 &&
+    profile.promptAnswer.trim().length > 0 &&
+    profile.values.length > 0 &&
     profile.age >= 18 &&
     profile.age <= 120 &&
     adultConfirmed &&
@@ -1195,6 +1316,7 @@ function OnboardingView({
             }
           />
         </label>
+        <MatchingProfileFields value={profile} onChange={onProfile} />
       </section>
       <section className="settings-card">
         <h2>Mutual eligibility</h2>
@@ -1609,6 +1731,9 @@ function ProfileView({
     draft.name.trim().length > 0 &&
     draft.city.trim().length > 0 &&
     draft.bio.trim().length > 0 &&
+    draft.prompt.trim().length > 0 &&
+    draft.promptAnswer.trim().length > 0 &&
+    draft.values.length > 0 &&
     draft.age >= 18 &&
     draft.age <= 120;
 
@@ -1638,6 +1763,10 @@ function ProfileView({
                   intent: draft.intent,
                   readiness: draft.readiness,
                   bio: draft.bio.trim(),
+                  prompt: draft.prompt.trim(),
+                  promptAnswer: draft.promptAnswer.trim(),
+                  values: draft.values,
+                  lifestyle: draft.lifestyle,
                 });
               }
               setEditing(!editing);
@@ -1731,6 +1860,7 @@ function ProfileView({
                 }
               />
             </label>
+            <MatchingProfileFields value={draft} onChange={setDraft} />
           </div>
         ) : (
           <>

@@ -301,6 +301,27 @@ test("invalid public profile fields are rejected", () => {
   );
   assert.throws(() => validateProfile({ ...demoUser, bio: "" }), /biography/);
   assert.throws(
+    () => validateProfile({ ...demoUser, promptAnswer: "" }),
+    /prompt/,
+  );
+  assert.throws(() => validateProfile({ ...demoUser, values: [] }), /values/);
+  assert.throws(
+    () =>
+      validateProfile({
+        ...demoUser,
+        values: ["Kindness", "kindness"],
+      }),
+    /values/,
+  );
+  assert.throws(
+    () =>
+      validateProfile({
+        ...demoUser,
+        lifestyle: { ...demoUser.lifestyle, schedule: "always" as "early" },
+      }),
+    /lifestyle/,
+  );
+  assert.throws(
     () =>
       validateProfile({
         ...demoUser,

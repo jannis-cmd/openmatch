@@ -66,6 +66,11 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
   ).toBeVisible();
+  const onboardingCard = await page
+    .locator(".settings-card")
+    .first()
+    .boundingBox();
+  expect(onboardingCard?.width).toBeGreaterThan(500);
   await expectAccessible(page);
   await page.getByRole("textbox", { name: "Name" }).fill("Taylor");
   await page
@@ -83,6 +88,8 @@ test("first run through a persistent connection and safety action", async ({
   await page
     .getByRole("combobox", { name: "Meeting readiness" })
     .selectOption({ label: "Ready to meet in person" });
+  await page.getByLabel("Your answer").fill("Building a welcoming table.");
+  await page.getByLabel(/Values 1–5/).fill("Care, Curiosity");
   await page
     .getByRole("checkbox", {
       name: "I confirm that I am at least 18 years old.",
@@ -98,6 +105,11 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "3 remaining" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Your profile" }).click();
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByLabel("Profile prompt")).toBeVisible();
+  await expect(page.getByLabel(/Values 1–5/)).toBeVisible();
+  await page.getByRole("button", { name: "Today" }).click();
   const firstIntroduction = await page
     .locator(".profile-card h2")
     .textContent();

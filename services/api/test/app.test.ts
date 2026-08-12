@@ -5,6 +5,7 @@ import {
   POLITE_CLOSE_MESSAGE,
   nextWeeklyBatchAt,
   publicWeeklySeed,
+  type Profile,
 } from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
 import { Store } from "../src/store.ts";
@@ -202,7 +203,17 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       (
         await request("/v1/me", {
           method: "PATCH",
-          body: JSON.stringify({ bio: "A newly edited biography." }),
+          body: JSON.stringify({
+            bio: "A newly edited biography.",
+            prompt: "Something I value",
+            promptAnswer: "Making time for people.",
+            values: ["Care", "Curiosity"],
+            lifestyle: {
+              smoking: "no",
+              children: "want",
+              schedule: "flexible",
+            },
+          }),
         })
       ).status,
       200,
@@ -216,8 +227,11 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ).status,
       400,
     );
-    const me = (await (await request("/v1/me")).json()) as { bio: string };
+    const me = (await (await request("/v1/me")).json()) as Profile;
     assert.equal(me.bio, "A newly edited biography.");
+    assert.equal(me.promptAnswer, "Making time for people.");
+    assert.deepEqual(me.values, ["Care", "Curiosity"]);
+    assert.equal(me.lifestyle.schedule, "flexible");
     await request("/v1/preferences", {
       method: "PATCH",
       body: JSON.stringify({ maximumDistanceKm: 35 }),

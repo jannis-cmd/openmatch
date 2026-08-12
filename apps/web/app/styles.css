@@ -17,7 +17,9 @@ body {
   margin: 0;
 }
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 .app-shell {
@@ -51,6 +53,9 @@ input {
   max-width: 1440px;
   margin: auto;
   min-height: calc(100vh - 72px);
+}
+.workspace-single {
+  grid-template-columns: minmax(0, 1fr);
 }
 .sidebar {
   padding: 40px 24px;
@@ -535,6 +540,19 @@ input {
   grid-column: 1/-1;
   width: 100%;
   accent-color: #286249;
+}
+.settings-card input:not([type="range"]):not([type="checkbox"]),
+.settings-card textarea {
+  border: 1px solid #cfd2cb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 11px 12px;
+}
+.settings-card textarea {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 104px;
+  resize: vertical;
 }
 .settings-card select,
 .profile-fields input,

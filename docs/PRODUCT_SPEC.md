@@ -66,7 +66,7 @@ The system must distinguish:
 - The executable prototype implements local JSON export and deletion/reset; pause and hide remain required before any multi-user pilot.
 - Research consent defaults off and can be withdrawn prospectively at any time.
 
-The first-run product setup is intentionally short: public name, adult age, short biography, mutual age/distance boundaries, and four named priority levels (Off, Low, Medium, High). It does not use a personality test or claim that questionnaire length improves relationship outcomes. Identity, inclusion, consent, and safety fields required for a real pilot must be added through focused research rather than inferred from this demo.
+The first-run product setup is intentionally short: public name, adult age, short biography, mutual age/distance boundaries, and four named priority levels (Off, Low, Medium, High). Because values, smoking/children compatibility, and schedule are active prototype factors, the executable clients also expose those profile-side inputs and the human-written conversation prompt during setup and later editing; no demo answer is silently treated as the user’s own. It does not use a personality test or claim that questionnaire length improves relationship outcomes. Identity, inclusion, consent, and safety fields required for a real pilot must be added through focused research rather than inferred from this demo.
 
 ### 4.2 Profile
 
