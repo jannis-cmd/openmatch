@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createApp } from "../src/app.ts";
 import { Store } from "../src/store.ts";
@@ -7,6 +8,89 @@ const headers = {
   "content-type": "application/json",
   "x-demo-session": "openmatch-local-demo",
 };
+
+test("the public data inventory covers every current storage and export field", () => {
+  const inventory = JSON.parse(
+    readFileSync(
+      new URL("../../../docs/DATA_INVENTORY.json", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    collections: Array<{
+      id: string;
+      purpose: string;
+      retention: string;
+      access: string[];
+      fields: string[];
+    }>;
+  };
+  const expected: Record<string, string[]> = {
+    profile: [
+      "id",
+      "name",
+      "age",
+      "city",
+      "distanceKm",
+      "pronouns",
+      "intent",
+      "bio",
+      "prompt",
+      "promptAnswer",
+      "values[]",
+      "lifestyle.smoking",
+      "lifestyle.children",
+      "lifestyle.schedule",
+      "color",
+    ],
+    preferences: [
+      "ageMin",
+      "ageMax",
+      "idealDistanceKm",
+      "maximumDistanceKm",
+      "intents[]",
+      "smoking",
+      "children",
+      "weights.proximity",
+      "weights.values",
+      "weights.lifestyle",
+      "weights.schedule",
+    ],
+    onboarding: ["complete"],
+    accountStatus: ["status"],
+    consentReceipt: [
+      "adultConfirmed",
+      "prototypeDataUseAccepted",
+      "noticeVersion",
+      "acceptedAt",
+    ],
+    decisions: ["profileId", "decision", "createdAt"],
+    preferenceObservations: [
+      "profileId",
+      "interested",
+      "factors.*",
+      "selectionProbability",
+      "createdAt",
+    ],
+    connections: ["id", "profileId", "createdAt", "closedAt"],
+    messages: ["id", "connectionId", "senderId", "text", "createdAt"],
+    blocks: ["profileId", "createdAt"],
+    reports: ["id", "profileId", "reason", "details", "status", "createdAt"],
+    exportMetadata: ["exportedAt"],
+  };
+  assert.deepEqual(
+    inventory.collections.map(({ id }) => id).sort(),
+    Object.keys(expected).sort(),
+  );
+  for (const collection of inventory.collections) {
+    assert.ok(
+      collection.purpose.length > 20,
+      `${collection.id} needs a purpose`,
+    );
+    assert.ok(collection.retention, `${collection.id} needs retention`);
+    assert.ok(collection.access.length, `${collection.id} needs access roles`);
+    assert.deepEqual(collection.fields.sort(), expected[collection.id].sort());
+  }
+});
 
 test("persists profile/preferences, creates a mutual connection, messages, and handles safety actions", async () => {
   const server = createApp({ store: new Store(":memory:") }).listen(

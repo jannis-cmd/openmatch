@@ -154,6 +154,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByText("Final score: 0%")).toBeTruthy();
   expect(screen.getByText("Known limits")).toBeTruthy();
   expect(screen.getByText("Open matching source code")).toBeTruthy();
+  expect(screen.getByText("Open data inventory")).toBeTruthy();
   expect(screen.getByText("Safer dating")).toBeTruthy();
   expect(screen.getByText("Open FTC romance-scam guidance")).toBeTruthy();
 });

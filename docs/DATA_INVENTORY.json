@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "local-prototype",
+  "updated": "2026-08-12",
+  "scope": "Fields persisted by the local OpenMatch API or created in a user export. Demo candidate fixtures are source code, not user records.",
+  "retentionPolicy": {
+    "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
+    "accountDeletion": "DELETE /v1/me synchronously removes every user record and restores only non-personal demo defaults.",
+    "backups": "The prototype does not create application-managed backups. Host-level backups are outside this prototype and must be resolved before a pilot."
+  },
+  "accessRoles": {
+    "person": "The person using the explicit local demo session.",
+    "service": "The local API process for the stated product function.",
+    "operator": "A person with filesystem access to the development machine. There is no production staff role model yet."
+  },
+  "collections": [
+    {
+      "id": "profile",
+      "storage": "state.profile JSON",
+      "purpose": "Show the person's chosen profile and evaluate mutual eligibility and explicit matching factors.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": [
+        "id",
+        "name",
+        "age",
+        "city",
+        "distanceKm",
+        "pronouns",
+        "intent",
+        "bio",
+        "prompt",
+        "promptAnswer",
+        "values[]",
+        "lifestyle.smoking",
+        "lifestyle.children",
+        "lifestyle.schedule",
+        "color"
+      ],
+      "disclosure": "distanceKm is converted to a public distance band; all other current prototype profile fields are public to eligible candidates."
+    },
+    {
+      "id": "preferences",
+      "storage": "state.preferences JSON",
+      "purpose": "Apply the person's mutual boundaries and visible ordering priorities.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": [
+        "ageMin",
+        "ageMax",
+        "idealDistanceKm",
+        "maximumDistanceKm",
+        "intents[]",
+        "smoking",
+        "children",
+        "weights.proximity",
+        "weights.values",
+        "weights.lifestyle",
+        "weights.schedule"
+      ],
+      "disclosure": "The person sees all of their inputs. Another person's factor trace is private unless that person explicitly shares it."
+    },
+    {
+      "id": "onboarding",
+      "storage": "state.onboarding_complete",
+      "purpose": "Remember whether first-run setup has completed.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["complete"]
+    },
+    {
+      "id": "accountStatus",
+      "storage": "state.account_status",
+      "purpose": "Enforce active, paused, or hidden introduction availability.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["status"]
+    },
+    {
+      "id": "consentReceipt",
+      "storage": "state.consent_receipt JSON",
+      "purpose": "Prove explicit adult confirmation and acceptance of prototype data use under a named notice.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": [
+        "adultConfirmed",
+        "prototypeDataUseAccepted",
+        "noticeVersion",
+        "acceptedAt"
+      ]
+    },
+    {
+      "id": "decisions",
+      "storage": "decisions table",
+      "purpose": "Record Interested or Pass, prevent resolved profiles from reappearing, and open a mutual demo connection.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["profileId", "decision", "createdAt"],
+      "disclosure": "Pass is never disclosed to the other person."
+    },
+    {
+      "id": "preferenceObservations",
+      "storage": "preference_observations table",
+      "purpose": "Offer optional, inspectable preference-weight suggestions from explicit decisions without automatic changes.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": [
+        "profileId",
+        "interested",
+        "factors.*",
+        "selectionProbability",
+        "createdAt"
+      ],
+      "excluded": ["message content", "dwell time", "scrolling", "taps", "photos"]
+    },
+    {
+      "id": "connections",
+      "storage": "connections table",
+      "purpose": "Represent mutual interest and whether a conversation is open or closed.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["id", "profileId", "createdAt", "closedAt"]
+    },
+    {
+      "id": "messages",
+      "storage": "messages table",
+      "purpose": "Deliver user-written text inside a mutual connection.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["id", "connectionId", "senderId", "text", "createdAt"],
+      "excluded": ["read receipt", "online status", "typing status", "image attachment"]
+    },
+    {
+      "id": "blocks",
+      "storage": "blocks table",
+      "purpose": "Prevent a blocked profile from appearing and close any existing connection.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["profileId", "createdAt"],
+      "disclosure": "A block is not disclosed to the blocked person."
+    },
+    {
+      "id": "reports",
+      "storage": "reports table",
+      "purpose": "Preserve a person's safety concern and visible receipt for future human review.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["id", "profileId", "reason", "details", "status", "createdAt"],
+      "disclosure": "A report is not disclosed to the reported person. The prototype has no staffed moderator access role."
+    },
+    {
+      "id": "exportMetadata",
+      "storage": "generated only; not persisted",
+      "purpose": "Timestamp the person's JSON export.",
+      "retention": "Not retained by the service.",
+      "access": ["person"],
+      "fields": ["exportedAt"]
+    }
+  ]
+}

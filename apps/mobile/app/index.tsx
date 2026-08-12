@@ -966,6 +966,15 @@ export default function App() {
                     )
                   }
                 />
+                <Action
+                  label="Open data inventory"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://github.com/jannis-cmd/openmatch/blob/main/docs/DATA_INVENTORY.json",
+                    )
+                  }
+                />
               </View>
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Known limits</Text>

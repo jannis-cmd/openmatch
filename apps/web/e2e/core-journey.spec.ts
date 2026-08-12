@@ -172,6 +172,9 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("link", { name: "Matching source code ↗" }),
   ).toHaveAttribute("href", /packages\/matching\/src\/index\.ts/);
+  await expect(
+    page.getByRole("link", { name: "Machine-readable data inventory ↗" }),
+  ).toHaveAttribute("href", /DATA_INVENTORY\.json/);
   await page.getByRole("button", { name: "Your profile" }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export my data" }).click();

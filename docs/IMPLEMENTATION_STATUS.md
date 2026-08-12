@@ -14,6 +14,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Transparent reciprocal matching | Shared deterministic kernel; mutual boundaries; separate A→B and B→A compatibility and weights; harmonic mean; versioned explanations |
 | In-app transparency center | Deployed algorithm version, objective, source code, evidence register, decision history, privacy distinction, and known limitations are reachable on web and mobile |
 | Local score calculator | Web, iOS, and Android call the shared deterministic kernel with adjustable synthetic two-sided fit and boundary inputs; no API request is involved |
+| Machine-readable data inventory | Every current local storage/export collection lists its fields, purpose, retention rule, access roles, disclosure, and notable exclusions in `docs/DATA_INVENTORY.json` |
 | Proximity without public precision | Internal coarse-region estimate; only five public distance bands leave the matching boundary |
 | Limited learning from decisions | Interested/Pass observations store only shown A-side factors and selection probability; suggestions require 20 mixed observations; no automatic changes |
 | Personal-data transparency | JSON export, pause, hide, resume, and deletion/reset from Profile on web and mobile |

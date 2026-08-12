@@ -1778,6 +1778,13 @@ function AboutView({
         >
           Algorithm decisions and changes ↗
         </a>
+        <a
+          href="https://github.com/jannis-cmd/openmatch/blob/main/docs/DATA_INVENTORY.json"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Machine-readable data inventory ↗
+        </a>
         <h2>Known limits</h2>
         <p>
           This prototype cannot predict attraction, love, relationship success,
