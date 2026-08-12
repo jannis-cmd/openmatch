@@ -332,39 +332,35 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Return to batch" }).click();
   await expect(page.locator(".profile-card")).toBeVisible();
-  if (firstIntroduction === "Mara, 30") {
-    await page.getByRole("button", { name: "Saved (1)" }).click();
-  } else {
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      await expect(
-        page
-          .locator(".profile-card h2")
-          .or(page.getByRole("heading", { name: "That’s the whole set." })),
-      ).toBeVisible();
-      if (await page.getByRole("heading", { name: "Mara, 30" }).isVisible())
-        break;
-      if (
-        await page
-          .getByRole("heading", { name: "That’s the whole set." })
-          .isVisible()
-      )
-        break;
-      if (await page.getByRole("heading", { name: "Noah, 34" }).isVisible()) {
-        await page.getByRole("button", { name: "Save for later" }).click();
-        await expect(
-          page.getByRole("heading", { name: "Noah, 34" }),
-        ).not.toBeVisible();
-        continue;
-      }
-      const previousIntroduction = await page
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await expect(
+      page
         .locator(".profile-card h2")
-        .textContent();
-      await page.getByRole("button", { name: "Pass" }).click();
-      if (previousIntroduction)
-        await expect(
-          page.getByRole("heading", { name: previousIntroduction }),
-        ).not.toBeVisible();
+        .or(page.getByRole("heading", { name: "That’s the whole set." })),
+    ).toBeVisible();
+    if (await page.getByRole("heading", { name: "Mara, 30" }).isVisible())
+      break;
+    if (
+      await page
+        .getByRole("heading", { name: "That’s the whole set." })
+        .isVisible()
+    )
+      break;
+    if (await page.getByRole("heading", { name: "Noah, 34" }).isVisible()) {
+      await page.getByRole("button", { name: "Save for later" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Noah, 34" }),
+      ).not.toBeVisible();
+      continue;
     }
+    const previousIntroduction = await page
+      .locator(".profile-card h2")
+      .textContent();
+    await page.getByRole("button", { name: "Pass" }).click();
+    if (previousIntroduction)
+      await expect(
+        page.getByRole("heading", { name: previousIntroduction }),
+      ).not.toBeVisible();
   }
   await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
   await expect(page.getByText("Same approximate region")).toBeVisible();
@@ -589,6 +585,23 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await expect(page.getByText("Report #2")).toBeVisible();
   await expect(page.getByText(/offline safety · received/i)).toBeVisible();
+  const reportCard = page.locator(".report-history > div").filter({
+    hasText: "Report #2",
+  });
+  await reportCard
+    .getByRole("button", { name: "Add context or correction" })
+    .click();
+  await reportCard.getByLabel("Update type").selectOption("correction");
+  await reportCard
+    .getByLabel("What should be added to the record?")
+    .fill("The timing in my original report was imprecise.");
+  await reportCard.getByRole("button", { name: "Add to report" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Update added to report #2" }),
+  ).toBeVisible();
+  await expect(
+    reportCard.getByText(/correction.*The timing in my original report/i),
+  ).toBeVisible();
   await expect(page.getByText(/she\/her · Winterthur/)).toBeVisible();
   await page.getByRole("button", { name: "Edit" }).click();
   await page.getByRole("textbox", { name: "Display name" }).fill("Taylor Two");

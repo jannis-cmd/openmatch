@@ -26,6 +26,15 @@ export type Message = {
 };
 export type ReportReason =
   "harassment" | "scam" | "impersonation" | "offline_safety" | "other";
+export type ReportUpdateKind =
+  "additional_context" | "correction" | "withdrawal_request";
+export type ReportUpdate = {
+  id: number;
+  reportId: number;
+  kind: ReportUpdateKind;
+  details: string;
+  createdAt: string;
+};
 export type ReportRecord = {
   id: number;
   profileId: string;
@@ -33,6 +42,7 @@ export type ReportRecord = {
   details: string;
   status: "received";
   createdAt: string;
+  updates: ReportUpdate[];
 };
 export type AccountStatus = "active" | "paused" | "hidden";
 export type DeliverySettings = { batchSize: 1 | 2 | 3 | 4 | 5 };
@@ -496,6 +506,15 @@ export function createApiClient(
         json("POST", { profileId, reason, details }),
       ),
     reports: () => request<{ items: ReportRecord[] }>("/v1/reports"),
+    addReportUpdate: (
+      reportId: number,
+      kind: ReportUpdateKind,
+      details: string,
+    ) =>
+      request<ReportUpdate>(
+        `/v1/reports/${encodeURIComponent(reportId)}/updates`,
+        json("POST", { kind, details }),
+      ),
   };
 }
 

@@ -375,8 +375,22 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         details: body.details,
         status: "received",
         createdAt: "2026-08-12T12:00:00.000Z",
+        updates: [],
       });
       return response({ id: 1, status: "received" }, 201);
+    }
+    if (/^\/v1\/reports\/\d+\/updates$/.test(path) && init.method === "POST") {
+      const reportId = Number(path.split("/")[3]);
+      const report = reportRecords.find((item) => item.id === reportId);
+      const update = {
+        id: 1,
+        reportId,
+        kind: body.kind,
+        details: body.details,
+        createdAt: "2026-08-12T12:30:00.000Z",
+      };
+      (report?.updates as Array<Record<string, unknown>>).push(update);
+      return response(update, 201);
     }
     if (path === "/v1/reports") return response({ items: reportRecords });
     if (path === "/v1/onboarding/complete") {
@@ -526,6 +540,18 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   ).toBeTruthy();
   expect(screen.getByText("Your safety reports")).toBeTruthy();
   expect(screen.getByText("Report #1")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Add context or correction"));
+  await fireEvent.press(screen.getByText("Correction"));
+  await fireEvent.changeText(
+    screen.getByLabelText("What should be added to the record?"),
+    "The timing in my original report was imprecise.",
+  );
+  await fireEvent.press(screen.getByText("Add to report"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(/The timing in my original report was imprecise/),
+    ).toBeTruthy(),
+  );
   await fireEvent.press(screen.getByText("Edit profile"));
   await fireEvent.changeText(
     screen.getByLabelText("Profile display name"),

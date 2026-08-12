@@ -35,6 +35,7 @@ import {
   type NotificationEmailStatus,
   type ReportRecord,
   type ReportReason,
+  type ReportUpdateKind,
   type ResearchConsentReceipt,
   type SecurityNotificationStatus,
   type TransparencyVersion,
@@ -152,6 +153,10 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [safetyNotice, setSafetyNotice] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRecord[]>([]);
+  const [reportUpdateId, setReportUpdateId] = useState<number | null>(null);
+  const [reportUpdateKind, setReportUpdateKind] =
+    useState<ReportUpdateKind>("additional_context");
+  const [reportUpdateDetails, setReportUpdateDetails] = useState("");
   const [researchConsent, setResearchConsent] =
     useState<ResearchConsentReceipt | null>(null);
   const [directoryConsent, setDirectoryConsent] =
@@ -2118,9 +2123,10 @@ export default function App() {
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Your safety reports</Text>
                 <Text style={styles.scoreNote}>
-                  Reports are private. This prototype records receipts but has
-                  no staffed review operation, response-time promise, or appeal
-                  process.
+                  Reports are private. You can append context, correct the
+                  record, or request withdrawal without erasing the original.
+                  This prototype has no staffed review operation, response-time
+                  promise, or moderation decision to appeal.
                 </Text>
                 {reports.length ? (
                   reports.map((report) => (
@@ -2133,6 +2139,84 @@ export default function App() {
                         <Text style={styles.mathNote}>
                           {new Date(report.createdAt).toLocaleString()}
                         </Text>
+                        {report.updates.map((update) => (
+                          <Text style={styles.mathNote} key={update.id}>
+                            {update.kind.replaceAll("_", " ")} ·{" "}
+                            {new Date(update.createdAt).toLocaleString()}:{" "}
+                            {update.details}
+                          </Text>
+                        ))}
+                        <Action
+                          label="Add context or correction"
+                          secondary
+                          onPress={() => {
+                            setReportUpdateId(report.id);
+                            setReportUpdateDetails("");
+                          }}
+                        />
+                        {reportUpdateId === report.id && (
+                          <View style={styles.math}>
+                            <Text style={styles.setting}>Update type</Text>
+                            <ChoiceRows
+                              value={reportUpdateKind}
+                              options={[
+                                ["additional_context", "Additional context"],
+                                ["correction", "Correction"],
+                                ["withdrawal_request", "Request withdrawal"],
+                              ]}
+                              onChange={setReportUpdateKind}
+                            />
+                            <Text style={styles.setting}>
+                              What should be added to the record?
+                            </Text>
+                            <TextInput
+                              accessibilityLabel="What should be added to the record?"
+                              multiline
+                              maxLength={2000}
+                              style={styles.bioInput}
+                              value={reportUpdateDetails}
+                              onChangeText={setReportUpdateDetails}
+                            />
+                            <Text style={styles.mathNote}>
+                              An update is append-only. A withdrawal request
+                              records your request but does not silently delete
+                              safety data.
+                            </Text>
+                            <Action
+                              label="Add to report"
+                              disabled={!reportUpdateDetails.trim()}
+                              onPress={() =>
+                                void api
+                                  .addReportUpdate(
+                                    report.id,
+                                    reportUpdateKind,
+                                    reportUpdateDetails,
+                                  )
+                                  .then(async () => {
+                                    setReports((await api.reports()).items);
+                                    setReportUpdateId(null);
+                                    setReportUpdateDetails("");
+                                    setSafetyNotice(
+                                      `Update added to report #${report.id}.`,
+                                    );
+                                  })
+                                  .catch((error) =>
+                                    setError(
+                                      operationLimitMessage(
+                                        error,
+                                        "The report update could not be added. Please retry.",
+                                      ),
+                                    ),
+                                  )
+                              }
+                            />
+                            <Action
+                              label="Cancel"
+                              secondary
+                              onPress={() => setReportUpdateId(null)}
+                            />
+                          </View>
+                        )}
                       </View>
                     </View>
                   ))

@@ -533,6 +533,40 @@ test("updates a reversible meeting-planning preference", async () => {
   assert.equal(result.meetingPreference, "open_to_plan");
 });
 
+test("adds an append-only update to a safety report", async () => {
+  let received: { url?: string; body?: unknown } = {};
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (url, init) => {
+      received = {
+        url: String(url),
+        body: JSON.parse(String(init?.body)),
+      };
+      return new Response(
+        JSON.stringify({
+          id: 4,
+          reportId: 7,
+          kind: "correction",
+          details: "Corrected context",
+          createdAt: "2026-08-12T12:00:00.000Z",
+        }),
+        { status: 201 },
+      );
+    }),
+  );
+  const update = await client.addReportUpdate(
+    7,
+    "correction",
+    "Corrected context",
+  );
+  assert.equal(received.url, "http://example.test/v1/reports/7/updates");
+  assert.deepEqual(received.body, {
+    kind: "correction",
+    details: "Corrected context",
+  });
+  assert.equal(update.reportId, 7);
+});
+
 test("sends message safety acknowledgement only after client confirmation", async () => {
   let body: unknown;
   const client = createApiClient(

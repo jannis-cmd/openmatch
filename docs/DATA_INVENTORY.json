@@ -300,6 +300,15 @@
       "disclosure": "A report is not disclosed to the reported person. The prototype has no staffed moderator access role."
     },
     {
+      "id": "reportUpdates",
+      "storage": "report_updates table",
+      "purpose": "Preserve append-only context, corrections, or withdrawal requests that a person adds to one of their safety reports.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["id", "reportId", "kind", "details", "createdAt"],
+      "disclosure": "An update remains private with its report. A withdrawal request records the request but does not itself delete the report or promise moderator action."
+    },
+    {
       "id": "exportMetadata",
       "storage": "generated only; not persisted",
       "purpose": "Timestamp the person's JSON export.",

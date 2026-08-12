@@ -1459,6 +1459,7 @@ test("the public data inventory covers every current storage and export field", 
     ],
     blocks: ["profileId", "createdAt"],
     reports: ["id", "profileId", "reason", "details", "status", "createdAt"],
+    reportUpdates: ["id", "reportId", "kind", "details", "createdAt"],
     exportMetadata: ["exportedAt"],
   };
   assert.deepEqual(
@@ -1933,6 +1934,68 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
         { id: 1, reason: "scam", status: "received" },
       ],
     );
+    const reportUpdate = await request("/v1/reports/2/updates", {
+      method: "POST",
+      body: JSON.stringify({
+        kind: "correction",
+        details: "The concern happened after the match, not before it.",
+      }),
+    });
+    assert.equal(reportUpdate.status, 201);
+    const reportUpdateBody = (await reportUpdate.json()) as {
+      id: number;
+      reportId: number;
+      kind: string;
+      details: string;
+      createdAt: string;
+    };
+    assert.deepEqual(
+      {
+        id: reportUpdateBody.id,
+        reportId: reportUpdateBody.reportId,
+        kind: reportUpdateBody.kind,
+        details: reportUpdateBody.details,
+      },
+      {
+        id: 1,
+        reportId: 2,
+        kind: "correction",
+        details: "The concern happened after the match, not before it.",
+      },
+    );
+    assert.equal(Number.isNaN(Date.parse(reportUpdateBody.createdAt)), false);
+    assert.equal(
+      (
+        await request("/v1/reports/999/updates", {
+          method: "POST",
+          body: JSON.stringify({ kind: "correction", details: "Context" }),
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await request("/v1/reports/2/updates", {
+          method: "POST",
+          body: JSON.stringify({ kind: "correction", details: "   " }),
+        })
+      ).status,
+      400,
+    );
+    const updatedReportHistory = (await (
+      await request("/v1/reports")
+    ).json()) as {
+      items: Array<{ id: number; updates: Array<{ details: string }> }>;
+    };
+    assert.deepEqual(updatedReportHistory.items[0].updates, [
+      {
+        id: 1,
+        reportId: 2,
+        kind: "correction",
+        details: "The concern happened after the match, not before it.",
+        createdAt: reportUpdateBody.createdAt,
+      },
+    ]);
     const politeClose = (await (
       await request(`/v1/connections/${id}/close-politely`, { method: "POST" })
     ).json()) as { message: { text: string }; closed: boolean };
@@ -1962,6 +2025,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     const dataExport = (await (await request("/v1/me/export")).json()) as {
       profile: { id: string };
       reports: unknown[];
+      reportUpdates: unknown[];
       blocks: unknown[];
       preferenceObservations: Array<{ selectionProbability: number }>;
       messages: Array<{ text: string }>;
@@ -1982,6 +2046,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     };
     assert.equal(dataExport.profile.id, "me");
     assert.equal(dataExport.reports.length, 2);
+    assert.equal(dataExport.reportUpdates.length, 1);
     assert.equal(dataExport.blocks.length, 2);
     assert.equal(dataExport.preferenceObservations.length, 1);
     assert.equal(
@@ -2049,6 +2114,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       messages: unknown[];
       blocks: unknown[];
       reports: unknown[];
+      reportUpdates: unknown[];
       savedIntroductions: unknown[];
     };
     assert.equal(resetExport.profile.id, "me");
@@ -2065,6 +2131,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       "messages",
       "blocks",
       "reports",
+      "reportUpdates",
       "savedIntroductions",
     ] as const) {
       assert.deepEqual(resetExport[collection], []);

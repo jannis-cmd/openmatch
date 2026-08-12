@@ -16,7 +16,7 @@ import {
   toPublicProfile,
   type Candidate,
 } from "@openmatch/matching";
-import { Store } from "./store.js";
+import { Store, type ReportUpdateKind } from "./store.js";
 import { AccountError, Accounts } from "./accounts.js";
 import {
   smtpAccountEmailSenders,
@@ -1433,6 +1433,42 @@ export function createApp(
       }
       if (request.method === "GET" && url.pathname === "/v1/reports")
         return send(response, 200, { items: store.reports() });
+      const reportUpdate = url.pathname.match(
+        /^\/v1\/reports\/(\d+)\/updates$/,
+      );
+      if (request.method === "POST" && reportUpdate) {
+        if (!consumeOperation("report", response))
+          return send(response, 429, {
+            error: "operation_rate_limit_exceeded",
+            operation: "report",
+          });
+        const body = (await readJson(request)) as {
+          kind?: unknown;
+          details?: unknown;
+        };
+        const kinds: ReportUpdateKind[] = [
+          "additional_context",
+          "correction",
+          "withdrawal_request",
+        ];
+        const details =
+          typeof body.details === "string" ? body.details.trim() : "";
+        if (
+          typeof body.kind !== "string" ||
+          !kinds.includes(body.kind as ReportUpdateKind) ||
+          details.length < 1 ||
+          details.length > 2000
+        )
+          return send(response, 400, { error: "invalid_report_update" });
+        const update = store.addReportUpdate(
+          Number(reportUpdate[1]),
+          body.kind as ReportUpdateKind,
+          details,
+        );
+        return update
+          ? send(response, 201, update)
+          : send(response, 404, { error: "report_not_found" });
+      }
       if (request.method === "POST" && url.pathname === "/v1/reports") {
         if (!consumeOperation("report", response))
           return send(response, 429, {

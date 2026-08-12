@@ -16,6 +16,7 @@ import {
   type NotificationEmailStatus,
   type ReportRecord,
   type ReportReason,
+  type ReportUpdateKind,
   type ResearchConsentReceipt,
   type SecurityNotificationStatus,
   type TransparencyVersion,
@@ -906,6 +907,10 @@ function AppExperience({
                   }}
                   accountStatus={accountStatus}
                   reports={reports}
+                  addReportUpdate={async (reportId, kind, details) => {
+                    await api.addReportUpdate(reportId, kind, details);
+                    setReports((await api.reports()).items);
+                  }}
                   researchConsent={researchConsent}
                   directoryConsent={directoryConsent}
                   setDirectoryConsent={async (participating) => {
@@ -2267,6 +2272,7 @@ function ProfileView({
   saveProfile,
   accountStatus,
   reports,
+  addReportUpdate,
   researchConsent,
   directoryConsent,
   setDirectoryConsent,
@@ -2291,6 +2297,11 @@ function ProfileView({
   saveProfile: (patch: Partial<Profile>) => Promise<void>;
   accountStatus: AccountStatus;
   reports: ReportRecord[];
+  addReportUpdate: (
+    reportId: number,
+    kind: ReportUpdateKind,
+    details: string,
+  ) => Promise<void>;
   researchConsent: ResearchConsentReceipt | null;
   directoryConsent: DirectoryConsentReceipt | null;
   setDirectoryConsent: (participating: boolean) => Promise<void>;
@@ -2347,6 +2358,16 @@ function ProfileView({
   const [backupCode, setBackupCode] = useState("");
   const [backupNotice, setBackupNotice] = useState<string | null>(null);
   const [backupError, setBackupError] = useState<string | null>(null);
+  const [reportUpdateId, setReportUpdateId] = useState<number | null>(null);
+  const [reportUpdateKind, setReportUpdateKind] =
+    useState<ReportUpdateKind>("additional_context");
+  const [reportUpdateDetails, setReportUpdateDetails] = useState("");
+  const [reportUpdateNotice, setReportUpdateNotice] = useState<string | null>(
+    null,
+  );
+  const [reportUpdateError, setReportUpdateError] = useState<string | null>(
+    null,
+  );
   const [draft, setDraft] = useState(profile);
   useEffect(() => setDraft(profile), [profile]);
   const draftValid =
@@ -3034,8 +3055,10 @@ function ProfileView({
       <section className="settings-card">
         <h2>Your safety reports</h2>
         <p>
-          Reports are private. This prototype records receipts but has no
-          staffed review operation, response-time promise, or appeal process.
+          Reports are private. You can append context, correct the record, or
+          request withdrawal without erasing the original. This prototype has no
+          staffed review operation, response-time promise, or moderation
+          decision to appeal.
         </p>
         {reports.length ? (
           <div className="report-history">
@@ -3046,12 +3069,114 @@ function ProfileView({
                   {report.reason.replaceAll("_", " ")} · {report.status} ·{" "}
                   {new Date(report.createdAt).toLocaleString()}
                 </span>
+                {report.updates.map((update) => (
+                  <span key={update.id}>
+                    {update.kind.replaceAll("_", " ")} ·{" "}
+                    {new Date(update.createdAt).toLocaleString()}:{" "}
+                    {update.details}
+                  </span>
+                ))}
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    setReportUpdateId(report.id);
+                    setReportUpdateDetails("");
+                    setReportUpdateNotice(null);
+                    setReportUpdateError(null);
+                  }}
+                >
+                  Add context or correction
+                </button>
+                {reportUpdateId === report.id && (
+                  <form
+                    className="safety-form"
+                    onSubmit={async (event) => {
+                      event.preventDefault();
+                      setReportUpdateError(null);
+                      try {
+                        await addReportUpdate(
+                          report.id,
+                          reportUpdateKind,
+                          reportUpdateDetails,
+                        );
+                        setReportUpdateId(null);
+                        setReportUpdateDetails("");
+                        setReportUpdateNotice(
+                          `Update added to report #${report.id}.`,
+                        );
+                      } catch (error) {
+                        setReportUpdateError(
+                          operationLimitMessage(
+                            error,
+                            "The report update could not be added. Please retry.",
+                          ),
+                        );
+                      }
+                    }}
+                  >
+                    <label>
+                      Update type
+                      <select
+                        value={reportUpdateKind}
+                        onChange={(event) =>
+                          setReportUpdateKind(
+                            event.target.value as ReportUpdateKind,
+                          )
+                        }
+                      >
+                        <option value="additional_context">
+                          Additional context
+                        </option>
+                        <option value="correction">Correction</option>
+                        <option value="withdrawal_request">
+                          Request withdrawal
+                        </option>
+                      </select>
+                    </label>
+                    <label>
+                      What should be added to the record?
+                      <textarea
+                        maxLength={2000}
+                        required
+                        value={reportUpdateDetails}
+                        onChange={(event) =>
+                          setReportUpdateDetails(event.target.value)
+                        }
+                      />
+                    </label>
+                    <p className="help">
+                      An update is append-only. A withdrawal request records
+                      your request but does not silently delete safety data.
+                    </p>
+                    <div className="button-row">
+                      <button
+                        type="submit"
+                        disabled={!reportUpdateDetails.trim()}
+                      >
+                        Add to report
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setReportUpdateId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {reportUpdateError && (
+                      <p role="alert" className="error">
+                        {reportUpdateError}
+                      </p>
+                    )}
+                  </form>
+                )}
               </div>
             ))}
           </div>
         ) : (
           <p>No reports submitted.</p>
         )}
+        {reportUpdateNotice && <p role="status">{reportUpdateNotice}</p>}
       </section>
       <section className="settings-card">
         <h2>Privacy</h2>

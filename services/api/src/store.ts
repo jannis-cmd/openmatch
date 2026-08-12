@@ -91,6 +91,8 @@ export type DirectoryConsentReceipt = {
   noticeVersion: "account-directory-prototype-0.1";
   updatedAt: string;
 };
+export type ReportUpdateKind =
+  "additional_context" | "correction" | "withdrawal_request";
 
 export class Store {
   readonly db: DatabaseSync;
@@ -106,6 +108,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, connection_id TEXT NOT NULL REFERENCES connections(id), sender_id TEXT NOT NULL, text TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS blocks (profile_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id TEXT NOT NULL, reason TEXT NOT NULL, details TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS report_updates (id INTEGER PRIMARY KEY AUTOINCREMENT, report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('additional_context','correction','withdrawal_request')), details TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS saved_introductions (profile_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS preference_observations (profile_id TEXT PRIMARY KEY, interested INTEGER NOT NULL CHECK(interested IN (0,1)), factors_json TEXT NOT NULL, selection_probability REAL NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS processed_account_events (event_id TEXT PRIMARY KEY, processed_at TEXT NOT NULL);
@@ -571,11 +574,39 @@ export class Store {
     };
   }
   reports() {
-    return this.db
+    const reports = this.db
       .prepare(
         "SELECT id,profile_id AS profileId,reason,details,status,created_at AS createdAt FROM reports ORDER BY id DESC",
       )
-      .all();
+      .all() as Array<Record<string, unknown> & { id: number }>;
+    const updates = this.db
+      .prepare(
+        "SELECT id,report_id AS reportId,kind,details,created_at AS createdAt FROM report_updates ORDER BY id",
+      )
+      .all() as Array<Record<string, unknown> & { reportId: number }>;
+    return reports.map((report) => ({
+      ...report,
+      updates: updates.filter(({ reportId }) => reportId === report.id),
+    }));
+  }
+  addReportUpdate(reportId: number, kind: ReportUpdateKind, details: string) {
+    const report = this.db
+      .prepare("SELECT id FROM reports WHERE id=?")
+      .get(reportId);
+    if (!report) return undefined;
+    const createdAt = new Date().toISOString();
+    const result = this.db
+      .prepare(
+        "INSERT INTO report_updates(report_id,kind,details,created_at) VALUES (?,?,?,?)",
+      )
+      .run(reportId, kind, details, createdAt);
+    return {
+      id: Number(result.lastInsertRowid),
+      reportId,
+      kind,
+      details,
+      createdAt,
+    };
   }
 
   exportData() {
@@ -625,6 +656,11 @@ export class Store {
           "SELECT id,profile_id AS profileId,reason,details,status,created_at AS createdAt FROM reports ORDER BY id",
         )
         .all(),
+      reportUpdates: this.db
+        .prepare(
+          "SELECT id,report_id AS reportId,kind,details,created_at AS createdAt FROM report_updates ORDER BY id",
+        )
+        .all(),
       savedIntroductions: this.db
         .prepare(
           "SELECT profile_id AS profileId,created_at AS createdAt FROM saved_introductions ORDER BY created_at",
@@ -637,7 +673,7 @@ export class Store {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db.exec(
-        "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM processed_account_events; DELETE FROM state;",
+        "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM report_updates; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM processed_account_events; DELETE FROM state;",
       );
       this.seed();
       this.db.exec("COMMIT");

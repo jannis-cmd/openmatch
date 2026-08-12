@@ -760,12 +760,12 @@ textarea {
   display: grid;
   gap: 10px;
 }
-.report-history div {
+.report-history > div {
   background: #f4f5f1;
   border-radius: 14px;
   padding: 14px;
 }
-.report-history span {
+.report-history > div > span {
   display: block;
   margin-top: 4px;
   text-transform: capitalize;
