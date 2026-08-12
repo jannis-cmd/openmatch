@@ -129,6 +129,22 @@ deployed service, not only this prototype repository.
 6. Start with internal TestFlight testers. External testers add Beta App Review
    and require accurate beta test information.
 
+## Unsigned iOS Simulator build
+
+The `ios-simulator` profile compiles the native iOS application without an
+Apple distribution certificate:
+
+```bash
+cd apps/mobile
+eas build --profile ios-simulator --platform ios
+```
+
+This artifact can be installed only into an iOS Simulator. It proves native
+compilation and supports simulator testing, but it cannot run on an iPhone and
+does not replace TestFlight signing. The current Mac has Apple Command Line
+Tools but not full Xcode or Simulator, so local installation remains unavailable
+until Xcode is installed.
+
 ## Store information still requiring an owner decision
 
 Before submission, record and review:
