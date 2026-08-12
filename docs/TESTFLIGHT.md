@@ -1,9 +1,23 @@
-# Mobile builds and TestFlight
+# Mobile builds, TestFlight, and Android testing
 
-The native app is ready for local-device development. Public preview and
-TestFlight distribution must wait for an authenticated OpenMatch API deployed
-at a stable HTTPS origin. The repository intentionally contains no private IP
-address or production endpoint.
+The native app is ready for owner testing. The current distributed-build API is
+the HTTPS tailnet service documented in `docs/TAILNET_BETA.md`; it is private,
+Mac-hosted, and not suitable for public testers. The repository intentionally
+contains no endpoint. EAS injects the selected HTTPS origin at build time.
+
+## Current release state
+
+- Expo project: `@jannis-cmd/openmatch`
+- Expo project ID: `a5c1bb2c-19ef-43bb-831e-a812f876ee87`
+- iOS bundle identifier: `org.openmatch.app`
+- Android package: `org.openmatch.app`
+- EAS `preview` and `production` environments contain the tailnet API origin.
+- Android signing uses the remote EAS keystore.
+- iOS signing is waiting for active Apple Developer Program membership. A free
+  Apple account cannot distribute through TestFlight.
+
+Do not commit signing material, recovery credentials, Apple sessions, API
+tokens, or a private service address to the repository.
 
 ## Local development on a phone
 
@@ -58,6 +72,28 @@ eas build --profile preview --platform ios
 
 Use this internal build for a small, consented pilot before App Store review.
 
+For an installable Android APK:
+
+```bash
+cd apps/mobile
+eas build --profile preview --platform android
+```
+
+Open the resulting EAS install URL on an Android device in the same tailnet.
+Android may require explicit permission to install an app from the browser.
+
+For a Play Store Android App Bundle:
+
+```bash
+cd apps/mobile
+eas build --profile production --platform android
+```
+
+An AAB cannot be installed directly. Upload it to a Play Console internal test
+track after the store listing, tester access, app-content declarations, data
+safety form, and privacy-policy URL have been reviewed against the deployed
+service.
+
 ## TestFlight production build
 
 Configure and verify the production EAS environment, then build and submit:
@@ -72,3 +108,41 @@ The current bundle identifier is `org.openmatch.app`. If it is unavailable for
 the selected Apple Developer team, replace it in `app.json` with a unique
 reverse-domain identifier. App Store privacy disclosures must reflect the
 deployed service, not only this prototype repository.
+
+## Resume iOS when enrollment becomes active
+
+1. Sign in at the Apple Developer site and accept any current membership or
+   program agreements as the Account Holder.
+2. Confirm that the membership page shows an active Apple Developer Program
+   team, not only the free developer account.
+3. From `apps/mobile`, run `eas credentials --platform ios` and allow EAS to
+   create or select the distribution certificate and provisioning profile.
+4. Run `eas build --profile production --platform ios`.
+5. Inspect the completed archive, then run
+   `eas submit --platform ios --latest` only after the App Store Connect record
+   and disclosures are complete.
+6. Start with internal TestFlight testers. External testers add Beta App Review
+   and require accurate beta test information.
+
+## Store information still requiring an owner decision
+
+Before submission, record and review:
+
+- public support and privacy-policy URLs;
+- an authorized public feedback/support email address;
+- app subtitle, category, screenshots, and age-rating answers;
+- TestFlight beta description and the exact features testers should exercise;
+- App Review contact details and, if needed, a working review account;
+- Apple privacy nutrition labels and Google Play data-safety answers based on
+  the running service, including account, profile, approximate location,
+  decisions, connections, messages, reports, and deletion behavior;
+- content-moderation, blocking, reporting, and safety-response readiness;
+- export-compliance answers. The app configuration currently declares that it
+  does not use non-exempt encryption, but the final binary and service design
+  must still be reviewed before answering.
+
+Suggested internal beta focus: account creation and restoration, transparent
+setup, finite introductions, score explanations, reciprocal connection,
+text-only messaging, unmatch/block/report, data export, and account deletion.
+Do not claim that compatibility is scientifically proven or that security email
+delivery works while SMTP remains unconfigured.
