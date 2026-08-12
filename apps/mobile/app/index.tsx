@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { resolveApiConfiguration } from "../lib/api-configuration";
 import {
   createApiClient,
   type AccountStatus,
@@ -44,12 +45,18 @@ import {
 type Tab = "Today" | "Connections" | "Preferences" | "Profile" | "Method";
 
 export default function App() {
-  const api = useMemo(
+  const apiConfiguration = useMemo(
     () =>
-      createApiClient(
-        process.env.EXPO_PUBLIC_OPENMATCH_API_URL ?? "http://127.0.0.1:4000",
+      resolveApiConfiguration(
+        process.env.EXPO_PUBLIC_OPENMATCH_API_URL,
+        __DEV__,
       ),
     [],
+  );
+  const api = useMemo(
+    () =>
+      createApiClient(apiConfiguration.url ?? "https://unconfigured.invalid"),
+    [apiConfiguration.url],
   );
   const [tab, setTab] = useState<Tab>("Today");
   const [preferences, setPreferences] = useState<Preferences>(
@@ -91,6 +98,10 @@ export default function App() {
   const current = visibleIntroductions[0];
   const connection = connections[0];
   const load = useCallback(async () => {
+    if (!apiConfiguration.url) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -147,7 +158,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [api, apiConfiguration.url]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -178,6 +189,19 @@ export default function App() {
     }
   };
 
+  if (apiConfiguration.error)
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.empty}>
+          <Text style={styles.name}>Service not configured</Text>
+          <Text style={styles.subtle}>{apiConfiguration.error}</Text>
+          <Text style={styles.mathNote}>
+            No connection was attempted. This is a build configuration error,
+            not an account problem.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
   if (loading)
     return (
       <SafeAreaView style={styles.safe}>

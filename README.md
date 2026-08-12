@@ -25,6 +25,7 @@ This repository is an initial, research-backed specification and executable skel
 - `docs/ALGORITHM_DECISIONS.md` — evidence, uncertainty, and falsification log for algorithm choices
 - `docs/PRIVACY_SECURITY.md` — data minimization and threat model
 - `docs/ARCHITECTURE.md` — mobile, web, API, and data architecture
+- `docs/TESTFLIGHT.md` — fail-closed mobile build and distribution guide
 - `governance/GOVERNANCE.md` — nonprofit and algorithm-change governance
 - `packages/matching` — executable transparent matching kernel
 - `packages/api-client` — dependency-free typed client shared by web and mobile
@@ -68,6 +69,10 @@ The repository now contains a thin, local-first vertical slice:
 Run `pnpm dev`, then open the web app at `http://localhost:3000` or launch the Expo client. The web and mobile clients both use the API at `http://127.0.0.1:4000` by default. The API stores local demo state in `openmatch.sqlite`; `POST /v1/demo/reset` restores the sample state.
 
 For Android Emulator, start with `EXPO_PUBLIC_OPENMATCH_API_URL=http://10.0.2.2:4000 pnpm --filter @openmatch/mobile android`. For a physical device, set `HOST=0.0.0.0` for the API and point `EXPO_PUBLIC_OPENMATCH_API_URL` at the development computer's LAN address. These settings are development-only; the demo header is not production authentication.
+
+EAS builds contain no committed endpoint and require a separately configured
+plain HTTPS API origin. See `docs/TESTFLIGHT.md`; distributed builds are not
+ready until the production-service prerequisites listed there are complete.
 
 If the web client runs on another development origin, add it explicitly with `OPENMATCH_ALLOWED_ORIGINS`. Wildcard browser access is intentionally disabled so unrelated websites cannot mutate the localhost demo service.
 

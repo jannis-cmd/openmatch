@@ -35,6 +35,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Private meeting-planning preference | After mutual interest, web and mobile offer reversible “Not yet” and “Open to planning” states with public-place safety guidance; the state is exported/deleted, never affects matching, requests no location, is not sent to the demo candidate, and is explicitly not treated as evidence that a date occurred |
 | Human-controlled conversation starter | Web and mobile can copy a deterministic draft based only on the candidate’s visible, human-written prompt answer; the person must review/edit and explicitly send it |
 | Local API hardening | SQLite, validation, 64 KiB body limit, allowlisted browser origins, no-store responses, configurable per-address request throttling with `Retry-After`, known-profile checks, explicit demo boundary |
+| Fail-closed mobile configuration | No private network address is committed to an EAS profile; each cloud environment must supply a plain HTTPS API origin, a pre-install hook rejects unsafe builds, and runtime validation makes configuration failure visible without attempting a request |
 | Accessibility baseline | Semantic controls, visible/non-color states, automated WCAG 2.2 A/AA scans at four web states, native component queries, contrast fixes |
 | Open development | AGPL software license, CC BY documentation license, governance, research proposal template, evidence register, decision log, and formatting gate |
 
@@ -50,7 +51,7 @@ cd apps/mobile && pnpm dlx expo-doctor
 
 ## Deliberately not claimed
 
-Before any real-user pilot, the project still requires production authentication and authorization, a true multi-user datastore and migrations, identity/inclusion research, photo storage and processing, staffed moderation and appeals, rate limiting beyond the local boundary, encryption and secret management, notification design, deletion/backup drills, device-level assistive-technology testing, security review, legal/DPIA review, and a geographically viable safety program.
+Before any real-user pilot, the project still requires a deployed HTTPS service, production authentication and authorization, a true multi-user datastore and migrations, identity/inclusion research, photo storage and processing, staffed moderation and appeals, rate limiting beyond the local boundary, encryption and secret management, notification design, deletion/backup drills, device-level assistive-technology testing, security review, legal/DPIA review, and a geographically viable safety program.
 
 The matching method is a transparent hypothesis. Passing tests proves implementation invariants, not that the score predicts attraction, love, relationship satisfaction, or safety. Those claims remain explicitly forbidden without prospective evidence.
 

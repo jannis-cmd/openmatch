@@ -8,8 +8,9 @@
     "ios": "expo start --ios",
     "android": "expo start --android",
     "build": "expo export --platform ios && expo export --platform android",
+    "eas-build-pre-install": "node ./scripts/verify-eas-environment.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand && node --test ./scripts/verify-eas-environment.test.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~56.0.19",

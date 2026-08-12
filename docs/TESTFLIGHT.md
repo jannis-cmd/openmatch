@@ -1,36 +1,74 @@
-# TestFlight prototype
+# Mobile builds and TestFlight
 
-This profile creates a private iOS build for testing on a real iPhone. It is
-not a production deployment yet.
+The native app is ready for local-device development. Public preview and
+TestFlight distribution must wait for an authenticated OpenMatch API deployed
+at a stable HTTPS origin. The repository intentionally contains no private IP
+address or production endpoint.
 
-## Current network model
+## Local development on a phone
 
-The build connects to `http://192.168.1.134:4000`, the development Mac's LAN
-address when this profile was created. The iPhone and Mac must be on the same
-trusted Wi-Fi network, and the local API must remain running:
+Run the API on the development computer's network interface:
 
 ```bash
 HOST=0.0.0.0 pnpm --filter @openmatch/api dev
 ```
 
-If the Mac's LAN address changes, update
-`build.production.env.EXPO_PUBLIC_OPENMATCH_API_URL` in
-`apps/mobile/eas.json` before making another build. A later external testing
-release must use an HTTPS-hosted API with real authentication instead.
-
-## Build and submit
-
-From `apps/mobile`, sign in to an Expo account and a paid Apple Developer
-account, then run:
+Then start Expo with that computer's current LAN or Tailnet address:
 
 ```bash
-npx testflight
+EXPO_PUBLIC_OPENMATCH_API_URL=http://YOUR_COMPUTER_IP:4000 \
+  pnpm --filter @openmatch/mobile dev
 ```
 
-The command creates the EAS project if needed, configures signing, builds the
-iOS app, and submits it to App Store Connect. After Apple finishes processing,
-install it from the TestFlight app using the internal tester invitation.
+Local development accepts HTTP deliberately. Do not reuse this configuration
+for a distributed build.
 
-The initial bundle identifier is `org.openmatch.app`. If Apple reports that it
-is unavailable for the selected developer team, replace it in `app.json` with
-a unique reverse-domain identifier before retrying.
+## Configure an EAS environment
+
+Every EAS build requires `EXPO_PUBLIC_OPENMATCH_API_URL` to be a plain HTTPS
+origin. Configure it separately for the `development`, `preview`, or
+`production` EAS environment rather than committing it to `eas.json`:
+
+```bash
+cd apps/mobile
+eas env:create \
+  --environment preview \
+  --name EXPO_PUBLIC_OPENMATCH_API_URL \
+  --value https://api.example.org \
+  --visibility plaintext
+eas env:list --environment preview
+```
+
+The value is public app configuration, not a secret. Never place API keys or
+credentials in an `EXPO_PUBLIC_*` variable.
+
+The build hook stops an EAS build if the URL is absent, uses HTTP, or contains
+credentials, a path, query, or fragment. The app also checks the configuration
+at runtime and displays a configuration error without making a request.
+
+## Preview build
+
+After the HTTPS service has authentication, abuse controls, monitoring, and a
+tested data-deletion path:
+
+```bash
+cd apps/mobile
+eas build --profile preview --platform ios
+```
+
+Use this internal build for a small, consented pilot before App Store review.
+
+## TestFlight production build
+
+Configure and verify the production EAS environment, then build and submit:
+
+```bash
+cd apps/mobile
+eas env:list --environment production
+eas build --profile production --platform ios --auto-submit
+```
+
+The current bundle identifier is `org.openmatch.app`. If it is unavailable for
+the selected Apple Developer team, replace it in `app.json` with a unique
+reverse-domain identifier. App Store privacy disclosures must reflect the
+deployed service, not only this prototype repository.
