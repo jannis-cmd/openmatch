@@ -104,6 +104,10 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("button", { name: "Unmute conversation" }),
   ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Start from their profile" }).click();
+  await expect(page.getByRole("textbox", { name: "Message Mara" })).toHaveValue(
+    /You mentioned/,
+  );
   await page
     .getByRole("textbox", { name: "Message Mara" })
     .fill("Hello from the repeatable journey");

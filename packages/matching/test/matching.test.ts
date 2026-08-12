@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   createIntroductions,
+  conversationStarter,
   defaultPreferences,
   demoCandidates,
   demoUser,
@@ -237,6 +238,13 @@ test("the public priority scale has four understandable levels", () => {
   assert.equal(priorityLabel(0.34), "Low");
   assert.equal(priorityLabel(0.7), "Medium");
   assert.equal(nearestPriority(0.95), 1);
+});
+
+test("conversation starters only reuse visible human-written profile text", () => {
+  assert.equal(
+    conversationStarter(demoCandidates[0].profile),
+    `You mentioned “${demoCandidates[0].profile.promptAnswer}” — I’d enjoy hearing more about that.`,
+  );
 });
 
 test("generated adversarial cases preserve matching invariants", () => {

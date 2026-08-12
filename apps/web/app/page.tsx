@@ -19,6 +19,7 @@ import {
   explainMatch,
   nearestPriority,
   POLITE_CLOSE_MESSAGE,
+  conversationStarter,
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
@@ -1899,6 +1900,20 @@ function ConnectionsView({
             ))
           )}
         </div>
+        {connection.profile && (
+          <div className="starter">
+            <button
+              className="text-button"
+              onClick={() => setDraft(conversationStarter(connection.profile!))}
+            >
+              Start from their profile
+            </button>
+            <p>
+              Copies a simple profile-specific draft into the composer. Review
+              and edit it yourself before sending.
+            </p>
+          </div>
+        )}
         <div className="composer">
           <input
             aria-label={`Message ${name}`}

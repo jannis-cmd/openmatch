@@ -30,6 +30,7 @@ import {
   explainMatch,
   nearestPriority,
   POLITE_CLOSE_MESSAGE,
+  conversationStarter,
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
@@ -688,6 +689,21 @@ export default function App() {
                         {message.text}
                       </Text>
                     ))
+                  )}
+                  {connection.profile && (
+                    <>
+                      <Action
+                        label="Start from their profile"
+                        secondary
+                        onPress={() =>
+                          setDraft(conversationStarter(connection.profile!))
+                        }
+                      />
+                      <Text style={styles.mathNote}>
+                        Copies a simple profile-specific draft. Review and edit
+                        it yourself before sending.
+                      </Text>
+                    </>
                   )}
                   <TextInput
                     accessibilityLabel={`Message ${connection.profile?.name ?? "connection"}`}

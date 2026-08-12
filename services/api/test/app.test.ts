@@ -521,6 +521,33 @@ test("requires the explicit local demo session header", async () => {
   }
 });
 
+test("throttles authenticated API traffic with a retry window", async () => {
+  const server = createApp({
+    store: new Store(":memory:"),
+    rateLimit: { maximum: 2, windowMs: 60_000 },
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const url = `http://127.0.0.1:${address.port}`;
+  try {
+    assert.equal((await fetch(`${url}/health`)).status, 200);
+    assert.equal(
+      (await fetch(`${url}/v1/me`, { headers })).headers.get(
+        "ratelimit-remaining",
+      ),
+      "1",
+    );
+    assert.equal((await fetch(`${url}/v1/me`, { headers })).status, 200);
+    const limited = await fetch(`${url}/v1/me`, { headers });
+    assert.equal(limited.status, 429);
+    assert.equal(limited.headers.get("retry-after"), "60");
+    assert.deepEqual(await limited.json(), { error: "rate_limit_exceeded" });
+  } finally {
+    server.close();
+  }
+});
+
 test("limits local origins, payload size, and profile identifiers", async () => {
   const server = createApp({
     store: new Store(":memory:"),

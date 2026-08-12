@@ -40,7 +40,11 @@ const demoSession = (request: IncomingMessage) =>
   request.headers["x-demo-session"] === "openmatch-local-demo";
 
 export function createApp(
-  options: { store?: Store; allowedOrigins?: string[] } = {},
+  options: {
+    store?: Store;
+    allowedOrigins?: string[];
+    rateLimit?: { maximum: number; windowMs: number };
+  } = {},
 ) {
   const store = options.store ?? new Store();
   const allowedOrigins = new Set(
@@ -61,6 +65,21 @@ export function createApp(
     )?.profile;
     return profile ? toPublicProfile(profile) : undefined;
   };
+  const rateLimit = options.rateLimit ?? {
+    maximum: Number(process.env.OPENMATCH_RATE_LIMIT_MAX ?? 600),
+    windowMs: Number(process.env.OPENMATCH_RATE_LIMIT_WINDOW_MS ?? 60_000),
+  };
+  if (
+    !Number.isInteger(rateLimit.maximum) ||
+    rateLimit.maximum < 1 ||
+    !Number.isInteger(rateLimit.windowMs) ||
+    rateLimit.windowMs < 1000
+  )
+    throw new RangeError("invalid rate limit configuration");
+  const requestWindows = new Map<
+    string,
+    { startedAt: number; count: number }
+  >();
   const server = createServer(async (request, response) => {
     const origin = request.headers.origin;
     if (origin && !allowedOrigins.has(origin))
@@ -74,6 +93,31 @@ export function createApp(
     try {
       if (request.method === "GET" && url.pathname === "/health")
         return send(response, 200, { status: "ok", service: "openmatch-api" });
+      const now = Date.now();
+      const key = request.socket.remoteAddress ?? "unknown";
+      const previous = requestWindows.get(key);
+      const window =
+        !previous || now - previous.startedAt >= rateLimit.windowMs
+          ? { startedAt: now, count: 0 }
+          : previous;
+      window.count += 1;
+      requestWindows.set(key, window);
+      response.setHeader(
+        "ratelimit-remaining",
+        String(Math.max(0, rateLimit.maximum - window.count)),
+      );
+      if (window.count > rateLimit.maximum) {
+        response.setHeader(
+          "retry-after",
+          String(
+            Math.max(
+              1,
+              Math.ceil((rateLimit.windowMs - (now - window.startedAt)) / 1000),
+            ),
+          ),
+        );
+        return send(response, 429, { error: "rate_limit_exceeded" });
+      }
       if (!demoSession(request))
         return send(response, 401, { error: "demo_session_required" });
       if (request.method === "GET" && url.pathname === "/v1/me")

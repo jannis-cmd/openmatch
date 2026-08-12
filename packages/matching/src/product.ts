@@ -15,6 +15,9 @@ export type RelationshipIntent =
 export const POLITE_CLOSE_MESSAGE =
   "Thank you for talking with me. I don’t think this is the connection I’m looking for, so I’m going to close this conversation. I wish you well.";
 
+export const conversationStarter = (profile: Pick<Profile, "promptAnswer">) =>
+  `You mentioned “${profile.promptAnswer}” — I’d enjoy hearing more about that.`;
+
 export type Profile = {
   id: string;
   name: string;
