@@ -49,6 +49,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let demoSessionRequests = 0;
   let accountRequests = 0;
   let restoredBearerUsed = false;
+  let sessionExpired = false;
   let otherSessionRevoked = false;
   let passwordChanged = false;
   let recoveryCodesGenerated = false;
@@ -59,6 +60,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     const path = new URL(String(input)).pathname;
     const authorization = new Headers(init.headers).get("authorization");
     if (authorization === `Bearer ${"r".repeat(43)}`) restoredBearerUsed = true;
+    if (sessionExpired && authorization)
+      return response({ error: "session_required" }, 401);
     const body = init.body ? JSON.parse(String(init.body)) : {};
     if (path === "/v1/demo/session") {
       demoSessionRequests += 1;
@@ -794,4 +797,11 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() => expect(restoredBearerUsed).toBe(true));
   expect(demoSessionRequests).toBe(previousDemoRequests);
   await restored.unmount();
+  sessionExpired = true;
+  (restoreSessionToken as jest.Mock).mockResolvedValueOnce("r".repeat(43));
+  const expired = await render(<App />);
+  await expired.findByText("Your session ended. Sign in again.");
+  await waitFor(() => expect(clearSessionToken).toHaveBeenCalled());
+  expect(expired.getByText("Sign in")).toBeTruthy();
+  await expired.unmount();
 });

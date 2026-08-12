@@ -130,7 +130,10 @@ export default function App() {
             if (token !== null) return;
             void clearSessionToken().catch(() => undefined);
             setAuthToken(null);
-            if (accessMode === "account") setAccessMode("signed-out");
+            if (accessMode === "account") {
+              setSessionNotice("Your session ended. Sign in again.");
+              setAccessMode("signed-out");
+            }
           },
         },
       ),

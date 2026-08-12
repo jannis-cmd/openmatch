@@ -726,4 +726,42 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByText(/No application-managed backups exist/),
   ).toBeVisible();
+  const replacementSession = await request.post(apiBase + "/v1/sessions", {
+    data: {
+      email: "taylor@example.com",
+      password: "a replacement browser test passphrase",
+      client: "web",
+    },
+  });
+  expect(replacementSession.status()).toBe(200);
+  const replacementToken = (
+    (await replacementSession.json()) as { token: string }
+  ).token;
+  const replacementHeaders = {
+    authorization: "Bearer " + replacementToken,
+  };
+  const sessions = (await (
+    await request.get(apiBase + "/v1/sessions", {
+      headers: replacementHeaders,
+    })
+  ).json()) as {
+    items: Array<{ id: string; current: boolean }>;
+  };
+  const browserSession = sessions.items.find(({ current }) => !current);
+  expect(browserSession).toBeTruthy();
+  expect(
+    (
+      await request.delete(apiBase + "/v1/sessions/" + browserSession!.id, {
+        headers: replacementHeaders,
+      })
+    ).status(),
+  ).toBe(204);
+  await expect(
+    page.getByRole("heading", { name: "Made to help you leave." }),
+  ).toBeVisible({ timeout: 12_000 });
+  expect(
+    await page.evaluate(() =>
+      window.sessionStorage.getItem("openmatch-auth-token"),
+    ),
+  ).toBeNull();
 });

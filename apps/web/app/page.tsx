@@ -172,10 +172,13 @@ function AppExperience({
         onTokenChange: (token) => {
           if (token)
             window.sessionStorage.setItem("openmatch-auth-token", token);
-          else window.sessionStorage.removeItem("openmatch-auth-token");
+          else {
+            window.sessionStorage.removeItem("openmatch-auth-token");
+            exit();
+          }
         },
       }),
-    [apiUrl, authToken],
+    [apiUrl, authToken, exit],
   );
   const [view, setView] = useState<View>("today");
   const [preferences, setPreferences] = useState<Preferences>(
