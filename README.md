@@ -27,6 +27,7 @@ This repository is an initial, research-backed specification and executable skel
 - `docs/ARCHITECTURE.md` — mobile, web, API, and data architecture
 - `docs/TESTFLIGHT.md` — fail-closed mobile build and distribution guide
 - `docs/WEB_DEPLOYMENT.md` — landing-only and future interactive hosting modes
+- `docs/TAILNET_BETA.md` — current owner-only web/mobile beta topology and limits
 - `governance/GOVERNANCE.md` — nonprofit and algorithm-change governance
 - `packages/matching` — executable transparent matching kernel
 - `packages/api-client` — dependency-free typed client shared by web and mobile
