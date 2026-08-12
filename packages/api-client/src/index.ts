@@ -176,6 +176,11 @@ export function createApiClient(
         `/v1/connections/${encodeURIComponent(connectionId)}`,
         json("DELETE"),
       ),
+    closePolitely: (connectionId: string) =>
+      request<{ message: Message; closed: true }>(
+        `/v1/connections/${encodeURIComponent(connectionId)}/close-politely`,
+        json("POST"),
+      ),
     block: (profileId: string) =>
       request<{ profileId: string; blocked: true }>(
         `/v1/profiles/${encodeURIComponent(profileId)}/block`,

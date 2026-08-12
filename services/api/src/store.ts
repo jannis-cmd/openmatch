@@ -303,6 +303,19 @@ export class Store {
         .run(new Date().toISOString(), id).changes > 0
     );
   }
+  closePolitely(id: string, text: string) {
+    if (!this.connection(id)) return undefined;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const message = this.sendMessage(id, text);
+      if (!this.closeConnection(id)) throw new Error("connection_close_failed");
+      this.db.exec("COMMIT");
+      return { message, closed: true as const };
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   block(profileId: string) {
     const now = new Date().toISOString();
     this.db

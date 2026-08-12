@@ -95,6 +95,11 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByRole("button", { name: "Interested" }).click();
   await page.getByRole("button", { name: /Connections · 1/ }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "Close politely with a standard message",
+    }),
+  ).toBeVisible();
   await page
     .getByRole("textbox", { name: "Message Mara" })
     .fill("Hello from the repeatable journey");

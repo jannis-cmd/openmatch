@@ -29,6 +29,7 @@ import {
   demoUser,
   explainMatch,
   nearestPriority,
+  POLITE_CLOSE_MESSAGE,
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
@@ -635,6 +636,20 @@ export default function App() {
                 <Text style={styles.subtle}>
                   You both expressed interest. Text only, with no read receipts.
                 </Text>
+                <Action
+                  label="Close politely with a standard message"
+                  secondary
+                  onPress={() =>
+                    Alert.alert("Send and close?", POLITE_CLOSE_MESSAGE, [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Send and close",
+                        onPress: () =>
+                          void api.closePolitely(connection.id).then(load),
+                      },
+                    ])
+                  }
+                />
                 <View style={styles.scoreCard}>
                   {safetyNotice && (
                     <Text

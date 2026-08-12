@@ -12,6 +12,9 @@ export type RelationshipIntent =
   | "Long-term, open to short"
   | "Still figuring it out";
 
+export const POLITE_CLOSE_MESSAGE =
+  "Thank you for talking with me. I don’t think this is the connection I’m looking for, so I’m going to close this conversation. I wish you well.";
+
 export type Profile = {
   id: string;
   name: string;

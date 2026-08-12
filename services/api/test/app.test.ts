@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { POLITE_CLOSE_MESSAGE } from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
 import { Store } from "../src/store.ts";
 
@@ -392,6 +393,27 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
         { id: 1, reason: "scam", status: "received" },
       ],
     );
+    const politeClose = (await (
+      await request(`/v1/connections/${id}/close-politely`, { method: "POST" })
+    ).json()) as { message: { text: string }; closed: boolean };
+    assert.equal(politeClose.message.text, POLITE_CLOSE_MESSAGE);
+    assert.equal(politeClose.closed, true);
+    assert.equal(
+      (
+        (await (await request("/v1/connections")).json()) as {
+          items: unknown[];
+        }
+      ).items.length,
+      0,
+    );
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/close-politely`, {
+          method: "POST",
+        })
+      ).status,
+      404,
+    );
     await request("/v1/profiles/mara/block", { method: "POST" });
     const after = (await (await request("/v1/connections")).json()) as {
       items: unknown[];
@@ -402,6 +424,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       reports: unknown[];
       blocks: unknown[];
       preferenceObservations: unknown[];
+      messages: Array<{ text: string }>;
       accountStatus: string;
       deliverySettings: { batchSize: number };
       consentReceipt: { noticeVersion: string };
@@ -415,6 +438,10 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(dataExport.reports.length, 2);
     assert.equal(dataExport.blocks.length, 2);
     assert.equal(dataExport.preferenceObservations.length, 1);
+    assert.equal(
+      dataExport.messages.some(({ text }) => text === POLITE_CLOSE_MESSAGE),
+      true,
+    );
     assert.equal(dataExport.accountStatus, "active");
     assert.equal(dataExport.deliverySettings.batchSize, 5);
     assert.equal(dataExport.consentReceipt.noticeVersion, "prototype-0.1");

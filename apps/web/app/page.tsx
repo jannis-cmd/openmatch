@@ -18,6 +18,7 @@ import {
   demoUser,
   explainMatch,
   nearestPriority,
+  POLITE_CLOSE_MESSAGE,
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
@@ -565,6 +566,12 @@ function AppExperience({ exit }: { exit: () => void }) {
                   unmatch={async () => {
                     if (connections[0]) {
                       await api.unmatch(connections[0].id);
+                      await load();
+                    }
+                  }}
+                  closePolitely={async () => {
+                    if (connections[0]) {
+                      await api.closePolitely(connections[0].id);
                       await load();
                     }
                   }}
@@ -1733,6 +1740,7 @@ function ConnectionsView({
   setDraft,
   send,
   unmatch,
+  closePolitely,
   block,
   report,
 }: {
@@ -1743,6 +1751,7 @@ function ConnectionsView({
   setDraft: (value: string) => void;
   send: () => void | Promise<void>;
   unmatch: () => Promise<void>;
+  closePolitely: () => Promise<void>;
   block: () => Promise<void>;
   report: (reason: ReportReason, details: string) => Promise<void>;
 }) {
@@ -1766,6 +1775,19 @@ function ConnectionsView({
         You both expressed interest. Messages are text-only and have no read
         receipts.
       </p>
+      <button
+        className="text-button"
+        onClick={() => {
+          if (
+            window.confirm(
+              `Send this message and close the conversation?\n\n“${POLITE_CLOSE_MESSAGE}”`,
+            )
+          )
+            void closePolitely();
+        }}
+      >
+        Close politely with a standard message
+      </button>
       <section className="settings-card conversation">
         <div className="connection-head">
           <div>

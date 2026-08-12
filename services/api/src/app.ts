@@ -5,6 +5,7 @@ import {
 } from "node:http";
 import {
   ALGORITHM_VERSION,
+  POLITE_CLOSE_MESSAGE,
   createIntroductions,
   demoCandidates,
   toPublicProfile,
@@ -316,6 +317,18 @@ export function createApp(
         return send(response, 201, store.sendMessage(messages[1], text));
       }
       const connection = url.pathname.match(/^\/v1\/connections\/([^/]+)$/);
+      const politeClose = url.pathname.match(
+        /^\/v1\/connections\/([^/]+)\/close-politely$/,
+      );
+      if (request.method === "POST" && politeClose) {
+        const result = store.closePolitely(
+          politeClose[1],
+          POLITE_CLOSE_MESSAGE,
+        );
+        return result
+          ? send(response, 200, result)
+          : send(response, 404, { error: "connection_not_found" });
+      }
       if (request.method === "DELETE" && connection)
         return send(
           response,
