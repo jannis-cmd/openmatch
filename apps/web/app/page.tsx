@@ -194,12 +194,12 @@ function AppExperience({
     string | null
   >(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [draft, setDraft] = useState("");
-  const [pendingMessageAttempt, setPendingMessageAttempt] = useState<{
-    connectionId: string;
-    text: string;
-    requestId: string;
-  } | null>(null);
+  const [conversationDrafts, setConversationDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [pendingMessageAttempts, setPendingMessageAttempts] = useState<
+    Record<string, { text: string; requestId: string }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -233,6 +233,19 @@ function AppExperience({
   const connected = connections.length > 0;
   const selectedConnection =
     connections.find(({ id }) => id === selectedConnectionId) ?? connections[0];
+  const draft = selectedConnection
+    ? (conversationDrafts[selectedConnection.id] ?? "")
+    : "";
+  const pendingMessageAttempt = selectedConnection
+    ? pendingMessageAttempts[selectedConnection.id]
+    : undefined;
+  const setDraft = (value: string) => {
+    if (!selectedConnection) return;
+    setConversationDrafts((current) => ({
+      ...current,
+      [selectedConnection.id]: value,
+    }));
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -306,6 +319,25 @@ function AppExperience({
     }
   }, [api]);
   useEffect(() => {
+    const activeIds = new Set(connections.map(({ id }) => id));
+    setConversationDrafts((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([id]) => activeIds.has(id)),
+      );
+      return Object.keys(next).length === Object.keys(current).length
+        ? current
+        : next;
+    });
+    setPendingMessageAttempts((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([id]) => activeIds.has(id)),
+      );
+      return Object.keys(next).length === Object.keys(current).length
+        ? current
+        : next;
+    });
+  }, [connections]);
+  useEffect(() => {
     void load();
   }, [load]);
   useEffect(() => {
@@ -358,8 +390,6 @@ function AppExperience({
   useEffect(() => {
     let active = true;
     setMessages([]);
-    setDraft("");
-    setPendingMessageAttempt(null);
     if (!selectedConnection) {
       setSelectedConnectionId(null);
       return () => {
@@ -969,7 +999,12 @@ function AppExperience({
                   setDraft={(value) => {
                     setDraft(value);
                     if (pendingMessageAttempt?.text !== value)
-                      setPendingMessageAttempt(null);
+                      setPendingMessageAttempts((current) => {
+                        if (!selectedConnection) return current;
+                        const next = { ...current };
+                        delete next[selectedConnection.id];
+                        return next;
+                      });
                   }}
                   send={async () => {
                     const text = draft.trim();
@@ -987,16 +1022,16 @@ function AppExperience({
                     )
                       return;
                     const messageAttempt =
-                      pendingMessageAttempt?.connectionId ===
-                        selectedConnection.id &&
-                      pendingMessageAttempt.text === text
+                      pendingMessageAttempt?.text === text
                         ? pendingMessageAttempt
                         : {
-                            connectionId: selectedConnection.id,
                             text,
                             requestId: globalThis.crypto.randomUUID(),
                           };
-                    setPendingMessageAttempt(messageAttempt);
+                    setPendingMessageAttempts((current) => ({
+                      ...current,
+                      [selectedConnection.id]: messageAttempt,
+                    }));
                     try {
                       const message = await api.sendMessage(
                         selectedConnection.id,
@@ -1005,8 +1040,16 @@ function AppExperience({
                         messageAttempt.requestId,
                       );
                       setMessages((previous) => [...previous, message]);
-                      setDraft("");
-                      setPendingMessageAttempt(null);
+                      setConversationDrafts((current) => {
+                        const next = { ...current };
+                        delete next[selectedConnection.id];
+                        return next;
+                      });
+                      setPendingMessageAttempts((current) => {
+                        const next = { ...current };
+                        delete next[selectedConnection.id];
+                        return next;
+                      });
                     } catch (error) {
                       await handleDeliveryFailure(
                         error,

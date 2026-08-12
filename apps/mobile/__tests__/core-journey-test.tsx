@@ -531,6 +531,21 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByLabelText("Noah: A separate conversation with Noah."),
   ).toBeTruthy();
   expect(screen.getByLabelText("Message Noah")).toBeTruthy();
+  await fireEvent.changeText(
+    screen.getByLabelText("Message Noah"),
+    "Unsent Noah draft",
+  );
+  await fireEvent.press(screen.getByText("Mara"));
+  await waitFor(() =>
+    expect(screen.getByLabelText("Message Mara")).toBeTruthy(),
+  );
+  await fireEvent.press(screen.getByText("Noah"));
+  await waitFor(() =>
+    expect(screen.getByLabelText("Message Noah")).toHaveProp(
+      "value",
+      "Unsent Noah draft",
+    ),
+  );
   await fireEvent.press(screen.getByText("Mara"));
   await waitFor(() =>
     expect(screen.getByLabelText("Message Mara")).toBeTruthy(),

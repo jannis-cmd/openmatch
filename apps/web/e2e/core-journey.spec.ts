@@ -521,6 +521,11 @@ test("first run through a persistent connection and safety action", async ({
   await expect(page.getByRole("textbox", { name: "Message Mara" })).toHaveValue(
     "",
   );
+  await connectionPicker.getByRole("button", { name: "Noah" }).click();
+  await expect(page.getByRole("textbox", { name: "Message Noah" })).toHaveValue(
+    "Unsent Noah draft",
+  );
+  await connectionPicker.getByRole("button", { name: "Mara" }).click();
   await expect(
     page.getByText("Hello from the repeatable journey"),
   ).toBeVisible();

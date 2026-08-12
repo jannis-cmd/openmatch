@@ -117,6 +117,8 @@ idempotently, but it is not a production message service.
 
 While the app is visible, clients quietly synchronize the minimal connection list so a mutual match or remote closure appears without a reload. An open conversation synchronizes its text messages on a shorter bounded interval and when the native app returns to the foreground. Synchronization pauses in a hidden browser tab or backgrounded app and never creates read receipts, typing indicators, online status, presence history, engagement notifications, or message-content ranking.
 
+Each open connection owns a separate in-memory composer draft and retry identity. Switching conversations never moves or erases another conversation's text, and returning restores it. A successful send or confirmed connection closure clears only that connection's draft and retry identity; an interrupted unchanged send retains its original idempotency key so switching conversations cannot turn one send attempt into duplicates. Drafts are intentionally not persisted across an app or browser restart in this prototype.
+
 - Text messages after mutual connection; image attachments disabled at MVP to reduce unsolicited sexual content and moderation burden.
 - Every message visibly and accessibly identifies its author; sent/received state never relies on color or alignment alone.
 - When more than one connection exists, the person explicitly chooses the conversation; drafts, messages, meeting preferences, and safety actions must never leak across that selection boundary.

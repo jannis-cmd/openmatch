@@ -184,12 +184,12 @@ export default function App() {
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
-  const [draft, setDraft] = useState("");
-  const [pendingMessageAttempt, setPendingMessageAttempt] = useState<{
-    connectionId: string;
-    text: string;
-    requestId: string;
-  } | null>(null);
+  const [conversationDrafts, setConversationDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [pendingMessageAttempts, setPendingMessageAttempts] = useState<
+    Record<string, { text: string; requestId: string }>
+  >({});
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const [directoryAccepted, setDirectoryAccepted] = useState(false);
@@ -223,6 +223,17 @@ export default function App() {
   const current = visibleIntroductions[0];
   const connection =
     connections.find(({ id }) => id === selectedConnectionId) ?? connections[0];
+  const draft = connection ? (conversationDrafts[connection.id] ?? "") : "";
+  const pendingMessageAttempt = connection
+    ? pendingMessageAttempts[connection.id]
+    : undefined;
+  const setDraft = (value: string) => {
+    if (!connection) return;
+    setConversationDrafts((current) => ({
+      ...current,
+      [connection.id]: value,
+    }));
+  };
   useEffect(() => {
     if (tab === "Profile" && accessMode === "account") return;
     setRecoveryCodes([]);
@@ -374,6 +385,25 @@ export default function App() {
     };
   }, [api]);
   useEffect(() => {
+    const activeIds = new Set(connections.map(({ id }) => id));
+    setConversationDrafts((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([id]) => activeIds.has(id)),
+      );
+      return Object.keys(next).length === Object.keys(current).length
+        ? current
+        : next;
+    });
+    setPendingMessageAttempts((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([id]) => activeIds.has(id)),
+      );
+      return Object.keys(next).length === Object.keys(current).length
+        ? current
+        : next;
+    });
+  }, [connections]);
+  useEffect(() => {
     if (
       accountDeliveryStatus?.state !== "retrying" &&
       securityNotificationDelivery?.state !== "retrying"
@@ -404,8 +434,6 @@ export default function App() {
   useEffect(() => {
     let active = true;
     setMessages([]);
-    setDraft("");
-    setPendingMessageAttempt(null);
     if (!connection) {
       setSelectedConnectionId(null);
       return () => {
@@ -1378,7 +1406,11 @@ export default function App() {
                         label="Start from their profile"
                         secondary
                         onPress={() => {
-                          setPendingMessageAttempt(null);
+                          setPendingMessageAttempts((current) => {
+                            const next = { ...current };
+                            delete next[connection.id];
+                            return next;
+                          });
                           setDraft(conversationStarter(connection.profile!));
                         }}
                       />
@@ -1394,7 +1426,11 @@ export default function App() {
                     onChangeText={(value) => {
                       setDraft(value);
                       if (pendingMessageAttempt?.text !== value)
-                        setPendingMessageAttempt(null);
+                        setPendingMessageAttempts((current) => {
+                          const next = { ...current };
+                          delete next[connection.id];
+                          return next;
+                        });
                     }}
                     maxLength={1000}
                     multiline
@@ -1410,15 +1446,16 @@ export default function App() {
                       const safetyFlags = messageSafetyFlags(text);
                       const sendMessage = (safetyAcknowledged = false) => {
                         const messageAttempt =
-                          pendingMessageAttempt?.connectionId ===
-                            connection.id && pendingMessageAttempt.text === text
+                          pendingMessageAttempt?.text === text
                             ? pendingMessageAttempt
                             : {
-                                connectionId: connection.id,
                                 text,
                                 requestId: Crypto.randomUUID(),
                               };
-                        setPendingMessageAttempt(messageAttempt);
+                        setPendingMessageAttempts((current) => ({
+                          ...current,
+                          [connection.id]: messageAttempt,
+                        }));
                         void api
                           .sendMessage(
                             connection.id,
@@ -1428,8 +1465,16 @@ export default function App() {
                           )
                           .then((message) => {
                             setMessages((previous) => [...previous, message]);
-                            setDraft("");
-                            setPendingMessageAttempt(null);
+                            setConversationDrafts((current) => {
+                              const next = { ...current };
+                              delete next[connection.id];
+                              return next;
+                            });
+                            setPendingMessageAttempts((current) => {
+                              const next = { ...current };
+                              delete next[connection.id];
+                              return next;
+                            });
                           })
                           .catch((error) =>
                             handleDeliveryFailure(
