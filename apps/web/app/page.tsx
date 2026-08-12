@@ -1025,6 +1025,7 @@ function LandingPage({
           <a href="#principles">Principles</a>
           <a href="#evidence">Evidence</a>
           <a href="#transparency">Transparency</a>
+          <a href="#apps">Apps</a>
           <a href="#support">Get help</a>
         </nav>
         <button className="nav-sign-in" onClick={signIn}>
@@ -1213,6 +1214,55 @@ function LandingPage({
           </p>
         </div>
         <ScoreCalculator />
+      </section>
+
+      <section className="app-downloads" id="apps">
+        <div className="evidence-heading">
+          <p className="landing-eyebrow">Owner testing</p>
+          <h2>Real native builds. Private beta limits.</h2>
+          <p>
+            Android and iOS now compile as native applications. They connect to
+            the same transparent matching service as the web app. This remains
+            an owner-only beta—not a public app-store launch.
+          </p>
+        </div>
+        <div className="download-grid">
+          <article>
+            <span className="download-platform">Android</span>
+            <h3>Install build 4</h3>
+            <p>
+              Open the APK on an Android phone. The phone must be signed into
+              the <code>cheetah-vernier</code> tailnet, and Android may ask you
+              to allow installation from the browser.
+            </p>
+            <a
+              className="primary-action download-action"
+              href="https://expo.dev/artifacts/eas/1pu0XlF73xLmkKCpcmlKMbbvsFgZaUzr9iYLBY813sU.apk"
+            >
+              Download Android APK
+            </a>
+          </article>
+          <article>
+            <span className="download-platform">iPhone and iPad</span>
+            <h3>TestFlight pending</h3>
+            <p>
+              Native iOS compilation is verified with a Simulator build.
+              Installation on an iPhone still requires active Apple Developer
+              Program enrollment and a signed TestFlight build.
+            </p>
+            <span className="pending-action" role="status">
+              Waiting for Apple enrollment
+            </span>
+          </article>
+        </div>
+        <p className="download-provenance">
+          Every artifact, source commit, size, SHA-256 checksum, and validation
+          limit is public in the{" "}
+          <a href="https://github.com/jannis-cmd/openmatch/blob/main/docs/RELEASE_ARTIFACTS.md">
+            verified artifact record ↗
+          </a>
+          .
+        </p>
       </section>
 
       <section className="public-support" id="support">
