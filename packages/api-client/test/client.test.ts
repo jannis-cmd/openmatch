@@ -82,6 +82,7 @@ test("creates an authenticated account, reuses its token, and signs out", async 
   const token = "a".repeat(43);
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   const tokenChanges: Array<string | null> = [];
+  let invalidations = 0;
   const client = createApiClient(
     "https://api.example.test",
     (async (url, init) => {
@@ -99,7 +100,13 @@ test("creates an authenticated account, reuses its token, and signs out", async 
         return new Response(null, { status: 204 });
       return new Response(JSON.stringify({ complete: false }), { status: 200 });
     }) as typeof fetch,
-    { demoSessions: false, onTokenChange: (value) => tokenChanges.push(value) },
+    {
+      demoSessions: false,
+      onTokenChange: (value) => tokenChanges.push(value),
+      onSessionInvalidated: () => {
+        invalidations += 1;
+      },
+    },
   );
   const session = await client.createAccount(
     "person@example.org",
@@ -117,6 +124,7 @@ test("creates an authenticated account, reuses its token, and signs out", async 
   );
   await client.signOut();
   assert.deepEqual(tokenChanges, [token, null]);
+  assert.equal(invalidations, 0);
   assert.equal(requests[2].init?.method, "DELETE");
 });
 
@@ -387,6 +395,7 @@ test("shares one bootstrap across concurrent requests and renews after 401", asy
 test("an expired authenticated session fails closed without entering demo mode", async () => {
   let calls = 0;
   const changes: Array<string | null> = [];
+  let invalidations = 0;
   const client = createApiClient(
     "https://api.example.test",
     (async () => {
@@ -399,6 +408,9 @@ test("an expired authenticated session fails closed without entering demo mode",
       initialToken: "x".repeat(43),
       demoSessions: false,
       onTokenChange: (token) => changes.push(token),
+      onSessionInvalidated: () => {
+        invalidations += 1;
+      },
     },
   );
   await assert.rejects(
@@ -410,6 +422,7 @@ test("an expired authenticated session fails closed without entering demo mode",
   );
   assert.equal(calls, 1);
   assert.deepEqual(changes, [null]);
+  assert.equal(invalidations, 1);
 });
 
 test("updates account visibility with an explicit state", async () => {

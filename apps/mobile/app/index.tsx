@@ -131,10 +131,11 @@ export default function App() {
             void clearSessionToken().catch(() => undefined);
             setAuthToken(null);
             if (accessMode === "account") {
-              setSessionNotice("Your session ended. Sign in again.");
               setAccessMode("signed-out");
             }
           },
+          onSessionInvalidated: () =>
+            setSessionNotice("Your session ended. Sign in again."),
         },
       ),
     [accessMode, apiConfiguration.url, authToken],

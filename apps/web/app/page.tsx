@@ -98,6 +98,13 @@ export default function Home() {
     setAccountEntryNotice(null);
     setSiteView("landing");
   };
+  const endAccountSession = () => {
+    window.sessionStorage.removeItem("openmatch-demo-session");
+    window.sessionStorage.removeItem("openmatch-auth-token");
+    setAuthToken(null);
+    setAccountEntryNotice("Your session ended. Sign in again.");
+    setSiteView("sign-in");
+  };
 
   const openAuthenticatedApp = (
     token: string,
@@ -132,6 +139,7 @@ export default function Home() {
         apiUrl={demoConfiguration.url}
         continueToApp={openAuthenticatedApp}
         demoError={demoConfiguration.error}
+        entryNotice={accountEntryNotice}
       />
     );
   }
@@ -139,6 +147,7 @@ export default function Home() {
   return demoConfiguration.url ? (
     <AppExperience
       exit={exitApp}
+      sessionEnded={endAccountSession}
       apiUrl={demoConfiguration.url}
       authToken={authToken}
       accountEntryNotice={accountEntryNotice}
@@ -154,11 +163,13 @@ export default function Home() {
 
 function AppExperience({
   exit,
+  sessionEnded,
   apiUrl,
   authToken,
   accountEntryNotice,
 }: {
   exit: () => void;
+  sessionEnded: () => void;
   apiUrl: string;
   authToken: string | null;
   accountEntryNotice: string | null;
@@ -174,11 +185,11 @@ function AppExperience({
             window.sessionStorage.setItem("openmatch-auth-token", token);
           else {
             window.sessionStorage.removeItem("openmatch-auth-token");
-            exit();
           }
         },
+        onSessionInvalidated: sessionEnded,
       }),
-    [apiUrl, authToken, exit],
+    [apiUrl, authToken, sessionEnded],
   );
   const [view, setView] = useState<View>("today");
   const [preferences, setPreferences] = useState<Preferences>(
@@ -1671,6 +1682,7 @@ function SignInPage({
   apiUrl,
   continueToApp,
   demoError,
+  entryNotice,
 }: {
   back: () => void;
   apiUrl: string | null;
@@ -1679,6 +1691,7 @@ function SignInPage({
     notification?: SecurityNotificationStatus,
   ) => void;
   demoError: string | null;
+  entryNotice: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1744,6 +1757,11 @@ function SignInPage({
           }
         }}
       >
+        {entryNotice && (
+          <div className="account-status" role="status">
+            {entryNotice}
+          </div>
+        )}
         <p className="landing-eyebrow">Private account</p>
         <h1>
           {mode === "create"

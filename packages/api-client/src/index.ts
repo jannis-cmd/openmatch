@@ -140,6 +140,7 @@ export type ApiClientOptions = {
   demoSessions?: boolean;
   client?: "web" | "ios" | "android";
   onTokenChange?: (token: string | null) => void;
+  onSessionInvalidated?: () => void;
 };
 export type AccountSession = {
   id: string;
@@ -252,6 +253,7 @@ export function createApiClient(
       });
       if (response.status === 401 && retry) {
         sessionPromise = null;
+        if (options.demoSessions === false) options.onSessionInvalidated?.();
         options.onTokenChange?.(null);
         if (options.demoSessions === false) return response;
         return perform(false);
