@@ -10,6 +10,7 @@
   },
   "accessRoles": {
     "person": "The person using the explicit local demo session.",
+    "deviceClient": "The installed OpenMatch client acting locally on the person's unlocked iOS or Android device.",
     "service": "The local API process for the stated product function.",
     "operator": "A person with filesystem access to the development machine. There is no production staff role model yet."
   },
@@ -31,6 +32,15 @@
       "access": ["service", "operator"],
       "fields": ["tokenHash", "accountId", "expiresAt", "createdAt"],
       "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. Session records and credentials are not included in the application-data export."
+    },
+    {
+      "id": "mobileSession",
+      "storage": "Expo SecureStore: Android encrypted storage or iOS Keychain under openmatch.account-session.v1",
+      "purpose": "Restore one authenticated mobile session after an iOS or Android app-process restart without placing its bearer token in ordinary application storage.",
+      "retention": "Until sign-out, account deletion, server expiry, secure-storage invalidation, or app removal on Android. iOS Keychain data may survive app removal and is therefore cleared when the app can observe sign-out, deletion, expiry, or invalid state.",
+      "access": ["person", "deviceClient"],
+      "fields": ["rawSessionToken"],
+      "disclosure": "Stored device-only and readable only while the device is unlocked. It is not migrated in device backups. If secure storage is unavailable or malformed, the client uses no token and requires sign-in. The token is excluded from export."
     },
     {
       "id": "demoSessions",

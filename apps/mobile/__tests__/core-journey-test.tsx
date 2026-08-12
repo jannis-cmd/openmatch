@@ -7,7 +7,17 @@ import {
   demoUser,
   toPublicProfile,
 } from "@openmatch/matching";
+jest.mock("../lib/secure-session", () => ({
+  restoreSessionToken: jest.fn(async () => null),
+  persistSessionToken: jest.fn(async () => undefined),
+  clearSessionToken: jest.fn(async () => undefined),
+}));
 import App from "../app/index";
+import {
+  clearSessionToken,
+  persistSessionToken,
+  restoreSessionToken,
+} from "../lib/secure-session";
 
 const response = (body: unknown, status = 200) =>
   ({
@@ -30,10 +40,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let meetingPreference = "not_asked";
   let demoSessionRequests = 0;
   let accountRequests = 0;
+  let restoredBearerUsed = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
+    if (
+      new Headers(init.headers).get("authorization") ===
+      `Bearer ${"r".repeat(43)}`
+    )
+      restoredBearerUsed = true;
     const body = init.body ? JSON.parse(String(init.body)) : {};
     if (path === "/v1/demo/session") {
       demoSessionRequests += 1;
@@ -452,6 +468,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   await fireEvent.press(screen.getByText("Use a private account"));
   await waitFor(() => expect(screen.getByText("Welcome back.")).toBeTruthy());
+  expect(clearSessionToken).toHaveBeenCalled();
   expect(screen.getByLabelText("Email")).toBeTruthy();
   expect(screen.getByLabelText("Passphrase")).toBeTruthy();
   await fireEvent.press(screen.getByText("Create an account"));
@@ -466,5 +483,14 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   await fireEvent.press(screen.getByText("Create account"));
   await waitFor(() => expect(accountRequests).toBe(1));
+  expect(persistSessionToken).toHaveBeenCalledWith("a".repeat(43));
   await waitFor(() => expect(screen.getByText("Sign out")).toBeTruthy());
+  await screen.unmount();
+  (restoreSessionToken as jest.Mock).mockResolvedValueOnce("r".repeat(43));
+  const previousDemoRequests = demoSessionRequests;
+  const restored = await render(<App />);
+  await restored.findByText("Introductions paused");
+  await waitFor(() => expect(restoredBearerUsed).toBe(true));
+  expect(demoSessionRequests).toBe(previousDemoRequests);
+  await restored.unmount();
 });

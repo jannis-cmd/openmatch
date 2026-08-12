@@ -14,6 +14,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { resolveApiConfiguration } from "../lib/api-configuration";
 import {
+  clearSessionToken,
+  persistSessionToken,
+  restoreSessionToken,
+} from "../lib/secure-session";
+import {
   ApiError,
   createApiClient,
   type AccountStatus,
@@ -56,8 +61,10 @@ export default function App() {
   );
   const [accessMode, setAccessMode] = useState<
     "signed-out" | "demo" | "account"
-  >(__DEV__ ? "demo" : "signed-out");
+  >("signed-out");
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [sessionRestored, setSessionRestored] = useState(false);
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const api = useMemo(
     () =>
       createApiClient(
@@ -66,7 +73,12 @@ export default function App() {
         {
           initialToken: authToken,
           demoSessions: accessMode === "demo",
-          onTokenChange: setAuthToken,
+          onTokenChange: (token) => {
+            if (token !== null) return;
+            void clearSessionToken().catch(() => undefined);
+            setAuthToken(null);
+            if (accessMode === "account") setAccessMode("signed-out");
+          },
         },
       ),
     [accessMode, apiConfiguration.url, authToken],
@@ -114,8 +126,45 @@ export default function App() {
   const current = visibleIntroductions[0];
   const connection =
     connections.find(({ id }) => id === selectedConnectionId) ?? connections[0];
+  useEffect(() => {
+    let active = true;
+    if (!apiConfiguration.url) {
+      setSessionRestored(true);
+      return () => {
+        active = false;
+      };
+    }
+    void restoreSessionToken()
+      .then((token) => {
+        if (!active) return;
+        if (token) {
+          setAuthToken(token);
+          setAccessMode("account");
+        } else {
+          setAccessMode(__DEV__ ? "demo" : "signed-out");
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setAccessMode(__DEV__ ? "demo" : "signed-out");
+        setSessionNotice(
+          "A saved session could not be restored securely. Sign in again; no token was used.",
+        );
+      })
+      .finally(() => {
+        if (active) setSessionRestored(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [apiConfiguration.url]);
   const load = useCallback(async () => {
-    if (!apiConfiguration.url || accessMode === "signed-out") {
+    if (!apiConfiguration.url) {
+      setLoading(false);
+      return;
+    }
+    if (!sessionRestored) return;
+    if (accessMode === "signed-out") {
       setLoading(false);
       return;
     }
@@ -170,7 +219,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [accessMode, api, apiConfiguration.url]);
+  }, [accessMode, api, apiConfiguration.url, sessionRestored]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -238,11 +287,21 @@ export default function App() {
         </View>
       </SafeAreaView>
     );
+  if (!sessionRestored)
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.empty}>
+          <Text style={styles.subtle}>Restoring your private session…</Text>
+        </View>
+      </SafeAreaView>
+    );
   if (accessMode === "signed-out")
     return (
       <MobileAuthentication
         api={api}
-        onAuthenticated={(token) => {
+        notice={sessionNotice}
+        onAuthenticated={async (token) => {
+          await persistSessionToken(token);
           setAuthToken(token);
           setAccessMode("account");
           setLoading(true);
@@ -1355,6 +1414,7 @@ export default function App() {
                   secondary
                   onPress={() =>
                     void api.signOut().finally(() => {
+                      void clearSessionToken().catch(() => undefined);
                       setAuthToken(null);
                       setAccessMode("signed-out");
                       setConnections([]);
@@ -1377,7 +1437,10 @@ export default function App() {
                             text: "Delete account",
                             style: "destructive",
                             onPress: () =>
-                              void api.deleteAccount().then(() => {
+                              void api.deleteAccount().then(async () => {
+                                await clearSessionToken().catch(
+                                  () => undefined,
+                                );
                                 setAuthToken(null);
                                 setAccessMode("signed-out");
                               }),
@@ -1505,7 +1568,7 @@ export default function App() {
                 </Text>
                 <Text style={styles.scoreNote}>
                   {accessMode === "account"
-                    ? "This account has isolated application data, an expiring random session, and a scrypt-protected passphrase. Email verification, recovery, credential deletion, durable mobile session storage, and an independent security review are still required before a real-person pilot."
+                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Email verification, recovery, multi-device session management, and an independent security review are still required before a real-person pilot."
                     : "The temporary bearer token only gates this shared local demo. It does not verify identity or isolate one person’s data from another client. Do not use this demo with real profiles."}
                 </Text>
               </View>
@@ -1617,10 +1680,12 @@ function MobileAuthentication({
   api,
   onAuthenticated,
   tryDemo,
+  notice,
 }: {
   api: ReturnType<typeof createApiClient>;
-  onAuthenticated: (token: string) => void;
+  onAuthenticated: (token: string) => Promise<void>;
   tryDemo?: () => void;
+  notice?: string | null;
 }) {
   const [mode, setMode] = useState<"sign-in" | "create">("sign-in");
   const [email, setEmail] = useState("");
@@ -1635,7 +1700,12 @@ function MobileAuthentication({
         mode === "create"
           ? await api.createAccount(email, password)
           : await api.signIn(email, password);
-      onAuthenticated(session.token);
+      try {
+        await onAuthenticated(session.token);
+      } catch {
+        await api.signOut().catch(() => undefined);
+        throw new ApiError(503, "secure_session_storage_unavailable");
+      }
     } catch (error) {
       const code = error instanceof ApiError ? error.code : "";
       setAuthError(
@@ -1645,7 +1715,9 @@ function MobileAuthentication({
             ? "Enter a valid email address."
             : code === "invalid_password"
               ? "Use a passphrase between 12 and 128 characters."
-              : "Email or passphrase was not accepted.",
+              : code === "secure_session_storage_unavailable"
+                ? "This device could not protect the session. No account session was kept."
+                : "Email or passphrase was not accepted.",
       );
     } finally {
       setSubmitting(false);
@@ -1663,6 +1735,7 @@ function MobileAuthentication({
           Your profile and conversations stay separate from every other account.
           OpenMatch stores a protected passphrase hash—not your passphrase.
         </Text>
+        {notice && <Text style={styles.mathNote}>{notice}</Text>}
         <Text style={styles.setting}>Email</Text>
         <TextInput
           accessibilityLabel="Email"

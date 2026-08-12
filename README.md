@@ -65,7 +65,7 @@ The repository now contains a thin, local-first vertical slice:
 - genuine two-sided eligibility and directed fit from both people's explicit demo preferences;
 - profile and privacy views;
 - self-service JSON export and synchronous local demo-data deletion with a non-retained completion receipt;
-- optional email/passphrase accounts with scrypt-protected credentials, expiring opaque sessions, and account-isolated SQLite data;
+- optional email/passphrase accounts with scrypt-protected credentials, expiring opaque sessions, account-isolated SQLite data, and device-secure iOS/Android session restoration;
 - the same shared matching package on web, iOS, Android, and API;
 - a SQLite development API with profile, preferences, introductions, decisions, reset, and transparency endpoints.
 
@@ -85,7 +85,7 @@ visitor's localhost. See `docs/WEB_DEPLOYMENT.md`. Do not configure a hosted
 interactive demo until the shared demo identity has been replaced by production
 authentication and user-partitioned storage.
 
-Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, text-only messages, unmatch, block, structured reports, opt-in expiring local demo sessions, and a minimal account-isolation foundation with synchronous account deletion. The latter is intentionally incomplete: verified email/passkeys, recovery, durable secure native token storage, migration tooling, production database authorization, moderation staffing/tools, encryption key management, and deployment remain future milestones.
+Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, text-only messages, unmatch, block, structured reports, opt-in expiring local demo sessions, and a minimal account-isolation foundation with synchronous account deletion. Native account sessions restore from device-only Expo SecureStore. The account system is intentionally incomplete: verified email/passkeys, recovery, multi-device session management, migration tooling, production database authorization, moderation staffing/tools, encryption key management, and deployment remain future milestones.
 
 ## License
 

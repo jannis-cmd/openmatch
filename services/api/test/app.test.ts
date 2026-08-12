@@ -255,6 +255,7 @@ test("the public data inventory covers every current storage and export field", 
   const expected: Record<string, string[]> = {
     accounts: ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
     accountSessions: ["tokenHash", "accountId", "expiresAt", "createdAt"],
+    mobileSession: ["rawSessionToken"],
     demoSessions: ["tokenHash", "expiresAt"],
     profile: [
       "id",

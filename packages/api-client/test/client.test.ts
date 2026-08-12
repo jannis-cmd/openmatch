@@ -142,6 +142,34 @@ test("shares one bootstrap across concurrent requests and renews after 401", asy
   assert.equal(protectedCalls, 3);
 });
 
+test("an expired authenticated session fails closed without entering demo mode", async () => {
+  let calls = 0;
+  const changes: Array<string | null> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ error: "session_required" }), {
+        status: 401,
+      });
+    }) as typeof fetch,
+    {
+      initialToken: "x".repeat(43),
+      demoSessions: false,
+      onTokenChange: (token) => changes.push(token),
+    },
+  );
+  await assert.rejects(
+    () => client.onboarding(),
+    (error: unknown) =>
+      error instanceof ApiError &&
+      error.status === 401 &&
+      error.code === "session_required",
+  );
+  assert.equal(calls, 1);
+  assert.deepEqual(changes, [null]);
+});
+
 test("updates account visibility with an explicit state", async () => {
   let received: { url?: string; init?: RequestInit } = {};
   const client = createApiClient(

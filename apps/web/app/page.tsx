@@ -2615,7 +2615,7 @@ function AboutView({
           <p>
             This account uses an isolated application-data store, a random
             expiring session, and a scrypt-protected passphrase. Email
-            verification, recovery, durable mobile session storage, and an
+            verification, recovery, multi-device session management, and an
             independent security review are still required before any
             real-person pilot.
           </p>

@@ -44,8 +44,10 @@ hashes, and route requests to account-specific SQLite stores. Web and production
 mobile builds expose create/sign-in flows; native session persistence is not yet
 implemented. Synchronous account deletion removes credentials, sessions, and
 the isolated application store. This boundary is covered by cross-account
-isolation tests but is not pilot-ready authentication: verification, recovery,
-device/session management, migrations, and independent review remain open.
+isolation tests. Native account tokens use device-only Expo SecureStore and are
+restored before personal data loads; invalid or unavailable secure state is not
+used. This is still not pilot-ready authentication: verification, recovery,
+multi-device session management, migrations, and independent review remain open.
 
 Native development may explicitly target a local HTTP origin. EAS development,
 preview, and production builds instead read a plain HTTPS origin from their
