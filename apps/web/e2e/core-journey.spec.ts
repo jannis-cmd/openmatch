@@ -100,9 +100,15 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByText("Safety").click();
   await page.getByRole("button", { name: "Report" }).click();
+  await page.getByLabel("Reason").selectOption({ label: "Offline safety" });
+  await page
+    .getByLabel("Details optional")
+    .fill("Conversation context for the report");
+  await page.getByRole("button", { name: "Submit report" }).click();
   await expect(page.getByRole("status")).toHaveText(
     "Report received. Reference status: received.",
   );
+  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Block" }).click();
   await expect(
     page.getByRole("heading", { name: "No connections yet" }),

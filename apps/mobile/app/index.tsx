@@ -61,6 +61,8 @@ export default function App() {
   const [draft, setDraft] = useState("");
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
+  const [introductionReportOpen, setIntroductionReportOpen] = useState(false);
+  const [connectionReportOpen, setConnectionReportOpen] = useState(false);
   const current = introductions[0];
   const connection = connections[0];
   const load = useCallback(async () => {
@@ -467,23 +469,7 @@ export default function App() {
                 <View style={styles.introductionSafety}>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() =>
-                      chooseReportReason(
-                        (reason) =>
-                          void api
-                            .report(current.profile.id, reason)
-                            .then((result) =>
-                              setSafetyNotice(
-                                `Report received. Reference status: ${result.status}.`,
-                              ),
-                            )
-                            .catch(() =>
-                              setSafetyNotice(
-                                "Report could not be sent. Retry.",
-                              ),
-                            ),
-                      )
-                    }
+                    onPress={() => setIntroductionReportOpen(true)}
                   >
                     <Text style={styles.safetyLink}>Report this profile</Text>
                   </Pressable>
@@ -513,6 +499,27 @@ export default function App() {
                     </Text>
                   </Pressable>
                 </View>
+                {introductionReportOpen && (
+                  <MobileReportForm
+                    name={current.profile.name}
+                    cancel={() => setIntroductionReportOpen(false)}
+                    submit={async (reason, details) => {
+                      try {
+                        const result = await api.report(
+                          current.profile.id,
+                          reason,
+                          details,
+                        );
+                        setSafetyNotice(
+                          `Report received. Reference status: ${result.status}.`,
+                        );
+                        setIntroductionReportOpen(false);
+                      } catch {
+                        setSafetyNotice("Report could not be sent. Retry.");
+                      }
+                    }}
+                  />
+                )}
               </>
             ) : (
               <View style={styles.empty}>
@@ -633,25 +640,31 @@ export default function App() {
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() =>
-                      chooseReportReason(
-                        (reason) =>
-                          void api
-                            .report(
-                              connection.profileId,
-                              reason,
-                              "Submitted from the mobile prototype.",
-                            )
-                            .then((result) =>
-                              setSafetyNotice(
-                                `Report received. Reference status: ${result.status}.`,
-                              ),
-                            ),
-                      )
-                    }
+                    onPress={() => setConnectionReportOpen(true)}
                   >
                     <Text style={styles.safetyLink}>Report</Text>
                   </Pressable>
+                  {connectionReportOpen && (
+                    <MobileReportForm
+                      name={connection.profile?.name ?? "this person"}
+                      cancel={() => setConnectionReportOpen(false)}
+                      submit={async (reason, details) => {
+                        try {
+                          const result = await api.report(
+                            connection.profileId,
+                            reason,
+                            details,
+                          );
+                          setSafetyNotice(
+                            `Report received. Reference status: ${result.status}.`,
+                          );
+                          setConnectionReportOpen(false);
+                        } catch {
+                          setSafetyNotice("Report could not be sent. Retry.");
+                        }
+                      }}
+                    />
+                  )}
                 </View>
               </>
             ) : (
@@ -1206,15 +1219,61 @@ function PreferencesScreen({
   );
 }
 
-function chooseReportReason(onSelect: (reason: ReportReason) => void) {
-  Alert.alert("What happened?", "Choose the closest reason.", [
-    { text: "Harassment", onPress: () => onSelect("harassment") },
-    { text: "Scam", onPress: () => onSelect("scam") },
-    { text: "Impersonation", onPress: () => onSelect("impersonation") },
-    { text: "Offline safety", onPress: () => onSelect("offline_safety") },
-    { text: "Other", onPress: () => onSelect("other") },
-    { text: "Cancel", style: "cancel" },
-  ]);
+function MobileReportForm({
+  name,
+  cancel,
+  submit,
+}: {
+  name: string;
+  cancel: () => void;
+  submit: (reason: ReportReason, details: string) => Promise<void>;
+}) {
+  const [reason, setReason] = useState<ReportReason>("harassment");
+  const [details, setDetails] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  return (
+    <View style={styles.reportForm}>
+      <Text style={styles.name}>Report {name}</Text>
+      <Text style={styles.scoreNote}>
+        Your report is not shown to this person. Choose the closest reason and
+        add only useful context.
+      </Text>
+      <Text style={styles.setting}>Reason</Text>
+      <ChoiceRows
+        value={reason}
+        options={[
+          ["harassment", "Harassment"],
+          ["scam", "Scam"],
+          ["impersonation", "Impersonation"],
+          ["offline_safety", "Offline safety"],
+          ["other", "Other"],
+        ]}
+        onChange={setReason}
+      />
+      <Text style={styles.setting}>Details · optional</Text>
+      <TextInput
+        accessibilityLabel="Report details optional"
+        value={details}
+        onChangeText={setDetails}
+        maxLength={2000}
+        multiline
+        style={styles.messageInput}
+      />
+      <View style={styles.actions}>
+        <Action label="Cancel" secondary onPress={cancel} />
+        <Action
+          label={submitting ? "Sending…" : "Submit report"}
+          disabled={submitting}
+          onPress={() => {
+            setSubmitting(true);
+            void submit(reason, details.trim()).finally(() =>
+              setSubmitting(false),
+            );
+          }}
+        />
+      </View>
+    </View>
+  );
 }
 
 function IntentSelector({
@@ -1549,6 +1608,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 24,
     paddingBottom: 8,
+  },
+  reportForm: {
+    marginTop: 12,
+    padding: 18,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#DED8D2",
+    backgroundColor: "#F8F6F2",
   },
   messageInput: {
     minHeight: 88,

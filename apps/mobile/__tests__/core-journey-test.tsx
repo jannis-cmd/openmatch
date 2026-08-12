@@ -20,6 +20,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let preferences = structuredClone(defaultPreferences);
   let accountStatus = "active";
   let consentAccepted = false;
+  let reportPayload: { reason?: string; details?: string } | null = null;
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
     const body = init.body ? JSON.parse(String(init.body)) : {};
@@ -65,6 +66,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         remaining: 3,
       });
     if (path === "/v1/connections") return response({ items: [] });
+    if (path === "/v1/reports" && init.method === "POST") {
+      reportPayload = body;
+      return response({ id: 1, status: "received" }, 201);
+    }
     if (path === "/v1/onboarding/complete") {
       onboardingComplete = true;
       return response({ complete: true });
@@ -96,6 +101,18 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByText("Mara, 30")).toBeTruthy();
   expect(screen.getByText("Report this profile")).toBeTruthy();
   expect(screen.getByText("Block Mara")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Report this profile"));
+  await fireEvent.press(screen.getByText("Scam"));
+  await fireEvent.changeText(
+    screen.getByLabelText("Report details optional"),
+    "Suspicious profile context",
+  );
+  await fireEvent.press(screen.getByText("Submit report"));
+  await waitFor(() => expect(screen.getByText(/Report received/)).toBeTruthy());
+  expect(reportPayload).toMatchObject({
+    reason: "scam",
+    details: "Suspicious profile context",
+  });
   expect(profile.name).toBe("Taylor");
   expect(profile.city).toBe("Winterthur");
   expect(onboardingComplete).toBe(true);

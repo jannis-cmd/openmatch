@@ -489,12 +489,12 @@ function AppExperience({ exit }: { exit: () => void }) {
                       await load();
                     }
                   }}
-                  report={async () => {
+                  report={async (reason, reportDetails) => {
                     if (connections[0]) {
                       const result = await api.report(
                         connections[0].profileId,
-                        "other",
-                        "Submitted from the prototype safety menu.",
+                        reason,
+                        reportDetails,
                       );
                       setNotice(
                         `Report received. Reference status: ${result.status}.`,
@@ -1569,8 +1569,11 @@ function ConnectionsView({
   send: () => void | Promise<void>;
   unmatch: () => Promise<void>;
   block: () => Promise<void>;
-  report: () => Promise<void>;
+  report: (reason: ReportReason, details: string) => Promise<void>;
 }) {
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>("harassment");
+  const [reportDetails, setReportDetails] = useState("");
   if (!connection)
     return (
       <div className="empty">
@@ -1599,12 +1602,73 @@ function ConnectionsView({
           </div>
           <details>
             <summary>Safety</summary>
-            <button onClick={() => void unmatch()}>Unmatch</button>
-            <button onClick={() => void block()}>Block</button>
-            <button onClick={() => void report()}>Report</button>
+            <button
+              onClick={() => {
+                if (window.confirm("Unmatch and close this conversation?"))
+                  void unmatch();
+              }}
+            >
+              Unmatch
+            </button>
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Block this person and remove the conversation?",
+                  )
+                )
+                  void block();
+              }}
+            >
+              Block
+            </button>
+            <button onClick={() => setReportOpen(!reportOpen)}>Report</button>
           </details>
         </div>
         {notice && <p role="status">{notice}</p>}
+        {reportOpen && (
+          <div className="conversation-report safety-form">
+            <p>
+              Your report is not shown to {name}. Include only information that
+              helps explain the concern.
+            </p>
+            <label htmlFor="connection-report-reason">Reason</label>
+            <select
+              id="connection-report-reason"
+              value={reportReason}
+              onChange={(event) =>
+                setReportReason(event.target.value as ReportReason)
+              }
+            >
+              <option value="harassment">Harassment</option>
+              <option value="scam">Scam</option>
+              <option value="impersonation">Impersonation</option>
+              <option value="offline_safety">Offline safety</option>
+              <option value="other">Other</option>
+            </select>
+            <label htmlFor="connection-report-details">
+              Details <span>optional</span>
+            </label>
+            <textarea
+              id="connection-report-details"
+              value={reportDetails}
+              maxLength={2000}
+              onChange={(event) => setReportDetails(event.target.value)}
+            />
+            <div>
+              <button
+                onClick={async () => {
+                  await report(reportReason, reportDetails.trim());
+                  setReportDetails("");
+                  setReportOpen(false);
+                }}
+              >
+                Submit report
+              </button>
+              <button onClick={() => setReportOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        )}
         <div className="messages">
           {messages.length === 0 ? (
             <p className="message-empty">
