@@ -32,6 +32,17 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("link", { name: /Data inventory/ }),
   ).toHaveAttribute("href", /DATA_INVENTORY\.json/);
+  await expect(
+    page.getByRole("heading", {
+      name: "Independent support in Switzerland",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /Immediate danger · Police 117/ }),
+  ).toHaveAttribute("href", "tel:117");
+  await expect(
+    page.getByRole("link", { name: /Victim support · 142/ }),
+  ).toHaveAttribute("href", "tel:142");
   const publicApiRequests: string[] = [];
   page.on("request", (request) => {
     if (request.url().includes("/v1/")) publicApiRequests.push(request.url());
@@ -284,6 +295,14 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("link", { name: "Machine-readable data inventory ↗" }),
   ).toHaveAttribute("href", /DATA_INVENTORY\.json/);
+  await expect(
+    page.getByRole("heading", {
+      name: "Independent support in Switzerland",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/You do not need to file an OpenMatch report/),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Your profile" }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export my data" }).click();

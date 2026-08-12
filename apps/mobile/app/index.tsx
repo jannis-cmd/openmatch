@@ -1352,6 +1352,49 @@ export default function App() {
                   }
                 />
               </View>
+              <View style={styles.scoreCard}>
+                <Text style={styles.eyebrow}>Help without reporting here</Text>
+                <Text style={styles.name}>
+                  Independent support in Switzerland
+                </Text>
+                <Text style={styles.scoreNote}>
+                  You do not need to file an OpenMatch report or tell us what
+                  happened. OpenMatch cannot provide emergency help.
+                </Text>
+                <Action
+                  label="Immediate danger · Police 117"
+                  onPress={() => void Linking.openURL("tel:117")}
+                />
+                <Action
+                  label="Medical emergency · 144"
+                  onPress={() => void Linking.openURL("tel:144")}
+                />
+                <Action
+                  label="Victim support · 142"
+                  secondary
+                  onPress={() => void Linking.openURL("tel:142")}
+                />
+                <Text style={styles.scoreNote}>
+                  142 offers free, confidential and anonymous support. It is not
+                  an emergency number.
+                </Text>
+                <Action
+                  label="Open Victim Support Switzerland"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://www.opferhilfe-schweiz.ch/en/",
+                    )
+                  }
+                />
+                <Text style={styles.mathNote}>
+                  These numbers are for Switzerland. Elsewhere, use local
+                  emergency and victim-support services. Calling or opening
+                  another site leaves OpenMatch and may appear in device,
+                  phone-provider, or website records. OpenMatch sends no report
+                  or profile data when you use these links.
+                </Text>
+              </View>
             </>
           )}
         </>

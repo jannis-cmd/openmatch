@@ -21,6 +21,10 @@ Stalking/location triangulation, scraping and enumeration, credential stuffing, 
 
 Before a message is sent, two public deterministic rules check its text for an external link or common payment-request wording. The same rules run at the API boundary so a modified client cannot silently bypass the pause. A warning names the triggered rules, states that they can be wrong, and allows the person to go back or explicitly send anyway. The service stores only a message that is ultimately sent: it creates no scam score, warning log, report, block, or visibility change. This is contextual education, not an accusation or a safety guarantee. The evidence basis is grade D practice guidance and literature synthesis; effectiveness requires prospective safety evaluation.
 
+### External support links
+
+Emergency and victim-support resources are readable without authentication or an OpenMatch report. Rendering or selecting them sends no profile/report data to the OpenMatch API. Phone calls and external sites leave OpenMatch and can create device call-history, telecommunications-provider, browser, or destination-site records; the interface states this before use. The prototype numbers are explicitly scoped to Switzerland and must be reverified before every release and localized before another regional pilot.
+
 ## Required controls before pilot
 
 Threat model, data inventory, DPIA, passkeys or strong authentication, session/device management, rate limiting, enumeration-resistant APIs, coarse-location tests, secure media processing, malware scanning, audit logs, least privilege, dual approval for bulk access, secret management, encrypted backups, deletion drills, incident plan, dependency/SAST scanning, independent penetration test, vulnerability disclosure and safe harbor.

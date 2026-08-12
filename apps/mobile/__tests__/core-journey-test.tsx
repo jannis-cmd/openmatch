@@ -353,6 +353,12 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByText("Open data inventory")).toBeTruthy();
   expect(screen.getByText("Safer dating")).toBeTruthy();
   expect(screen.getByText("Open FTC romance-scam guidance")).toBeTruthy();
+  expect(screen.getByText("Independent support in Switzerland")).toBeTruthy();
+  expect(screen.getByText("Immediate danger · Police 117")).toBeTruthy();
+  expect(screen.getByText("Victim support · 142")).toBeTruthy();
+  expect(
+    screen.getByText(/You do not need to file an OpenMatch report/),
+  ).toBeTruthy();
   await fireEvent.press(screen.getByText("Profile"));
   const alertSpy = jest.spyOn(Alert, "alert");
   await fireEvent.press(screen.getByText("Delete local data"));

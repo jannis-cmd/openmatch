@@ -750,6 +750,7 @@ function LandingPage({
           <a href="#principles">Principles</a>
           <a href="#evidence">Evidence</a>
           <a href="#transparency">Transparency</a>
+          <a href="#support">Get help</a>
         </nav>
         <button className="nav-sign-in" onClick={signIn}>
           Sign in
@@ -927,6 +928,10 @@ function LandingPage({
           </p>
         </div>
         <ScoreCalculator />
+      </section>
+
+      <section className="public-support" id="support">
+        <SafetySupportCard />
       </section>
 
       <section className="final-callout">
@@ -2267,7 +2272,52 @@ function AboutView({
           FTC romance-scam guidance ↗
         </a>
       </section>
+      <SafetySupportCard />
     </div>
+  );
+}
+
+function SafetySupportCard() {
+  return (
+    <section className="support-card" aria-labelledby="support-heading">
+      <p className="eyebrow">Help without reporting here</p>
+      <h2 id="support-heading">Independent support in Switzerland</h2>
+      <p>
+        You do not need to file an OpenMatch report or tell us what happened.
+        OpenMatch cannot provide emergency help.
+      </p>
+      <div className="support-grid">
+        <a href="tel:117">
+          <strong>Immediate danger · Police 117</strong>
+          <span>Call Swiss police now.</span>
+        </a>
+        <a href="tel:144">
+          <strong>Medical emergency · 144</strong>
+          <span>Call Swiss emergency medical services.</span>
+        </a>
+        <a href="tel:142">
+          <strong>Victim support · 142</strong>
+          <span>
+            Free, confidential and anonymous support. This is not an emergency
+            number.
+          </span>
+        </a>
+        <a
+          href="https://www.opferhilfe-schweiz.ch/en/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <strong>Victim Support Switzerland ↗</strong>
+          <span>Find professional counselling and local services.</span>
+        </a>
+      </div>
+      <p className="support-caveat">
+        These numbers are for Switzerland. Elsewhere, use local emergency and
+        victim-support services. Calling or opening another site leaves
+        OpenMatch and may appear in device, phone-provider, or website records.
+        OpenMatch sends no report or profile data when you use these links.
+      </p>
+    </section>
   );
 }
 

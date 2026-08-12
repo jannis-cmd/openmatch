@@ -116,6 +116,7 @@ The batch size is a testable starting hypothesis—not settled science. Users ma
 - Location is stored at coarse regional/geohash precision; public distance is bucketed and never continuously updated.
 - No read receipts, online status, precise last-active time, contact discovery, or screenshot alerts in MVP.
 - Crisis and local support resources are accessible without filing a report.
+- The executable prototype provides a Switzerland-scoped no-report help path publicly and in every client. It distinguishes 117/144 emergencies from the non-emergency 142 victim-support line and warns that calls/external sites can leave records outside OpenMatch.
 - Safety advisory council includes women, LGBTQIA+ people, disabled people, racialized communities, and survivors; contributors are compensated.
 
 ### 4.7 Transparency center
