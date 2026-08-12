@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Crypto from "expo-crypto";
 import { resolveApiConfiguration } from "../lib/api-configuration";
 import { resolveWebConfiguration } from "../lib/web-configuration";
 import {
@@ -169,6 +170,11 @@ export default function App() {
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
   const [draft, setDraft] = useState("");
+  const [pendingMessageAttempt, setPendingMessageAttempt] = useState<{
+    connectionId: string;
+    text: string;
+    requestId: string;
+  } | null>(null);
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const [directoryAccepted, setDirectoryAccepted] = useState(false);
@@ -325,6 +331,7 @@ export default function App() {
     let active = true;
     setMessages([]);
     setDraft("");
+    setPendingMessageAttempt(null);
     if (!connection) {
       setSelectedConnectionId(null);
       return () => {
@@ -1157,9 +1164,10 @@ export default function App() {
                       <Action
                         label="Start from their profile"
                         secondary
-                        onPress={() =>
-                          setDraft(conversationStarter(connection.profile!))
-                        }
+                        onPress={() => {
+                          setPendingMessageAttempt(null);
+                          setDraft(conversationStarter(connection.profile!));
+                        }}
                       />
                       <Text style={styles.mathNote}>
                         Copies a simple profile-specific draft. Review and edit
@@ -1170,7 +1178,11 @@ export default function App() {
                   <TextInput
                     accessibilityLabel={`Message ${connection.profile?.name ?? "connection"}`}
                     value={draft}
-                    onChangeText={setDraft}
+                    onChangeText={(value) => {
+                      setDraft(value);
+                      if (pendingMessageAttempt?.text !== value)
+                        setPendingMessageAttempt(null);
+                    }}
                     maxLength={1000}
                     multiline
                     placeholder="Write a message"
@@ -1183,12 +1195,28 @@ export default function App() {
                       const text = draft.trim();
                       if (!text) return;
                       const safetyFlags = messageSafetyFlags(text);
-                      const sendMessage = (safetyAcknowledged = false) =>
+                      const sendMessage = (safetyAcknowledged = false) => {
+                        const messageAttempt =
+                          pendingMessageAttempt?.connectionId ===
+                            connection.id && pendingMessageAttempt.text === text
+                            ? pendingMessageAttempt
+                            : {
+                                connectionId: connection.id,
+                                text,
+                                requestId: Crypto.randomUUID(),
+                              };
+                        setPendingMessageAttempt(messageAttempt);
                         void api
-                          .sendMessage(connection.id, text, safetyAcknowledged)
+                          .sendMessage(
+                            connection.id,
+                            text,
+                            safetyAcknowledged,
+                            messageAttempt.requestId,
+                          )
                           .then((message) => {
                             setMessages((previous) => [...previous, message]);
                             setDraft("");
+                            setPendingMessageAttempt(null);
                           })
                           .catch((error) =>
                             setSafetyNotice(
@@ -1198,6 +1226,7 @@ export default function App() {
                               ),
                             ),
                           );
+                      };
                       if (safetyFlags.length === 0) sendMessage();
                       else
                         Alert.alert(

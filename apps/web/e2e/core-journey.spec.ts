@@ -410,7 +410,23 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Start from their profile" }).click();
   await expect(composer).toHaveValue(/You mentioned/);
   await composer.fill("Hello from the repeatable journey");
+  let messageClientRequestId = "";
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      /\/v1\/connections\/[^/]+\/messages$/.test(request.url())
+    )
+      messageClientRequestId = String(
+        (request.postDataJSON() as { clientRequestId?: unknown })
+          .clientRequestId ?? "",
+      );
+  });
   await page.getByRole("button", { name: "Send" }).click();
+  await expect
+    .poll(() => messageClientRequestId)
+    .toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
   const maraConnections = (await (
     await request.get(apiBase + "/v1/connections", {
       headers: maraAccount.headers,

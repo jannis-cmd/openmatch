@@ -190,6 +190,11 @@ function AppExperience({
   >(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
+  const [pendingMessageAttempt, setPendingMessageAttempt] = useState<{
+    connectionId: string;
+    text: string;
+    requestId: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -289,6 +294,7 @@ function AppExperience({
     let active = true;
     setMessages([]);
     setDraft("");
+    setPendingMessageAttempt(null);
     if (!selectedConnection) {
       setSelectedConnectionId(null);
       return () => {
@@ -780,7 +786,11 @@ function AppExperience({
                   messages={messages}
                   notice={notice}
                   draft={draft}
-                  setDraft={setDraft}
+                  setDraft={(value) => {
+                    setDraft(value);
+                    if (pendingMessageAttempt?.text !== value)
+                      setPendingMessageAttempt(null);
+                  }}
                   send={async () => {
                     const text = draft.trim();
                     if (!text || !selectedConnection) return;
@@ -796,14 +806,27 @@ function AppExperience({
                       )
                     )
                       return;
+                    const messageAttempt =
+                      pendingMessageAttempt?.connectionId ===
+                        selectedConnection.id &&
+                      pendingMessageAttempt.text === text
+                        ? pendingMessageAttempt
+                        : {
+                            connectionId: selectedConnection.id,
+                            text,
+                            requestId: globalThis.crypto.randomUUID(),
+                          };
+                    setPendingMessageAttempt(messageAttempt);
                     try {
                       const message = await api.sendMessage(
                         selectedConnection.id,
                         text,
                         safetyFlags.length > 0,
+                        messageAttempt.requestId,
                       );
                       setMessages((previous) => [...previous, message]);
                       setDraft("");
+                      setPendingMessageAttempt(null);
                     } catch (error) {
                       setError(
                         operationLimitMessage(

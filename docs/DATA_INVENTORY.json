@@ -278,7 +278,7 @@
       "retention": "prototype",
       "access": ["person", "service", "operator"],
       "fields": ["id", "connectionId", "senderId", "text", "createdAt", "deliveryEventId"],
-      "disclosure": "For an account pair, a sent message is delivered to both isolated stores through the durable account-delivery journal. deliveryEventId is the opaque idempotency key used to prevent a retry from duplicating a message; it is not returned in the API or personal export.",
+      "disclosure": "For an account pair, a sent message is delivered to both isolated stores through the durable account-delivery journal. Web, iOS, and Android generate a random UUID for one send attempt and retain it while that draft is retried; the service hashes it with the account ID into deliveryEventId. The raw client request ID is not persisted. The opaque deliveryEventId prevents an interrupted or repeated request from duplicating a message and is not returned in the API or personal export.",
       "excluded": ["read receipt", "online status", "typing status", "image attachment"]
     },
     {

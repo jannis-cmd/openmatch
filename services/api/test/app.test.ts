@@ -787,10 +787,48 @@ test("authenticated accounts have hashed credentials and isolated application da
       {
         method: "POST",
         headers: auth(first.body.token!),
-        body: JSON.stringify({ text: "A real account-to-account hello." }),
+        body: JSON.stringify({
+          text: "A real account-to-account hello.",
+          clientRequestId: "75afbb9f-60c8-49be-a8b9-4b3bb2fe6b3f",
+        }),
       },
     );
     assert.equal(sent.status, 201);
+    const repeated = await fetch(
+      base + `/v1/connections/${connectionId}/messages`,
+      {
+        method: "POST",
+        headers: auth(first.body.token!),
+        body: JSON.stringify({
+          text: "A real account-to-account hello.",
+          clientRequestId: "75afbb9f-60c8-49be-a8b9-4b3bb2fe6b3f",
+        }),
+      },
+    );
+    assert.equal(repeated.status, 200);
+    assert.equal(
+      (
+        (await repeated.json()) as {
+          id: number;
+        }
+      ).id,
+      ((await sent.json()) as { id: number }).id,
+    );
+    const reusedForDifferentMessage = await fetch(
+      base + `/v1/connections/${connectionId}/messages`,
+      {
+        method: "POST",
+        headers: auth(first.body.token!),
+        body: JSON.stringify({
+          text: "A different message",
+          clientRequestId: "75afbb9f-60c8-49be-a8b9-4b3bb2fe6b3f",
+        }),
+      },
+    );
+    assert.equal(reusedForDifferentMessage.status, 409);
+    assert.deepEqual(await reusedForDifferentMessage.json(), {
+      error: "client_request_id_reused",
+    });
     const receivedMessages = (await (
       await fetch(base + `/v1/connections/${connectionId}/messages`, {
         headers: auth(second.body.token!),

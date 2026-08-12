@@ -456,10 +456,11 @@ export function createApiClient(
       connectionId: string,
       text: string,
       safetyAcknowledged = false,
+      clientRequestId?: string,
     ) =>
       request<Message>(
         `/v1/connections/${encodeURIComponent(connectionId)}/messages`,
-        json("POST", { text, safetyAcknowledged }),
+        json("POST", { text, safetyAcknowledged, clientRequestId }),
       ),
     unmatch: (connectionId: string) =>
       request<void>(

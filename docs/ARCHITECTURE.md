@@ -66,6 +66,9 @@ private priorities. A reciprocal interest creates one deterministic pair
 connection identifier in both isolated stores. A durable journal records each
 cross-account action before delivery; every target commits the action and its
 opaque event ID together, so ordered replay after interruption is idempotent.
+Message sends also carry a client-generated random request ID retained across
+an unchanged-draft retry; its account-scoped hash returns the original message
+instead of creating a second one after a lost response.
 Completed payloads are deleted immediately. This remains an end-to-end bridge,
 not a production message system: dead-letter operations, cross-host workers,
 monitoring, moderation retention, and privacy-reviewed region identifiers are

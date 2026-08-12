@@ -551,9 +551,15 @@ test("sends message safety acknowledgement only after client confirmation", asyn
       );
     }),
   );
-  await client.sendMessage("connection-mara", "See https://example.com", true);
+  await client.sendMessage(
+    "connection-mara",
+    "See https://example.com",
+    true,
+    "75afbb9f-60c8-49be-a8b9-4b3bb2fe6b3f",
+  );
   assert.deepEqual(body, {
     text: "See https://example.com",
     safetyAcknowledged: true,
+    clientRequestId: "75afbb9f-60c8-49be-a8b9-4b3bb2fe6b3f",
   });
 });

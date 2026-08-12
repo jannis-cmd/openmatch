@@ -127,6 +127,11 @@ const pairConnectionId = (left: string, right: string) =>
     .digest("base64url")
     .slice(0, 22)}`;
 
+const messageDeliveryEventId = (accountId: string, clientRequestId: string) =>
+  `message-${createHash("sha256")
+    .update(`${accountId}:${clientRequestId}`)
+    .digest("base64url")}`;
+
 type OperationName = "decision" | "message" | "report";
 type RateLimit = { maximum: number; windowMs: number };
 
@@ -1218,16 +1223,46 @@ export function createApp(
             error: "operation_rate_limit_exceeded",
             operation: "message",
           });
-        const activeConnection = store.connection(messages[1]);
-        if (!activeConnection)
-          return send(response, 404, { error: "connection_not_found" });
         const body = (await readJson(request)) as {
           text?: string;
           safetyAcknowledged?: unknown;
+          clientRequestId?: unknown;
         };
         const text = body.text?.trim() ?? "";
         if (!text || text.length > 2000)
           return send(response, 400, { error: "invalid_message" });
+        const clientRequestId =
+          body.clientRequestId === undefined
+            ? null
+            : typeof body.clientRequestId === "string" &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                  body.clientRequestId,
+                )
+              ? body.clientRequestId.toLowerCase()
+              : undefined;
+        if (clientRequestId === undefined)
+          return send(response, 400, { error: "invalid_client_request_id" });
+        const requestedEventId =
+          accountSession && clientRequestId
+            ? messageDeliveryEventId(accountSession.accountId, clientRequestId)
+            : undefined;
+        const existingMessage = requestedEventId
+          ? store.messageForDeliveryEvent(requestedEventId)
+          : undefined;
+        if (existingMessage) {
+          if (
+            existingMessage.connectionId !== messages[1] ||
+            existingMessage.text !== text ||
+            existingMessage.senderId !== "me"
+          )
+            return send(response, 409, {
+              error: "client_request_id_reused",
+            });
+          return send(response, 200, existingMessage);
+        }
+        const activeConnection = store.connection(messages[1]);
+        if (!activeConnection)
+          return send(response, 404, { error: "connection_not_found" });
         const safetyFlags = messageSafetyFlags(text);
         if (safetyFlags.length && body.safetyAcknowledged !== true)
           return send(response, 409, {
@@ -1258,6 +1293,7 @@ export function createApp(
               senderId: accountSession.accountId,
               createdAt,
             },
+            requestedEventId,
           );
           const message = store.messageForDeliveryEvent(eventId);
           if (!message) throw new Error("account_message_delivery_failed");

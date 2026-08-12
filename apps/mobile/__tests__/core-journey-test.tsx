@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import {
   createIntroductions,
@@ -11,6 +11,9 @@ jest.mock("../lib/secure-session", () => ({
   restoreSessionToken: jest.fn(async () => null),
   persistSessionToken: jest.fn(async () => undefined),
   clearSessionToken: jest.fn(async () => undefined),
+}));
+jest.mock("expo-crypto", () => ({
+  randomUUID: () => "75afbb9f-60c8-49be-a8b9-4b3bb2fe6b3f",
 }));
 import App from "../app/index";
 import {
@@ -476,11 +479,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   expect(warningCall?.[1]).toMatch(/External link/);
   expect(sentMessageBody).toBeNull();
-  warningCall?.[2]?.[1].onPress?.();
+  await act(async () => {
+    warningCall?.[2]?.[1].onPress?.();
+  });
   await waitFor(() =>
     expect(sentMessageBody).toMatchObject({
       text: "See https://example.com",
       safetyAcknowledged: true,
+      clientRequestId: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      ),
     }),
   );
   await waitFor(() =>
