@@ -156,6 +156,7 @@ export function createApp(
     operationRateLimits?: Partial<Record<OperationName, RateLimit>>;
     emailVerificationSender?: EmailVerificationSender | null;
     securityNotificationSender?: SecurityNotificationSender | null;
+    securityNotificationRetryIntervalMs?: number;
   } = {},
 ) {
   const demoStore = options.store ?? new Store();
@@ -182,6 +183,15 @@ export function createApp(
     options.securityNotificationSender === undefined
       ? (configuredEmailSenders?.security ?? null)
       : options.securityNotificationSender;
+  const securityNotificationRetryIntervalMs =
+    options.securityNotificationRetryIntervalMs ?? 30_000;
+  if (
+    !Number.isInteger(securityNotificationRetryIntervalMs) ||
+    securityNotificationRetryIntervalMs < 10
+  )
+    throw new RangeError(
+      "security notification retry interval must be at least 10ms",
+    );
   const demoSessionTtlMs = options.demoSessionTtlMs ?? 12 * 60 * 60 * 1000;
   if (!Number.isInteger(demoSessionTtlMs) || demoSessionTtlMs < 60_000)
     throw new RangeError("demo session lifetime must be at least one minute");
@@ -332,11 +342,15 @@ export function createApp(
   const retrySecurityNotifications = async (
     accountId: string,
     currentJobId?: string,
+    force = false,
   ) => {
     if (!accounts || !securityNotificationSender) return null;
     let currentSent = 0;
     let currentRecipients = 0;
-    for (const job of accounts.securityNotificationJobs(accountId)) {
+    for (const job of accounts.claimSecurityNotificationJobs(
+      accountId,
+      force,
+    )) {
       const pending = job.recipients.filter(
         (email) => !job.delivered.has(email),
       );
@@ -373,7 +387,7 @@ export function createApp(
       occurredAt,
     );
     if (!jobId) return "unverified" as const;
-    const result = await retrySecurityNotifications(accountId, jobId);
+    const result = await retrySecurityNotifications(accountId, jobId, true);
     const currentSent = result?.currentSent ?? 0;
     const currentRecipients = result?.currentRecipients ?? 0;
     if (currentSent === currentRecipients) return "sent" as const;
@@ -575,7 +589,11 @@ export function createApp(
             error: "authenticated_account_required",
           });
         if (request.method === "POST")
-          await retrySecurityNotifications(accountSession.accountId);
+          await retrySecurityNotifications(
+            accountSession.accountId,
+            undefined,
+            true,
+          );
         return send(
           response,
           200,
@@ -1617,7 +1635,24 @@ export function createApp(
       });
     }
   });
+  let securityRetryRunning = false;
+  const securityRetryTimer = securityNotificationSender
+    ? setInterval(() => {
+        if (!accounts || securityRetryRunning) return;
+        securityRetryRunning = true;
+        void (async () => {
+          try {
+            for (const accountId of accounts.pendingSecurityNotificationAccountIds())
+              await retrySecurityNotifications(accountId);
+          } finally {
+            securityRetryRunning = false;
+          }
+        })();
+      }, securityNotificationRetryIntervalMs)
+    : null;
+  securityRetryTimer?.unref();
   server.on("close", () => {
+    if (securityRetryTimer) clearInterval(securityRetryTimer);
     demoStore.close();
     accounts?.close();
   });

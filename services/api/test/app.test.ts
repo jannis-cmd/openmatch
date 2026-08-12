@@ -619,6 +619,7 @@ test("failed security notices remain durable until an authenticated retry succee
       if (unavailable) throw new Error("simulated mail outage");
       deliveries.push(email);
     },
+    securityNotificationRetryIntervalMs: 10,
   }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -659,9 +660,16 @@ test("failed security notices remain durable until an authenticated retry succee
       automaticDiscard: false,
     });
     unavailable = false;
+    accounts.db
+      .prepare(
+        "UPDATE account_security_notification_outbox SET next_attempt_at=0",
+      )
+      .run();
+    for (let attempt = 0; attempt < 20 && deliveries.length === 0; attempt += 1)
+      await new Promise((resolve) => setTimeout(resolve, 10));
     const retried = await fetch(
       base + "/v1/account/security-notification-status",
-      { method: "POST", headers },
+      { headers },
     );
     assert.deepEqual(await retried.json(), {
       state: "clear",
@@ -1531,6 +1539,19 @@ test("the public data inventory covers every current storage and export field", 
       "attemptCount",
       "lastAttemptAt",
       "lastErrorCode",
+    ],
+    accountSecurityNotificationOutbox: [
+      "id",
+      "accountId",
+      "event",
+      "occurredAt",
+      "recipients",
+      "deliveredRecipients",
+      "attemptCount",
+      "lastAttemptAt",
+      "nextAttemptAt",
+      "leaseUntil",
+      "createdAt",
     ],
     processedAccountEvents: ["eventId", "processedAt"],
     accountRecoveryCodes: ["codeHash", "accountId", "createdAt"],

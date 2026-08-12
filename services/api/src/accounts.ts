@@ -34,6 +34,9 @@ const COMMON_PASSWORDS = new Set([
 ]);
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const RECOVERY_CODE_COUNT = 8;
+const SECURITY_NOTICE_RETRY_BASE_MS = 60_000;
+const SECURITY_NOTICE_RETRY_MAX_MS = 6 * 60 * 60_000;
+const SECURITY_NOTICE_LEASE_MS = 30_000;
 const SCRYPT_OPTIONS = { N: 32_768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
 type AccountRow = {
@@ -172,6 +175,8 @@ export class Accounts {
         delivered_json TEXT NOT NULL DEFAULT '[]',
         attempt_count INTEGER NOT NULL DEFAULT 0,
         last_attempt_at TEXT,
+        next_attempt_at INTEGER NOT NULL DEFAULT 0,
+        lease_until INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
       );
     `);
@@ -205,6 +210,19 @@ export class Accounts {
     if (!deliveryColumns.some(({ name }) => name === "last_error_code"))
       this.db.exec(
         "ALTER TABLE account_delivery_events ADD COLUMN last_error_code TEXT",
+      );
+    const notificationOutboxColumns = this.db
+      .prepare("PRAGMA table_info(account_security_notification_outbox)")
+      .all() as Array<{ name: string }>;
+    if (
+      !notificationOutboxColumns.some(({ name }) => name === "next_attempt_at")
+    )
+      this.db.exec(
+        "ALTER TABLE account_security_notification_outbox ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0",
+      );
+    if (!notificationOutboxColumns.some(({ name }) => name === "lease_until"))
+      this.db.exec(
+        "ALTER TABLE account_security_notification_outbox ADD COLUMN lease_until INTEGER NOT NULL DEFAULT 0",
       );
     const sessionsWithoutId = this.db
       .prepare(
@@ -371,7 +389,7 @@ export class Accounts {
     return id;
   }
 
-  securityNotificationJobs(accountId: string) {
+  private securityNotificationJobs(accountId: string) {
     return (
       this.db
         .prepare(
@@ -399,6 +417,41 @@ export class Accounts {
     });
   }
 
+  claimSecurityNotificationJobs(accountId: string, force = false) {
+    const now = Date.now();
+    const claimed = [];
+    for (const job of this.securityNotificationJobs(accountId)) {
+      const result = this.db
+        .prepare(
+          `UPDATE account_security_notification_outbox SET lease_until=?
+           WHERE id=? AND account_id=? AND lease_until<=?
+             AND (?=1 OR next_attempt_at<=?)`,
+        )
+        .run(
+          now + SECURITY_NOTICE_LEASE_MS,
+          job.id,
+          accountId,
+          now,
+          force ? 1 : 0,
+          now,
+        );
+      if (result.changes) claimed.push(job);
+    }
+    return claimed;
+  }
+
+  pendingSecurityNotificationAccountIds(now = Date.now()) {
+    return (
+      this.db
+        .prepare(
+          `SELECT DISTINCT account_id AS accountId
+           FROM account_security_notification_outbox
+           WHERE next_attempt_at<=? AND lease_until<=?`,
+        )
+        .all(now, now) as Array<{ accountId: string }>
+    ).map(({ accountId }) => accountId);
+  }
+
   recordSecurityNotificationAttempt(
     accountId: string,
     jobId: string,
@@ -417,15 +470,26 @@ export class Accounts {
         .run(jobId, accountId);
       return;
     }
+    const attempt = this.db
+      .prepare(
+        "SELECT attempt_count AS attemptCount FROM account_security_notification_outbox WHERE id=? AND account_id=?",
+      )
+      .get(jobId, accountId) as { attemptCount: number } | undefined;
+    const retryDelay = Math.min(
+      SECURITY_NOTICE_RETRY_BASE_MS * 2 ** (attempt?.attemptCount ?? 0),
+      SECURITY_NOTICE_RETRY_MAX_MS,
+    );
     this.db
       .prepare(
         `UPDATE account_security_notification_outbox
-         SET delivered_json=?,attempt_count=attempt_count+1,last_attempt_at=?
+         SET delivered_json=?,attempt_count=attempt_count+1,last_attempt_at=?,
+             next_attempt_at=?,lease_until=0
          WHERE id=? AND account_id=?`,
       )
       .run(
         JSON.stringify([...job.delivered]),
         new Date().toISOString(),
+        Date.now() + retryDelay,
         jobId,
         accountId,
       );

@@ -75,7 +75,7 @@
       "purpose": "Retain a sparse account-security notice until it has reached every confirmed inbox that was eligible when the security event occurred.",
       "retention": "Only while delivery is incomplete. The row is deleted immediately after every snapshotted recipient succeeds, or cascades with account deletion; it is never automatically discarded.",
       "access": ["service", "operator"],
-      "fields": ["id", "accountId", "event", "occurredAt", "recipients", "deliveredRecipients", "attemptCount", "lastAttemptAt", "createdAt"],
+      "fields": ["id", "accountId", "event", "occurredAt", "recipients", "deliveredRecipients", "attemptCount", "lastAttemptAt", "nextAttemptAt", "leaseUntil", "createdAt"],
       "disclosure": "The outbox temporarily duplicates confirmed email addresses plus a narrow event category and timestamp. It never contains a passphrase, recovery code, session token, IP address, device detail, sign-in link, or message content. Web, iOS, and Android show a privacy-minimal pending count and allow an authenticated retry. Successful recipients are not emailed twice by later retries; the completed row is deleted. Outbox metadata is excluded from personal export."
     },
     {
