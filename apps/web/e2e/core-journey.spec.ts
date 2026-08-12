@@ -137,6 +137,14 @@ test("first run through a persistent connection and safety action", async ({
   await expect(page.getByRole("status")).toContainText("Introductions paused");
   await page.getByRole("button", { name: "Resume", exact: true }).click();
   await expect(page.getByRole("status")).not.toBeVisible();
+  await page.getByRole("button", { name: "How it works" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Known limits" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Matching source code ↗" }),
+  ).toHaveAttribute("href", /packages\/matching\/src\/index\.ts/);
+  await page.getByRole("button", { name: "Your profile" }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export my data" }).click();
   expect((await downloadPromise).suggestedFilename()).toBe(

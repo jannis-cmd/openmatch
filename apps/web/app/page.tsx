@@ -7,6 +7,7 @@ import {
   type Connection,
   type Message,
   type ReportReason,
+  type TransparencyVersion,
 } from "@openmatch/api-client";
 import {
   ALGORITHM_VERSION,
@@ -81,6 +82,9 @@ function AppExperience({ exit }: { exit: () => void }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
+  const [transparency, setTransparency] = useState<TransparencyVersion | null>(
+    null,
+  );
   const current = introductions[0];
   const connected = connections.length > 0;
 
@@ -96,6 +100,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         onboarding,
         nextSuggestions,
         nextAccountStatus,
+        nextTransparency,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -104,6 +109,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         api.onboarding(),
         api.preferenceSuggestions(),
         api.accountStatus(),
+        api.transparencyVersion(),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -112,6 +118,7 @@ function AppExperience({ exit }: { exit: () => void }) {
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
       setAccountStatus(nextAccountStatus.status);
+      setTransparency(nextTransparency);
       if (nextConnections.items[0])
         setMessages((await api.messages(nextConnections.items[0].id)).items);
       else setMessages([]);
@@ -541,7 +548,7 @@ function AppExperience({ exit }: { exit: () => void }) {
                   }}
                 />
               )}
-              {view === "about" && <AboutView />}
+              {view === "about" && <AboutView transparency={transparency} />}
             </>
           )}
         </section>
@@ -1698,7 +1705,11 @@ function ConnectionsView({
   );
 }
 
-function AboutView() {
+function AboutView({
+  transparency,
+}: {
+  transparency: TransparencyVersion | null;
+}) {
   return (
     <div className="narrow">
       <p className="eyebrow">Public method</p>
@@ -1734,8 +1745,45 @@ function AboutView() {
         </div>
       </section>
       <div className="version">
-        Algorithm {ALGORITHM_VERSION} · Deterministic · No hidden factors
+        Algorithm {transparency?.matching ?? ALGORITHM_VERSION} · Deterministic
+        · No hidden factors · Prototype
       </div>
+      <section className="transparency-links settings-card">
+        <h2>Inspect the work</h2>
+        <p>
+          The objective is useful introductions, not engagement. Candidate-side
+          personal weights may be private from another user, but they are never
+          hidden system factors.
+        </p>
+        <a
+          href="https://github.com/jannis-cmd/openmatch/blob/main/packages/matching/src/index.ts"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Matching source code ↗
+        </a>
+        <a
+          href="https://github.com/jannis-cmd/openmatch/blob/main/research/EVIDENCE_REGISTER.md"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Evidence register ↗
+        </a>
+        <a
+          href="https://github.com/jannis-cmd/openmatch/blob/main/docs/ALGORITHM_DECISIONS.md"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Algorithm decisions and changes ↗
+        </a>
+        <h2>Known limits</h2>
+        <p>
+          This prototype cannot predict attraction, love, relationship success,
+          or safety. Its small demo pool is not evidence of fairness or
+          effectiveness. Those claims require prospective and independent
+          evaluation.
+        </p>
+      </section>
     </div>
   );
 }

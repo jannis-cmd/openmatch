@@ -30,6 +30,13 @@ export type ConsentReceipt = {
   noticeVersion: "prototype-0.1";
   acceptedAt: string;
 };
+export type TransparencyVersion = {
+  matching: string;
+  hiddenFactors: false;
+  privatePersonalInputsMayBeRedacted: true;
+  status: "prototype";
+  objective: "useful introductions, not engagement";
+};
 
 export class ApiError extends Error {
   constructor(
@@ -105,6 +112,8 @@ export function createApiClient(
           prototypeDataUseAccepted: true,
         }),
       ),
+    transparencyVersion: () =>
+      request<TransparencyVersion>("/v1/transparency/version"),
     introductions: () =>
       request<{ items: Introduction[]; finite: true; remaining: number }>(
         "/v1/introductions",

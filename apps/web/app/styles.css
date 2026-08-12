@@ -584,6 +584,20 @@ input {
   font-family: ui-monospace, monospace;
   font-size: 13px;
 }
+.transparency-links {
+  margin-top: 22px;
+}
+.transparency-links a {
+  display: block;
+  padding: 11px 0;
+  border-top: 1px solid #e2e4de;
+  color: #286249;
+  font-weight: 650;
+  text-decoration: none;
+}
+.transparency-links h2:not(:first-child) {
+  margin-top: 34px;
+}
 textarea {
   font: inherit;
   width: 100%;

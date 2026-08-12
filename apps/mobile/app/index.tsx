@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AppState,
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -17,6 +18,7 @@ import {
   type Connection,
   type Message,
   type ReportReason,
+  type TransparencyVersion,
 } from "@openmatch/api-client";
 import {
   ALGORITHM_VERSION,
@@ -63,6 +65,9 @@ export default function App() {
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const [introductionReportOpen, setIntroductionReportOpen] = useState(false);
   const [connectionReportOpen, setConnectionReportOpen] = useState(false);
+  const [transparency, setTransparency] = useState<TransparencyVersion | null>(
+    null,
+  );
   const current = introductions[0];
   const connection = connections[0];
   const load = useCallback(async () => {
@@ -77,6 +82,7 @@ export default function App() {
         onboarding,
         nextSuggestions,
         nextAccountStatus,
+        nextTransparency,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -85,6 +91,7 @@ export default function App() {
         api.onboarding(),
         api.preferenceSuggestions(),
         api.accountStatus(),
+        api.transparencyVersion(),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -94,6 +101,7 @@ export default function App() {
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
       setAccountStatus(nextAccountStatus.status);
+      setTransparency(nextTransparency);
       setMessages(
         nextConnections.items[0]
           ? (await api.messages(nextConnections.items[0].id)).items
@@ -919,8 +927,53 @@ export default function App() {
                 </View>
               ))}
               <Text style={styles.version}>
-                Algorithm {ALGORITHM_VERSION} · No hidden factors
+                Algorithm {transparency?.matching ?? ALGORITHM_VERSION} · No
+                hidden factors · Prototype
               </Text>
+              <View style={styles.scoreCard}>
+                <Text style={styles.name}>Inspect the work</Text>
+                <Text style={styles.scoreNote}>
+                  The objective is useful introductions, not engagement.
+                  Candidate-side personal weights may be private from another
+                  user, but they are never hidden system factors.
+                </Text>
+                <Action
+                  label="Open matching source code"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://github.com/jannis-cmd/openmatch/blob/main/packages/matching/src/index.ts",
+                    )
+                  }
+                />
+                <Action
+                  label="Open evidence register"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://github.com/jannis-cmd/openmatch/blob/main/research/EVIDENCE_REGISTER.md",
+                    )
+                  }
+                />
+                <Action
+                  label="Open algorithm decisions"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://github.com/jannis-cmd/openmatch/blob/main/docs/ALGORITHM_DECISIONS.md",
+                    )
+                  }
+                />
+              </View>
+              <View style={styles.scoreCard}>
+                <Text style={styles.name}>Known limits</Text>
+                <Text style={styles.scoreNote}>
+                  This prototype cannot predict attraction, love, relationship
+                  success, or safety. Its small demo pool is not evidence of
+                  fairness or effectiveness. Those claims require prospective
+                  and independent evaluation.
+                </Text>
+              </View>
             </>
           )}
         </>

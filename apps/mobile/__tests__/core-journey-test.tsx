@@ -59,6 +59,14 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/consents")
       return response({ receipt: consentAccepted ? {} : null });
+    if (path === "/v1/transparency/version")
+      return response({
+        matching: "v0.1.0",
+        hiddenFactors: false,
+        privatePersonalInputsMayBeRedacted: true,
+        status: "prototype",
+        objective: "useful introductions, not engagement",
+      });
     if (path === "/v1/introductions")
       return response({
         items: createIntroductions(profile, demoCandidates, preferences),
@@ -137,4 +145,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     expect(screen.getByText("Introductions paused")).toBeTruthy(),
   );
   expect(accountStatus).toBe("paused");
+  await fireEvent.press(screen.getByText("Method"));
+  expect(screen.getByText("Known limits")).toBeTruthy();
+  expect(screen.getByText("Open matching source code")).toBeTruthy();
 });
