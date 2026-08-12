@@ -61,3 +61,25 @@ test("updates account visibility with an explicit state", async () => {
   });
   assert.equal(result.status, "hidden");
 });
+
+test("accepts only an explicit versioned prototype consent request", async () => {
+  let body: unknown;
+  const client = createApiClient("http://example.test", async (_url, init) => {
+    body = JSON.parse(String(init?.body));
+    return new Response(
+      JSON.stringify({
+        adultConfirmed: true,
+        prototypeDataUseAccepted: true,
+        noticeVersion: "prototype-0.1",
+        acceptedAt: "2026-08-12T12:00:00.000Z",
+      }),
+      { status: 200 },
+    );
+  });
+  const receipt = await client.acceptPrototypeConsent();
+  assert.deepEqual(body, {
+    adultConfirmed: true,
+    prototypeDataUseAccepted: true,
+  });
+  assert.equal(receipt.noticeVersion, "prototype-0.1");
+});

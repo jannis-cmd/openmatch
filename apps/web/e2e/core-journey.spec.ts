@@ -51,6 +51,16 @@ test("first run through a persistent connection and safety action", async ({
   await page
     .getByRole("combobox", { name: "Relationship intention" })
     .selectOption({ label: "Long-term relationship" });
+  await page
+    .getByRole("checkbox", {
+      name: "I confirm that I am at least 18 years old.",
+    })
+    .check();
+  await page
+    .getByRole("checkbox", {
+      name: /I understand this local prototype stores/,
+    })
+    .check();
   await page.getByRole("button", { name: "See my introductions" }).click();
 
   await expect(

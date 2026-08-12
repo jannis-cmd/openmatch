@@ -59,6 +59,8 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [draft, setDraft] = useState("");
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
+  const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const current = introductions[0];
   const connection = connections[0];
   const load = useCallback(async () => {
@@ -235,12 +237,46 @@ export default function App() {
               These settings filter and order mutually eligible people. They do
               not predict chemistry or measure anyone’s worth.
             </Text>
+            <Text style={styles.consentTitle}>
+              Before opening the prototype
+            </Text>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: adultConfirmed }}
+              style={styles.consentRow}
+              onPress={() => setAdultConfirmed(!adultConfirmed)}
+            >
+              <Text style={styles.radioMark}>{adultConfirmed ? "☑" : "☐"}</Text>
+              <Text style={styles.consentCopy}>
+                I confirm that I am at least 18 years old.
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: dataUseAccepted }}
+              style={styles.consentRow}
+              onPress={() => setDataUseAccepted(!dataUseAccepted)}
+            >
+              <Text style={styles.radioMark}>
+                {dataUseAccepted ? "☑" : "☐"}
+              </Text>
+              <Text style={styles.consentCopy}>
+                I understand this local prototype stores what I enter so its
+                features can work. I can export or delete it from Profile.
+              </Text>
+            </Pressable>
+            <Text style={styles.mathNote}>
+              Receipt version prototype-0.1. No research consent, advertising,
+              contact uploads, or hidden tracking.
+            </Text>
             <Action
               label="See my introductions"
               disabled={
                 !profile.name.trim() ||
                 !profile.city.trim() ||
-                !profile.bio.trim()
+                !profile.bio.trim() ||
+                !adultConfirmed ||
+                !dataUseAccepted
               }
               onPress={() =>
                 void api
@@ -253,6 +289,7 @@ export default function App() {
                     bio: profile.bio.trim(),
                   })
                   .then(() => api.updatePreferences(preferences))
+                  .then(() => api.acceptPrototypeConsent())
                   .then(() => api.completeOnboarding())
                   .then(load)
                   .catch(() => setError("Setup could not be saved."))
@@ -1536,4 +1573,13 @@ const styles = StyleSheet.create({
   },
   statusCopy: { flex: 2 },
   statusTitle: { color: "#294536", fontWeight: "700", fontSize: 15 },
+  consentTitle: { marginTop: 24, marginBottom: 8, fontWeight: "700" },
+  consentRow: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    paddingVertical: 9,
+  },
+  consentCopy: { flex: 1, color: "#4F554F", lineHeight: 21 },
 });

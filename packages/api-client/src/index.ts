@@ -24,6 +24,12 @@ export type Message = {
 export type ReportReason =
   "harassment" | "scam" | "impersonation" | "offline_safety" | "other";
 export type AccountStatus = "active" | "paused" | "hidden";
+export type ConsentReceipt = {
+  adultConfirmed: true;
+  prototypeDataUseAccepted: true;
+  noticeVersion: "prototype-0.1";
+  acceptedAt: string;
+};
 
 export class ApiError extends Error {
   constructor(
@@ -90,6 +96,15 @@ export function createApiClient(
       ),
     completeOnboarding: () =>
       request<{ complete: true }>("/v1/onboarding/complete", json("POST")),
+    consent: () => request<{ receipt: ConsentReceipt | null }>("/v1/consents"),
+    acceptPrototypeConsent: () =>
+      request<ConsentReceipt>(
+        "/v1/consents",
+        json("PATCH", {
+          adultConfirmed: true,
+          prototypeDataUseAccepted: true,
+        }),
+      ),
     introductions: () =>
       request<{ items: Introduction[]; finite: true; remaining: number }>(
         "/v1/introductions",

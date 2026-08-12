@@ -28,6 +28,9 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ).complete,
       false,
     );
+    assert.deepEqual(await (await request("/v1/consents")).json(), {
+      receipt: null,
+    });
     assert.equal(
       (
         await request("/v1/me", {
@@ -70,6 +73,25 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       ageMax: number;
     };
     assert.ok(afterInvalid.ageMin < afterInvalid.ageMax);
+    assert.deepEqual(await (await request("/v1/consents")).json(), {
+      receipt: null,
+    });
+    assert.equal(
+      (await request("/v1/onboarding/complete", { method: "POST" })).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request("/v1/consents", {
+          method: "PATCH",
+          body: JSON.stringify({
+            adultConfirmed: true,
+            prototypeDataUseAccepted: true,
+          }),
+        })
+      ).status,
+      200,
+    );
     assert.equal(
       (await request("/v1/onboarding/complete", { method: "POST" })).status,
       200,
@@ -203,12 +225,14 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       blocks: unknown[];
       preferenceObservations: unknown[];
       accountStatus: string;
+      consentReceipt: { noticeVersion: string };
     };
     assert.equal(dataExport.profile.id, "me");
     assert.equal(dataExport.reports.length, 2);
     assert.equal(dataExport.blocks.length, 2);
     assert.equal(dataExport.preferenceObservations.length, 1);
     assert.equal(dataExport.accountStatus, "active");
+    assert.equal(dataExport.consentReceipt.noticeVersion, "prototype-0.1");
     assert.equal((await request("/v1/me", { method: "DELETE" })).status, 204);
     assert.equal(
       (

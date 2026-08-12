@@ -24,6 +24,12 @@ export type Message = {
   createdAt: string;
 };
 export type AccountStatus = "active" | "paused" | "hidden";
+export type ConsentReceipt = {
+  adultConfirmed: true;
+  prototypeDataUseAccepted: true;
+  noticeVersion: "prototype-0.1";
+  acceptedAt: string;
+};
 
 export class Store {
   readonly db: DatabaseSync;
@@ -52,6 +58,7 @@ export class Store {
     insert.run("preferences", JSON.stringify(defaultPreferences));
     insert.run("onboarding_complete", JSON.stringify(false));
     insert.run("account_status", JSON.stringify("active"));
+    insert.run("consent_receipt", JSON.stringify(null));
   }
 
   private getState<T>(key: string): T {
@@ -96,6 +103,19 @@ export class Store {
   completeOnboarding() {
     this.setState("onboarding_complete", true);
     return { complete: true as const };
+  }
+  consentReceipt() {
+    return this.getState<ConsentReceipt | null>("consent_receipt");
+  }
+  acceptPrototypeConsent() {
+    const receipt: ConsentReceipt = {
+      adultConfirmed: true,
+      prototypeDataUseAccepted: true,
+      noticeVersion: "prototype-0.1",
+      acceptedAt: new Date().toISOString(),
+    };
+    this.setState("consent_receipt", receipt);
+    return receipt;
   }
   accountStatus() {
     return this.getState<AccountStatus>("account_status");
@@ -261,6 +281,7 @@ export class Store {
       profile: this.profile(),
       preferences: this.preferences(),
       onboardingComplete: this.onboardingComplete(),
+      consentReceipt: this.consentReceipt(),
       accountStatus: this.accountStatus(),
       decisions: this.db
         .prepare(

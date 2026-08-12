@@ -223,6 +223,7 @@ function AppExperience({ exit }: { exit: () => void }) {
                     bio: profile.bio.trim(),
                   });
                   await api.updatePreferences(preferences);
+                  await api.acceptPrototypeConsent();
                   await api.completeOnboarding();
                   setProfile(saved);
                   await load();
@@ -848,12 +849,16 @@ function OnboardingView({
   onPreferences: (value: Preferences) => void;
   complete: () => Promise<void>;
 }) {
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
+  const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const valid =
     profile.name.trim().length > 0 &&
     profile.city.trim().length > 0 &&
     profile.bio.trim().length > 0 &&
     profile.age >= 18 &&
-    profile.age <= 120;
+    profile.age <= 120 &&
+    adultConfirmed &&
+    dataUseAccepted;
   return (
     <div className="narrow">
       <p className="eyebrow">A small, honest beginning</p>
@@ -1019,6 +1024,31 @@ function OnboardingView({
           These priorities order mutually eligible people. They do not measure
           anyone’s worth or predict chemistry.
         </p>
+        <div className="prototype-consent">
+          <h3>Before opening the prototype</h3>
+          <label>
+            <input
+              type="checkbox"
+              checked={adultConfirmed}
+              onChange={(event) => setAdultConfirmed(event.target.checked)}
+            />
+            I confirm that I am at least 18 years old.
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={dataUseAccepted}
+              onChange={(event) => setDataUseAccepted(event.target.checked)}
+            />
+            I understand this local prototype stores the profile, preferences,
+            decisions, messages, and safety actions I enter so its features can
+            work. I can export or delete them from Profile.
+          </label>
+          <p className="help">
+            Receipt version prototype-0.1. This is not consent to research,
+            advertising, contact uploads, or hidden tracking.
+          </p>
+        </div>
         <button
           className="interest"
           disabled={!valid}

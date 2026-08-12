@@ -135,7 +135,23 @@ export function createApp(
         request.method === "POST" &&
         url.pathname === "/v1/onboarding/complete"
       )
-        return send(response, 200, store.completeOnboarding());
+        return store.consentReceipt()
+          ? send(response, 200, store.completeOnboarding())
+          : send(response, 400, { error: "prototype_consent_required" });
+      if (request.method === "GET" && url.pathname === "/v1/consents")
+        return send(response, 200, { receipt: store.consentReceipt() });
+      if (request.method === "PATCH" && url.pathname === "/v1/consents") {
+        const body = (await readJson(request)) as {
+          adultConfirmed?: unknown;
+          prototypeDataUseAccepted?: unknown;
+        };
+        if (
+          body.adultConfirmed !== true ||
+          body.prototypeDataUseAccepted !== true
+        )
+          return send(response, 400, { error: "invalid_prototype_consent" });
+        return send(response, 200, store.acceptPrototypeConsent());
+      }
       if (request.method === "GET" && url.pathname === "/v1/introductions") {
         if (store.accountStatus() !== "active")
           return send(response, 200, {

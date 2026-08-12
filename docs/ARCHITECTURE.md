@@ -43,7 +43,7 @@ The temporary `x-demo-session: openmatch-local-demo` header makes the lack of pr
 
 ## Core API surface
 
-`POST /v1/accounts`, `GET/PATCH/DELETE /v1/me`, `GET/PATCH /v1/account/status`, `GET/PATCH /v1/profile`, `GET/PATCH /v1/preferences`, `GET /v1/introductions`, `POST /v1/introductions/{id}/decision`, `GET/POST /v1/connections`, `GET/POST /v1/connections/{id}/messages`, `POST /v1/reports`, `POST /v1/blocks`, `GET/PATCH /v1/consents`, `POST /v1/export`, `GET /v1/transparency/version`.
+`POST /v1/accounts`, `GET/PATCH/DELETE /v1/me`, `GET/PATCH /v1/account/status`, `GET/PATCH /v1/profile`, `GET/PATCH /v1/preferences`, `GET /v1/introductions`, `POST /v1/introductions/{id}/decision`, `GET/POST /v1/connections`, `GET/POST /v1/connections/{id}/messages`, `POST /v1/reports`, `POST /v1/blocks`, `GET/PATCH /v1/consents`, `POST /v1/export`, `GET /v1/transparency/version`. The local prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete; it is not research consent or a substitute for pilot legal review.
 
 All list endpoints use opaque pagination. Error schemas are public. Authorization and rate limits are explicit in OpenAPI before implementation.
 

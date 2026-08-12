@@ -19,6 +19,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let profile = structuredClone(demoUser);
   let preferences = structuredClone(defaultPreferences);
   let accountStatus = "active";
+  let consentAccepted = false;
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
     const body = init.body ? JSON.parse(String(init.body)) : {};
@@ -46,6 +47,17 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/account/status")
       return response({ status: accountStatus });
+    if (path === "/v1/consents" && init.method === "PATCH") {
+      consentAccepted = true;
+      return response({
+        adultConfirmed: true,
+        prototypeDataUseAccepted: true,
+        noticeVersion: "prototype-0.1",
+        acceptedAt: "2026-08-12T12:00:00.000Z",
+      });
+    }
+    if (path === "/v1/consents")
+      return response({ receipt: consentAccepted ? {} : null });
     if (path === "/v1/introductions")
       return response({
         items: createIntroductions(profile, demoCandidates, preferences),
@@ -71,6 +83,12 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   expect(screen.getByLabelText("Lower proximity priority")).toBeTruthy();
   expect(screen.getByLabelText("Raise proximity priority")).toBeTruthy();
+  await fireEvent.press(
+    screen.getByText("I confirm that I am at least 18 years old."),
+  );
+  await fireEvent.press(
+    screen.getByText(/I understand this local prototype stores what I enter/),
+  );
   await fireEvent.press(screen.getByText("See my introductions"));
   await waitFor(() =>
     expect(screen.getByText("Your introductions")).toBeTruthy(),
@@ -81,6 +99,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(profile.name).toBe("Taylor");
   expect(profile.city).toBe("Winterthur");
   expect(onboardingComplete).toBe(true);
+  expect(consentAccepted).toBe(true);
   await fireEvent.press(screen.getByText("Preferences"));
   await fireEvent.press(screen.getByLabelText("Lower youngest age"));
   await waitFor(() => expect(preferences.ageMin).toBe(26));
