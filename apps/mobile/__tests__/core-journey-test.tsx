@@ -28,11 +28,20 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let reportPayload: { reason?: string; details?: string } | null = null;
   let connectionActive = false;
   let meetingPreference = "not_asked";
+  let demoSessionRequests = 0;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
     const body = init.body ? JSON.parse(String(init.body)) : {};
+    if (path === "/v1/demo/session") {
+      demoSessionRequests += 1;
+      return response({
+        token: "t".repeat(43),
+        expiresAt: "2026-08-13T00:00:00.000Z",
+        authentication: false,
+      });
+    }
     if (path === "/v1/me" && init.method === "DELETE") {
       onboardingComplete = false;
       consentAccepted = false;
@@ -249,6 +258,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.getByText("Your introductions")).toBeTruthy(),
   );
+  expect(demoSessionRequests).toBe(1);
   expect(profile.promptAnswer).toBe("Building a welcoming table.");
   expect(profile.values).toEqual(["Care", "Curiosity"]);
   expect(screen.getByText("Mara, 30")).toBeTruthy();
@@ -369,6 +379,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Mutual boundaries are satisfied"));
   expect(screen.getByText("Final score: 0%")).toBeTruthy();
   expect(screen.getByText("Known limits")).toBeTruthy();
+  expect(screen.getByText(/temporary bearer token only gates/)).toBeTruthy();
   expect(screen.getByText("Open matching source code")).toBeTruthy();
   expect(screen.getByText("Open data inventory")).toBeTruthy();
   expect(screen.getByText("Safer dating")).toBeTruthy();

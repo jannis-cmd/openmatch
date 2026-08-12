@@ -84,18 +84,53 @@ export function createApiClient(
   baseUrl: string,
   fetcher: typeof fetch = fetch,
 ) {
+  const origin = baseUrl.replace(/\/$/, "");
+  let sessionPromise: Promise<string> | null = null;
+  const createDemoSession = async () => {
+    const response = await fetcher(`${origin}/v1/demo/session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      throw new ApiError(
+        response.status,
+        body.error ?? "demo_session_unavailable",
+      );
+    }
+    const body = (await response.json()) as { token?: unknown };
+    if (typeof body.token !== "string" || body.token.length < 32)
+      throw new ApiError(500, "invalid_demo_session");
+    return body.token;
+  };
+  const sessionToken = () =>
+    (sessionPromise ??= createDemoSession().catch((error) => {
+      sessionPromise = null;
+      throw error;
+    }));
   const request = async <T>(
     path: string,
     init: RequestInit = {},
   ): Promise<T> => {
-    const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
-      ...init,
-      headers: {
-        "content-type": "application/json",
-        "x-demo-session": "openmatch-local-demo",
-        ...init.headers,
-      },
-    });
+    const perform = async (retry: boolean): Promise<Response> => {
+      const token = await sessionToken();
+      const response = await fetcher(`${origin}${path}`, {
+        ...init,
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${token}`,
+          ...init.headers,
+        },
+      });
+      if (response.status === 401 && retry) {
+        sessionPromise = null;
+        return perform(false);
+      }
+      return response;
+    };
+    const response = await perform(true);
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as {
         error?: string;

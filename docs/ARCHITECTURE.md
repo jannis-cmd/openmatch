@@ -36,7 +36,14 @@ The development API uses Node's built-in SQLite interface directly, with schema 
 
 The release gate is intentionally layered: pure matching invariants, API/client contract tests, a native component journey under `jest-expo`, and one Chromium journey that exercises the durable vertical slice and runs WCAG 2.2 A/AA rules at setup, explanation, and conversation states. Device-level assistive-technology and native end-to-end testing remain required before a pilot.
 
-The temporary `x-demo-session: openmatch-local-demo` header makes the lack of production authentication explicit. It is not a security mechanism and must be replaced by passkey/email session authentication before any networked pilot.
+The development API has no universal credential. When explicitly enabled, it
+issues a random 256-bit bearer token with a 12-hour default lifetime, retains
+only its SHA-256 hash in process memory, and lets the clients renew after an API
+restart or expiry. This prevents a reusable secret from shipping in every app,
+but all tokens still reach one shared demo identity and datastore. It is session
+gating—not authentication, authorization, or user isolation—and must be
+replaced by passkey/email authentication and account-partitioned storage before
+any networked pilot.
 
 Native development may explicitly target a local HTTP origin. EAS development,
 preview, and production builds instead read a plain HTTPS origin from their

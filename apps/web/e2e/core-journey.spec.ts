@@ -105,6 +105,9 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "3 remaining" }),
   ).toBeVisible();
+  expect(
+    publicApiRequests.filter((url) => url.endsWith("/v1/demo/session")),
+  ).toHaveLength(1);
   await page.getByRole("button", { name: "Your profile" }).click();
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByLabel("Profile prompt")).toBeVisible();
@@ -312,6 +315,9 @@ test("first run through a persistent connection and safety action", async ({
   expect(calculatorApiRequests).toEqual([]);
   await expect(
     page.getByRole("heading", { name: "Known limits" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/temporary bearer token only gates/),
   ).toBeVisible();
   await expect(
     page.getByText("Deployed code: unpinned development build"),

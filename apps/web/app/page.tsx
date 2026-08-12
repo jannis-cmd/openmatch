@@ -2424,6 +2424,11 @@ function AboutView({
           effectiveness. Those claims require prospective and independent
           evaluation.
         </p>
+        <p>
+          The temporary bearer token only gates this shared local demo. It does
+          not verify identity or isolate one person’s data from another client.
+          Do not use this API with real profiles.
+        </p>
       </section>
       <section className="transparency-links settings-card">
         <h2>Safer dating</h2>

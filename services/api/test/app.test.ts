@@ -10,9 +10,21 @@ import {
 import { createApp } from "../src/app.ts";
 import { Store } from "../src/store.ts";
 
-const headers = {
-  "content-type": "application/json",
-  "x-demo-session": "openmatch-local-demo",
+const sessionHeaders = async (base: string) => {
+  const response = await fetch(`${base}/v1/demo/session`, { method: "POST" });
+  assert.equal(response.status, 201);
+  const body = (await response.json()) as {
+    token: string;
+    expiresAt: string;
+    authentication: boolean;
+  };
+  assert.equal(body.authentication, false);
+  assert.ok(body.token.length >= 32);
+  assert.ok(Date.parse(body.expiresAt) > Date.now());
+  return {
+    "content-type": "application/json",
+    authorization: `Bearer ${body.token}`,
+  };
 };
 
 test("account reset is atomic when storage rejects a deletion", () => {
@@ -57,6 +69,7 @@ test("the public data inventory covers every current storage and export field", 
     }>;
   };
   const expected: Record<string, string[]> = {
+    demoSessions: ["tokenHash", "expiresAt"],
     profile: [
       "id",
       "name",
@@ -146,11 +159,13 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
   const server = createApp({
     store: new Store(":memory:"),
     deployedCommit: null,
+    demoSessionsEnabled: true,
   }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
   const base = `http://127.0.0.1:${address.port}`;
+  const headers = await sessionHeaders(base);
   const request = (path: string, init: RequestInit = {}) =>
     fetch(base + path, { ...init, headers: { ...headers, ...init.headers } });
   try {
@@ -742,7 +757,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
   }
 });
 
-test("requires the explicit local demo session header", async () => {
+test("demo sessions are opt-in and opaque bearer tokens are required", async () => {
   const server = createApp({ store: new Store(":memory:") }).listen(
     0,
     "127.0.0.1",
@@ -752,23 +767,64 @@ test("requires the explicit local demo session header", async () => {
   assert.ok(address && typeof address === "object");
   try {
     assert.equal(
+      (
+        await fetch(`http://127.0.0.1:${address.port}/v1/demo/session`, {
+          method: "POST",
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
       (await fetch(`http://127.0.0.1:${address.port}/v1/me`)).status,
       401,
     );
   } finally {
     server.close();
   }
+
+  const enabledServer = createApp({
+    store: new Store(":memory:"),
+    demoSessionsEnabled: true,
+    demoSessionTtlMs: 60_000,
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) =>
+    enabledServer.once("listening", resolve),
+  );
+  const enabledAddress = enabledServer.address();
+  assert.ok(enabledAddress && typeof enabledAddress === "object");
+  const base = `http://127.0.0.1:${enabledAddress.port}`;
+  try {
+    const first = await sessionHeaders(base);
+    const second = await sessionHeaders(base);
+    assert.notEqual(first.authorization, second.authorization);
+    assert.equal(
+      (await fetch(`${base}/v1/me`, { headers: first })).status,
+      200,
+    );
+    assert.equal(
+      (
+        await fetch(`${base}/v1/me`, {
+          headers: { "x-demo-session": "openmatch-local-demo" },
+        })
+      ).status,
+      401,
+    );
+  } finally {
+    enabledServer.close();
+  }
 });
 
 test("throttles authenticated API traffic with a retry window", async () => {
   const server = createApp({
     store: new Store(":memory:"),
-    rateLimit: { maximum: 2, windowMs: 60_000 },
+    rateLimit: { maximum: 3, windowMs: 60_000 },
+    demoSessionsEnabled: true,
   }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
   const url = `http://127.0.0.1:${address.port}`;
+  const headers = await sessionHeaders(url);
   try {
     assert.equal((await fetch(`${url}/health`)).status, 200);
     assert.equal(
@@ -799,10 +855,13 @@ test("publishes only a validated deployed revision", async () => {
   const server = createApp({
     store: new Store(":memory:"),
     deployedCommit: "ABCDEF1234567",
+    demoSessionsEnabled: true,
   }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  const headers = await sessionHeaders(base);
   try {
     const result = (await (
       await fetch(`http://127.0.0.1:${address.port}/v1/transparency/version`, {
@@ -820,11 +879,13 @@ test("limits local origins, payload size, and profile identifiers", async () => 
   const server = createApp({
     store: new Store(":memory:"),
     allowedOrigins: ["http://localhost:3000"],
+    demoSessionsEnabled: true,
   }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
   assert.ok(address && typeof address === "object");
   const base = `http://127.0.0.1:${address.port}`;
+  const headers = await sessionHeaders(base);
   try {
     const allowed = await fetch(`${base}/v1/me`, {
       headers: { ...headers, origin: "http://localhost:3000" },

@@ -6,11 +6,11 @@ The OpenMatch web app has two deliberately separate modes:
    `NEXT_PUBLIC_OPENMATCH_API_URL`. The complete landing page, research links,
    transparency material, safety resources, and offline score calculator work.
    Demo buttons are visibly unavailable and make no network request.
-2. **Interactive service:** build with a plain HTTPS API origin. This mode is
-   reserved for a service that has production authentication, authorization,
-   abuse controls, monitoring, and the other pilot prerequisites. The current
-   static demo-session header is not authentication, so the prototype API must
-   not be exposed publicly.
+2. **Interactive development demo:** build with a plain HTTPS API origin only
+   for a deliberately isolated test environment. The API must explicitly enable
+   demo-session issuance. Random expiring tokens replace the old universal
+   credential, but every token still reaches one shared demo identity. This is
+   not suitable for real users or a public network service.
 
 ## Publish the public site now
 
@@ -26,9 +26,9 @@ Do not set `NEXT_PUBLIC_OPENMATCH_API_URL`. The production build fails closed at
 the demo boundary instead of trying a visitor's localhost or another implicit
 endpoint.
 
-## Configure a future interactive deployment
+## Configure an isolated interactive demo
 
-Only after the API is safe for a networked pilot:
+For a controlled development environment only:
 
 ```bash
 NEXT_PUBLIC_OPENMATCH_API_URL=https://api.example.org \
@@ -42,4 +42,6 @@ fragment. Because public environment values are embedded at build time, rebuild
 after changing the endpoint.
 
 Configure `OPENMATCH_ALLOWED_ORIGINS` on the API with the exact public web
-origin. A wildcard is not an acceptable substitute.
+origin and set `OPENMATCH_ENABLE_DEMO_SESSIONS=true`. A wildcard is not an
+acceptable substitute. Before any pilot, replace this entire demo-session path
+with account authentication and user-partitioned authorization.

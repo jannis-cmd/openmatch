@@ -70,7 +70,7 @@ The repository now contains a thin, local-first vertical slice:
 
 Run `pnpm dev`, then open the web app at `http://localhost:3000` or launch the Expo client. The web and mobile clients both use the API at `http://127.0.0.1:4000` by default. The API stores local demo state in `openmatch.sqlite`; `POST /v1/demo/reset` restores the sample state.
 
-For Android Emulator, start with `EXPO_PUBLIC_OPENMATCH_API_URL=http://10.0.2.2:4000 pnpm --filter @openmatch/mobile android`. For a physical device, set `HOST=0.0.0.0` for the API and point `EXPO_PUBLIC_OPENMATCH_API_URL` at the development computer's LAN address. These settings are development-only; the demo header is not production authentication.
+For Android Emulator, start with `EXPO_PUBLIC_OPENMATCH_API_URL=http://10.0.2.2:4000 pnpm --filter @openmatch/mobile android`. For a physical device, set `HOST=0.0.0.0` for the API and point `EXPO_PUBLIC_OPENMATCH_API_URL` at the development computer's LAN address. These settings are development-only. Each client obtains a random, expiring in-memory bearer token, but that gates one shared demo identity and is not production authentication.
 
 EAS builds contain no committed endpoint and require a separately configured
 plain HTTPS API origin. See `docs/TESTFLIGHT.md`; distributed builds are not
@@ -81,10 +81,10 @@ If the web client runs on another development origin, add it explicitly with `OP
 A production web build with no API URL is intentionally a complete public
 landing/transparency site with the demo disabled; it never falls back to a
 visitor's localhost. See `docs/WEB_DEPLOYMENT.md`. Do not configure a hosted
-interactive demo until the static demo session has been replaced by production
-authentication.
+interactive demo until the shared demo identity has been replaced by production
+authentication and user-partitioned storage.
 
-Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, text-only messages, unmatch, block, structured reports, and an explicit local demo-session boundary. Production authentication, real photos, moderation staffing/tools, encryption key management, and deployment remain future milestones.
+Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, text-only messages, unmatch, block, structured reports, and opt-in expiring local demo sessions. Production authentication, user-partitioned storage, real photos, moderation staffing/tools, encryption key management, and deployment remain future milestones.
 
 ## License
 

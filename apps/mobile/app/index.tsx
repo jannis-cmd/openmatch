@@ -1370,6 +1370,11 @@ export default function App() {
                   fairness or effectiveness. Those claims require prospective
                   and independent evaluation.
                 </Text>
+                <Text style={styles.scoreNote}>
+                  The temporary bearer token only gates this shared local demo.
+                  It does not verify identity or isolate one person’s data from
+                  another client. Do not use this API with real profiles.
+                </Text>
               </View>
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Safer dating</Text>

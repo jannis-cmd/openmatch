@@ -2,27 +2,49 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ApiError, createApiClient } from "../src/index.ts";
 
-test("sends the explicit demo session and JSON body", async () => {
+const demoToken = "t".repeat(43);
+const withDemoSession = (
+  handler: (
+    url: string | URL | Request,
+    init?: RequestInit,
+  ) => Promise<Response>,
+): typeof fetch =>
+  (async (url, init) =>
+    String(url).endsWith("/v1/demo/session")
+      ? new Response(
+          JSON.stringify({
+            token: demoToken,
+            expiresAt: "2026-08-13T00:00:00.000Z",
+            authentication: false,
+          }),
+          { status: 201 },
+        )
+      : handler(url, init)) as typeof fetch;
+
+test("bootstraps an opaque demo session and sends a bearer token", async () => {
   let received: { url?: string; init?: RequestInit } = {};
-  const client = createApiClient("http://example.test/", async (url, init) => {
-    received = { url: String(url), init };
-    return new Response(
-      JSON.stringify({
-        profileId: "mara",
-        decision: "interested",
-        mutual: true,
-      }),
-      { status: 200 },
-    );
-  });
+  const client = createApiClient(
+    "http://example.test/",
+    withDemoSession(async (url, init) => {
+      received = { url: String(url), init };
+      return new Response(
+        JSON.stringify({
+          profileId: "mara",
+          decision: "interested",
+          mutual: true,
+        }),
+        { status: 200 },
+      );
+    }),
+  );
   const result = await client.decide("mara", "interested");
   assert.equal(
     received.url,
     "http://example.test/v1/introductions/mara/decision",
   );
   assert.equal(
-    new Headers(received.init?.headers).get("x-demo-session"),
-    "openmatch-local-demo",
+    new Headers(received.init?.headers).get("authorization"),
+    `Bearer ${demoToken}`,
   );
   assert.deepEqual(JSON.parse(String(received.init?.body)), {
     decision: "interested",
@@ -33,10 +55,12 @@ test("sends the explicit demo session and JSON body", async () => {
 test("turns API failures into inspectable errors", async () => {
   const client = createApiClient(
     "http://example.test",
-    async () =>
-      new Response(JSON.stringify({ error: "invalid_message" }), {
-        status: 400,
-      }),
+    withDemoSession(
+      async () =>
+        new Response(JSON.stringify({ error: "invalid_message" }), {
+          status: 400,
+        }),
+    ),
   );
   await assert.rejects(
     () => client.sendMessage("connection-mara", ""),
@@ -47,12 +71,46 @@ test("turns API failures into inspectable errors", async () => {
   );
 });
 
+test("shares one bootstrap across concurrent requests and renews after 401", async () => {
+  let bootstraps = 0;
+  let protectedCalls = 0;
+  const client = createApiClient("http://example.test", (async (url) => {
+    if (String(url).endsWith("/v1/demo/session")) {
+      bootstraps += 1;
+      return new Response(
+        JSON.stringify({ token: String(bootstraps).repeat(43) }),
+        { status: 201 },
+      );
+    }
+    protectedCalls += 1;
+    if (protectedCalls === 1)
+      return new Response(JSON.stringify({ error: "demo_session_required" }), {
+        status: 401,
+      });
+    return new Response(JSON.stringify({ complete: false }), { status: 200 });
+  }) as typeof fetch);
+
+  const [first, second] = await Promise.all([
+    client.onboarding(),
+    client.onboarding(),
+  ]);
+  assert.equal(first.complete, false);
+  assert.equal(second.complete, false);
+  assert.equal(bootstraps, 2);
+  assert.equal(protectedCalls, 3);
+});
+
 test("updates account visibility with an explicit state", async () => {
   let received: { url?: string; init?: RequestInit } = {};
-  const client = createApiClient("http://example.test", async (url, init) => {
-    received = { url: String(url), init };
-    return new Response(JSON.stringify({ status: "hidden" }), { status: 200 });
-  });
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (url, init) => {
+      received = { url: String(url), init };
+      return new Response(JSON.stringify({ status: "hidden" }), {
+        status: 200,
+      });
+    }),
+  );
   const result = await client.updateAccountStatus("hidden");
   assert.equal(received.url, "http://example.test/v1/account/status");
   assert.equal(received.init?.method, "PATCH");
@@ -64,18 +122,21 @@ test("updates account visibility with an explicit state", async () => {
 
 test("accepts only an explicit versioned prototype consent request", async () => {
   let body: unknown;
-  const client = createApiClient("http://example.test", async (_url, init) => {
-    body = JSON.parse(String(init?.body));
-    return new Response(
-      JSON.stringify({
-        adultConfirmed: true,
-        prototypeDataUseAccepted: true,
-        noticeVersion: "prototype-0.1",
-        acceptedAt: "2026-08-12T12:00:00.000Z",
-      }),
-      { status: 200 },
-    );
-  });
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          adultConfirmed: true,
+          prototypeDataUseAccepted: true,
+          noticeVersion: "prototype-0.1",
+          acceptedAt: "2026-08-12T12:00:00.000Z",
+        }),
+        { status: 200 },
+      );
+    }),
+  );
   const receipt = await client.acceptPrototypeConsent();
   assert.deepEqual(body, {
     adultConfirmed: true,
@@ -86,18 +147,21 @@ test("accepts only an explicit versioned prototype consent request", async () =>
 
 test("returns the server-confirmed deletion receipt", async () => {
   let receivedMethod: string | undefined;
-  const client = createApiClient("http://example.test", async (_url, init) => {
-    receivedMethod = init?.method;
-    return new Response(
-      JSON.stringify({
-        deleted: true,
-        completedAt: "2026-08-12T12:00:00.000Z",
-        mode: "synchronous-local-prototype",
-        applicationBackups: "none",
-      }),
-      { status: 200 },
-    );
-  });
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (_url, init) => {
+      receivedMethod = init?.method;
+      return new Response(
+        JSON.stringify({
+          deleted: true,
+          completedAt: "2026-08-12T12:00:00.000Z",
+          mode: "synchronous-local-prototype",
+          applicationBackups: "none",
+        }),
+        { status: 200 },
+      );
+    }),
+  );
   const receipt = await client.deleteAccountData();
   assert.equal(receivedMethod, "DELETE");
   assert.equal(receipt.deleted, true);
@@ -107,15 +171,19 @@ test("returns the server-confirmed deletion receipt", async () => {
 
 test("updates a reversible meeting-planning preference", async () => {
   let received: { url?: string; body?: unknown } = {};
-  const client = createApiClient("http://example.test", async (url, init) => {
-    received = {
-      url: String(url),
-      body: JSON.parse(String(init?.body)),
-    };
-    return new Response(JSON.stringify({ meetingPreference: "open_to_plan" }), {
-      status: 200,
-    });
-  });
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (url, init) => {
+      received = {
+        url: String(url),
+        body: JSON.parse(String(init?.body)),
+      };
+      return new Response(
+        JSON.stringify({ meetingPreference: "open_to_plan" }),
+        { status: 200 },
+      );
+    }),
+  );
   const result = await client.updateMeetingPreference(
     "connection-mara",
     "open_to_plan",
@@ -130,19 +198,22 @@ test("updates a reversible meeting-planning preference", async () => {
 
 test("sends message safety acknowledgement only after client confirmation", async () => {
   let body: unknown;
-  const client = createApiClient("http://example.test", async (_url, init) => {
-    body = JSON.parse(String(init?.body));
-    return new Response(
-      JSON.stringify({
-        id: 1,
-        connectionId: "connection-mara",
-        senderId: "me",
-        text: "See https://example.com",
-        createdAt: "2026-08-12T12:00:00.000Z",
-      }),
-      { status: 201 },
-    );
-  });
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({
+          id: 1,
+          connectionId: "connection-mara",
+          senderId: "me",
+          text: "See https://example.com",
+          createdAt: "2026-08-12T12:00:00.000Z",
+        }),
+        { status: 201 },
+      );
+    }),
+  );
   await client.sendMessage("connection-mara", "See https://example.com", true);
   assert.deepEqual(body, {
     text: "See https://example.com",

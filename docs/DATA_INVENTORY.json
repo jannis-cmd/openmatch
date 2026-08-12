@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "status": "local-prototype",
   "updated": "2026-08-12",
-  "scope": "Fields persisted by the local OpenMatch API or created in a user export. Demo candidate fixtures are source code, not user records.",
+  "scope": "Fields persisted by the local OpenMatch API, held temporarily for an enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
     "accountDeletion": "DELETE /v1/me synchronously removes every user record and restores only non-personal demo defaults.",
@@ -14,6 +14,15 @@
     "operator": "A person with filesystem access to the development machine. There is no production staff role model yet."
   },
   "collections": [
+    {
+      "id": "demoSessions",
+      "storage": "API process memory only",
+      "purpose": "Authorize one temporary local client without shipping a universal reusable credential.",
+      "retention": "At most 12 hours by default or until the API process stops; not included in export or SQLite.",
+      "access": ["service"],
+      "fields": ["tokenHash", "expiresAt"],
+      "disclosure": "The raw random bearer token is returned once to the requesting client and held only in that client's memory. The service retains only its SHA-256 hash. This is session gating, not identity authentication or user-data isolation."
+    },
     {
       "id": "profile",
       "storage": "state.profile JSON",

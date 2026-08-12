@@ -3,6 +3,7 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
+import { createHash, randomBytes } from "node:crypto";
 import {
   ALGORITHM_VERSION,
   POLITE_CLOSE_MESSAGE,
@@ -20,7 +21,7 @@ const send = (response: ServerResponse, status: number, body: unknown) => {
   response.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "access-control-allow-methods": "GET,PATCH,POST,DELETE,OPTIONS",
-    "access-control-allow-headers": "content-type,x-demo-session",
+    "access-control-allow-headers": "authorization,content-type",
     "cache-control": "no-store",
     "referrer-policy": "no-referrer",
     "x-content-type-options": "nosniff",
@@ -40,8 +41,6 @@ const readJson = async (request: IncomingMessage) => {
     ? (JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown)
     : {};
 };
-const demoSession = (request: IncomingMessage) =>
-  request.headers["x-demo-session"] === "openmatch-local-demo";
 const introductionOptions = (store: Store) => ({
   weeklySeed: publicWeeklySeed(),
   explorationSlots: store.deliverySettings().batchSize === 5 ? 1 : 0,
@@ -110,9 +109,20 @@ export function createApp(
     allowedOrigins?: string[];
     rateLimit?: { maximum: number; windowMs: number };
     deployedCommit?: string | null;
+    demoSessionsEnabled?: boolean;
+    demoSessionTtlMs?: number;
   } = {},
 ) {
   const store = options.store ?? new Store();
+  const demoSessionsEnabled =
+    options.demoSessionsEnabled ??
+    process.env.OPENMATCH_ENABLE_DEMO_SESSIONS === "true";
+  const demoSessionTtlMs = options.demoSessionTtlMs ?? 12 * 60 * 60 * 1000;
+  if (!Number.isInteger(demoSessionTtlMs) || demoSessionTtlMs < 60_000)
+    throw new RangeError("demo session lifetime must be at least one minute");
+  const demoSessions = new Map<string, number>();
+  const sessionHash = (token: string) =>
+    createHash("sha256").update(token).digest("base64url");
   const allowedOrigins = new Set(
     options.allowedOrigins ??
       (
@@ -196,8 +206,30 @@ export function createApp(
         );
         return send(response, 429, { error: "rate_limit_exceeded" });
       }
-      if (!demoSession(request))
+      if (request.method === "POST" && url.pathname === "/v1/demo/session") {
+        if (!demoSessionsEnabled)
+          return send(response, 404, { error: "demo_sessions_disabled" });
+        for (const [hash, expiry] of demoSessions)
+          if (expiry <= now) demoSessions.delete(hash);
+        const token = randomBytes(32).toString("base64url");
+        const expiresAt = now + demoSessionTtlMs;
+        demoSessions.set(sessionHash(token), expiresAt);
+        return send(response, 201, {
+          token,
+          expiresAt: new Date(expiresAt).toISOString(),
+          authentication: false,
+        });
+      }
+      const authorization = request.headers.authorization;
+      const token = authorization?.startsWith("Bearer ")
+        ? authorization.slice("Bearer ".length)
+        : null;
+      const tokenHash = token ? sessionHash(token) : null;
+      const expiresAt = tokenHash ? demoSessions.get(tokenHash) : undefined;
+      if (!token || !expiresAt || expiresAt <= now) {
+        if (tokenHash && expiresAt) demoSessions.delete(tokenHash);
         return send(response, 401, { error: "demo_session_required" });
+      }
       if (request.method === "GET" && url.pathname === "/v1/me")
         return send(response, 200, store.profile());
       if (request.method === "GET" && url.pathname === "/v1/me/export")
