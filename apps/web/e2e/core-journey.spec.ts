@@ -169,7 +169,7 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Download Android APK" }),
-  ).toHaveAttribute("href", /Qjrq_A_Zh2WRqnLOU0ElRfR1He9x95E8XloxV9lxZ6U\.apk/);
+  ).toHaveAttribute("href", /Ibt2xd84VIC9uyK9jxc2DD9ERNptQvUY8GTzSAkbjFU\.apk/);
   await expect(page.getByText("Waiting for Apple enrollment")).toBeVisible();
   const publicApiRequests: string[] = [];
   page.on("request", (request) => {
