@@ -26,6 +26,7 @@ This repository is an initial, research-backed specification and executable skel
 - `docs/PRIVACY_SECURITY.md` — data minimization and threat model
 - `docs/ARCHITECTURE.md` — mobile, web, API, and data architecture
 - `docs/TESTFLIGHT.md` — fail-closed mobile build and distribution guide
+- `docs/WEB_DEPLOYMENT.md` — landing-only and future interactive hosting modes
 - `governance/GOVERNANCE.md` — nonprofit and algorithm-change governance
 - `packages/matching` — executable transparent matching kernel
 - `packages/api-client` — dependency-free typed client shared by web and mobile
@@ -76,6 +77,12 @@ plain HTTPS API origin. See `docs/TESTFLIGHT.md`; distributed builds are not
 ready until the production-service prerequisites listed there are complete.
 
 If the web client runs on another development origin, add it explicitly with `OPENMATCH_ALLOWED_ORIGINS`. Wildcard browser access is intentionally disabled so unrelated websites cannot mutate the localhost demo service.
+
+A production web build with no API URL is intentionally a complete public
+landing/transparency site with the demo disabled; it never falls back to a
+visitor's localhost. See `docs/WEB_DEPLOYMENT.md`. Do not configure a hosted
+interactive demo until the static demo session has been replaced by production
+authentication.
 
 Implemented API capabilities include editable profile/preferences, finite introductions, mutual connections, text-only messages, unmatch, block, structured reports, and an explicit local demo-session boundary. Production authentication, real photos, moderation staffing/tools, encryption key management, and deployment remain future milestones.
 

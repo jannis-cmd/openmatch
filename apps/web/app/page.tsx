@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { resolveWebApiConfiguration } from "../lib/api-configuration.mjs";
 import {
   createApiClient,
   type AccountStatus,
@@ -34,14 +35,26 @@ type View = "today" | "connections" | "preferences" | "profile" | "about";
 type SiteView = "landing" | "sign-in" | "app";
 
 export default function Home() {
+  const demoConfiguration = useMemo(
+    () =>
+      resolveWebApiConfiguration(
+        process.env.NEXT_PUBLIC_OPENMATCH_API_URL,
+        process.env.NODE_ENV === "development",
+      ),
+    [],
+  );
   const [siteView, setSiteView] = useState<SiteView>("landing");
   useEffect(() => {
-    if (window.sessionStorage.getItem("openmatch-demo-session") === "active") {
+    const storedDemo = window.sessionStorage.getItem("openmatch-demo-session");
+    if (demoConfiguration.url && storedDemo === "active") {
       setSiteView("app");
+    } else if (!demoConfiguration.url && storedDemo) {
+      window.sessionStorage.removeItem("openmatch-demo-session");
     }
-  }, []);
+  }, [demoConfiguration.url]);
 
   const openApp = () => {
+    if (!demoConfiguration.url) return;
     window.sessionStorage.setItem("openmatch-demo-session", "active");
     setSiteView("app");
   };
@@ -53,27 +66,37 @@ export default function Home() {
 
   if (siteView === "landing") {
     return (
-      <LandingPage signIn={() => setSiteView("sign-in")} tryDemo={openApp} />
+      <LandingPage
+        signIn={() => setSiteView("sign-in")}
+        tryDemo={openApp}
+        demoError={demoConfiguration.error}
+      />
     );
   }
 
   if (siteView === "sign-in") {
     return (
-      <SignInPage back={() => setSiteView("landing")} continueToApp={openApp} />
+      <SignInPage
+        back={() => setSiteView("landing")}
+        continueToApp={openApp}
+        demoError={demoConfiguration.error}
+      />
     );
   }
 
-  return <AppExperience exit={exitApp} />;
+  return demoConfiguration.url ? (
+    <AppExperience exit={exitApp} apiUrl={demoConfiguration.url} />
+  ) : (
+    <LandingPage
+      signIn={() => setSiteView("sign-in")}
+      tryDemo={openApp}
+      demoError={demoConfiguration.error}
+    />
+  );
 }
 
-function AppExperience({ exit }: { exit: () => void }) {
-  const api = useMemo(
-    () =>
-      createApiClient(
-        process.env.NEXT_PUBLIC_OPENMATCH_API_URL ?? "http://127.0.0.1:4000",
-      ),
-    [],
-  );
+function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
+  const api = useMemo(() => createApiClient(apiUrl), [apiUrl]);
   const [view, setView] = useState<View>("today");
   const [preferences, setPreferences] = useState<Preferences>(
     structuredClone(defaultPreferences),
@@ -743,9 +766,11 @@ function Mark() {
 function LandingPage({
   signIn,
   tryDemo,
+  demoError,
 }: {
   signIn: () => void;
   tryDemo: () => void;
+  demoError: string | null;
 }) {
   return (
     <main className="landing-shell">
@@ -775,13 +800,23 @@ function LandingPage({
           ranking. No hidden score.
         </p>
         <div className="hero-actions">
-          <button className="primary-action" onClick={tryDemo}>
+          <button
+            className="primary-action"
+            onClick={tryDemo}
+            disabled={Boolean(demoError)}
+            aria-describedby={demoError ? "hosted-demo-status" : undefined}
+          >
             Try the private demo
           </button>
           <a className="text-action" href="#how">
             See how matching works <span aria-hidden="true">↓</span>
           </a>
         </div>
+        {demoError && (
+          <p className="demo-status" id="hosted-demo-status" role="status">
+            {demoError} No connection was attempted.
+          </p>
+        )}
         <div className="hero-proof" aria-label="OpenMatch commitments">
           <span>Open source</span>
           <span>Nonprofit</span>
@@ -949,7 +984,12 @@ function LandingPage({
         <p>
           The first prototype is local, transparent, and intentionally small.
         </p>
-        <button className="primary-action" onClick={tryDemo}>
+        <button
+          className="primary-action"
+          onClick={tryDemo}
+          disabled={Boolean(demoError)}
+          aria-describedby={demoError ? "hosted-demo-status" : undefined}
+        >
           Open the demo
         </button>
       </section>
@@ -1022,9 +1062,11 @@ function AlgorithmGraphic() {
 function SignInPage({
   back,
   continueToApp,
+  demoError,
 }: {
   back: () => void;
   continueToApp: () => void;
+  demoError: string | null;
 }) {
   const [email, setEmail] = useState("");
 
@@ -1046,6 +1088,9 @@ function SignInPage({
           Account authentication is not connected yet. Your email stays in this
           browser and opens the local demonstration only.
         </p>
+        {demoError && (
+          <p role="status">{demoError} No connection was attempted.</p>
+        )}
         <label htmlFor="sign-in-email">Email</label>
         <input
           id="sign-in-email"
@@ -1056,7 +1101,11 @@ function SignInPage({
           placeholder="you@example.com"
           required
         />
-        <button className="primary-action" type="submit">
+        <button
+          className="primary-action"
+          type="submit"
+          disabled={Boolean(demoError)}
+        >
           Continue to the demo
         </button>
         <button className="back-action" type="button" onClick={back}>

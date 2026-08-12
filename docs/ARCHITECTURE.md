@@ -12,6 +12,12 @@ Accessible web ───────┘       │
 Public transparency site reads only disclosure-reviewed aggregates and repository artifacts.
 ```
 
+The current web build can be deployed as the public transparency site without
+an API. In production, a missing endpoint disables only interactive demo entry
+and performs no implicit localhost request. A future interactive build must
+receive a plain HTTPS origin explicitly at build time. This separation lets the
+public-interest documentation ship before the private service is safe to host.
+
 ## Technology baseline
 
 - TypeScript monorepo with pnpm.

@@ -1017,6 +1017,18 @@ textarea {
 .primary-action:hover {
   background: #0d3c2b;
 }
+.primary-action:disabled {
+  background: #d5d9d3;
+  color: #626861;
+  cursor: not-allowed;
+}
+.demo-status {
+  max-width: 650px;
+  margin: 18px auto 0;
+  color: #626a64;
+  font-size: 14px;
+  line-height: 1.5;
+}
 .text-action {
   color: var(--landing-ink);
   text-decoration: none;
