@@ -92,6 +92,7 @@ Soft priorities are capped at five and weighted by the user as Low, Medium, or H
 - Pass is private and has no penalty. No undo monetization.
 - A connection opens only after mutual interest.
 - If fewer eligible people exist, show that honestly; never insert incompatible or inactive accounts.
+- Completed batches cannot be restarted as a repeatable feed. The executable clients publish the next Monday UTC window while stating that resolved profiles stay resolved and only newly eligible profiles may appear.
 
 The batch size is a testable starting hypothesis—not settled science. Users may select a finite alternative, and research must evaluate wellbeing and outcomes.
 

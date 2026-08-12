@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { POLITE_CLOSE_MESSAGE, publicWeeklySeed } from "@openmatch/matching";
+import {
+  POLITE_CLOSE_MESSAGE,
+  nextWeeklyBatchAt,
+  publicWeeklySeed,
+} from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
 import { Store } from "../src/store.ts";
 
@@ -317,6 +321,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       finite: true,
       remaining: 0,
       weeklySeed: publicWeeklySeed(),
+      nextBatchAt: nextWeeklyBatchAt(),
       explorationSlots: 0,
     });
     assert.equal(
@@ -346,11 +351,13 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
         };
       }>;
       weeklySeed: string;
+      nextBatchAt: string;
       explorationSlots: number;
     };
     assert.equal(introductions.items[0].explanation.candidateTrace, "private");
     assert.equal(introductions.items[0].explanation.factorsForB, null);
     assert.equal(introductions.weeklySeed, publicWeeklySeed());
+    assert.equal(introductions.nextBatchAt, nextWeeklyBatchAt());
     assert.equal(introductions.explorationSlots, 1);
     assert.equal(
       introductions.items.filter(

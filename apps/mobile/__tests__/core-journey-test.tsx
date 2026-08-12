@@ -146,6 +146,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
           .slice(0, batchSize),
         finite: true,
         remaining: 3,
+        weeklySeed: "2026-08-10",
+        nextBatchAt: "2026-08-17T00:00:00.000Z",
+        explorationSlots: 1,
       });
     if (path === "/v1/introductions/mara/decision" && init.method === "POST") {
       connectionActive = body.decision === "interested";

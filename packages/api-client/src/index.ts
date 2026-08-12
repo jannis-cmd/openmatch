@@ -36,6 +36,14 @@ export type ReportRecord = {
 };
 export type AccountStatus = "active" | "paused" | "hidden";
 export type DeliverySettings = { batchSize: 1 | 2 | 3 | 4 | 5 };
+export type IntroductionBatch = {
+  items: Introduction[];
+  finite: true;
+  remaining: number;
+  weeklySeed: string;
+  nextBatchAt: string;
+  explorationSlots: number;
+};
 export type ConsentReceipt = {
   adultConfirmed: true;
   prototypeDataUseAccepted: true;
@@ -151,14 +159,7 @@ export function createApiClient(
       ),
     transparencyVersion: () =>
       request<TransparencyVersion>("/v1/transparency/version"),
-    introductions: () =>
-      request<{
-        items: Introduction[];
-        finite: true;
-        remaining: number;
-        weeklySeed: string;
-        explorationSlots: number;
-      }>("/v1/introductions"),
+    introductions: () => request<IntroductionBatch>("/v1/introductions"),
     savedIntroductions: () =>
       request<{ items: Introduction[] }>("/v1/introductions/saved"),
     saveIntroduction: (profileId: string) =>
@@ -224,7 +225,6 @@ export function createApiClient(
         json("POST", { profileId, reason, details }),
       ),
     reports: () => request<{ items: ReportRecord[] }>("/v1/reports"),
-    reset: () => request<{ reset: true }>("/v1/demo/reset", json("POST")),
   };
 }
 

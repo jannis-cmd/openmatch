@@ -57,6 +57,7 @@ export default function App() {
   );
   const [profile, setProfile] = useState<Profile>(demoUser);
   const [introductions, setIntroductions] = useState<Introduction[]>([]);
+  const [nextBatchAt, setNextBatchAt] = useState<string | null>(null);
   const [savedIntroductions, setSavedIntroductions] = useState<Introduction[]>(
     [],
   );
@@ -124,6 +125,7 @@ export default function App() {
       setBio(nextProfile.bio);
       setPreferences(nextPreferences);
       setIntroductions(nextIntroductions.items);
+      setNextBatchAt(nextIntroductions.nextBatchAt);
       setSavedIntroductions(nextSavedIntroductions.items);
       setConnections(nextConnections.items);
       setOnboarded(onboarding.complete);
@@ -644,17 +646,27 @@ export default function App() {
                 </Text>
                 <Text style={styles.subtle}>
                   {showSaved
-                    ? "Saved profiles stay here until you return them, decide, reset, or delete this local prototype."
-                    : "No endless feed. New introductions arrive Thursday."}
+                    ? "Saved profiles stay here until you return them, decide, or delete this local prototype."
+                    : `No endless feed and no recycling decisions. The next weekly batch window begins${
+                        nextBatchAt
+                          ? ` ${new Date(nextBatchAt).toLocaleDateString(
+                              undefined,
+                              {
+                                weekday: "long",
+                                month: "long",
+                                day: "numeric",
+                                timeZone: "UTC",
+                              },
+                            )}`
+                          : " later"
+                      }. Only newly eligible profiles may appear.`}
                 </Text>
-                <Action
-                  label={showSaved ? "Back to current batch" : "Start over"}
-                  onPress={() =>
-                    showSaved
-                      ? setShowSaved(false)
-                      : void api.reset().then(load)
-                  }
-                />
+                {showSaved && (
+                  <Action
+                    label="Back to current batch"
+                    onPress={() => setShowSaved(false)}
+                  />
+                )}
               </View>
             ))}
           {tab === "Preferences" && (

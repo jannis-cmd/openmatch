@@ -9,6 +9,7 @@ import {
   explainMatch,
   messageSafetyFlags,
   nearestPriority,
+  nextWeeklyBatchAt,
   priorityLabel,
   proximityCompatibility,
   publicWeeklySeed,
@@ -181,6 +182,14 @@ test("the weekly public seed is the UTC Monday date", () => {
   assert.equal(
     publicWeeklySeed(new Date("2026-08-17T00:00:00.000Z")),
     "2026-08-17",
+  );
+  assert.equal(
+    nextWeeklyBatchAt(new Date("2026-08-16T23:59:59.000Z")),
+    "2026-08-17T00:00:00.000Z",
+  );
+  assert.equal(
+    nextWeeklyBatchAt(new Date("2026-08-17T00:00:00.000Z")),
+    "2026-08-24T00:00:00.000Z",
   );
 });
 

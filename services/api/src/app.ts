@@ -10,6 +10,7 @@ import {
   createIntroductions,
   demoCandidates,
   messageSafetyFlags,
+  nextWeeklyBatchAt,
   publicWeeklySeed,
   toPublicProfile,
 } from "@openmatch/matching";
@@ -321,6 +322,7 @@ export function createApp(
             finite: true,
             remaining: 0,
             weeklySeed: publicWeeklySeed(),
+            nextBatchAt: nextWeeklyBatchAt(),
             explorationSlots: 0,
           });
         const hidden = new Set([
@@ -334,6 +336,7 @@ export function createApp(
           finite: true,
           remaining: items.length,
           weeklySeed: publicWeeklySeed(),
+          nextBatchAt: nextWeeklyBatchAt(),
           explorationSlots: items.filter(
             ({ explanation }) => explanation.selectionMode === "exploration",
           ).length,

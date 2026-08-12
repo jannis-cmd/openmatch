@@ -618,3 +618,10 @@ export function publicWeeklySeed(date = new Date()): string {
   monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
   return monday.toISOString().slice(0, 10);
 }
+
+export function nextWeeklyBatchAt(date = new Date()): string {
+  if (Number.isNaN(date.getTime())) throw new RangeError("date must be valid");
+  const monday = new Date(`${publicWeeklySeed(date)}T00:00:00.000Z`);
+  monday.setUTCDate(monday.getUTCDate() + 7);
+  return monday.toISOString();
+}

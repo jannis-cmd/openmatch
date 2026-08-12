@@ -80,6 +80,7 @@ function AppExperience({ exit }: { exit: () => void }) {
   );
   const [profile, setProfile] = useState<Profile>(demoUser);
   const [introductions, setIntroductions] = useState<Introduction[]>([]);
+  const [nextBatchAt, setNextBatchAt] = useState<string | null>(null);
   const [savedIntroductions, setSavedIntroductions] = useState<Introduction[]>(
     [],
   );
@@ -141,6 +142,7 @@ function AppExperience({ exit }: { exit: () => void }) {
       setProfile(nextProfile);
       setPreferences(nextPreferences);
       setIntroductions(nextIntroductions.items);
+      setNextBatchAt(nextIntroductions.nextBatchAt);
       setSavedIntroductions(nextSavedIntroductions.items);
       setConnections(nextConnections.items);
       setOnboarded(onboarding.complete);
@@ -552,21 +554,24 @@ function AppExperience({ exit }: { exit: () => void }) {
                       <h2>That’s the whole set.</h2>
                       <p>
                         {showSaved
-                          ? "Saved profiles stay here until you return them, decide, reset, or delete this local prototype."
-                          : "No endless feed. New mutually eligible introductions arrive Thursday."}
+                          ? "Saved profiles stay here until you return them, decide, or delete this local prototype."
+                          : `No endless feed and no recycling decisions. The next weekly batch window begins${
+                              nextBatchAt
+                                ? ` ${new Date(nextBatchAt).toLocaleDateString(
+                                    undefined,
+                                    {
+                                      weekday: "long",
+                                      month: "long",
+                                      day: "numeric",
+                                      timeZone: "UTC",
+                                    },
+                                  )}`
+                                : " later"
+                            }. Only newly eligible profiles may appear.`}
                       </p>
-                      {showSaved ? (
+                      {showSaved && (
                         <button onClick={() => setShowSaved(false)}>
                           Back to current batch
-                        </button>
-                      ) : (
-                        <button
-                          onClick={async () => {
-                            await api.reset();
-                            await load();
-                          }}
-                        >
-                          Start over
                         </button>
                       )}
                     </div>

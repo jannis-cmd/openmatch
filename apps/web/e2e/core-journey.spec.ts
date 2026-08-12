@@ -205,6 +205,27 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "No connections yet" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Today" }).click();
+  for (let remaining = 0; remaining < 3; remaining += 1) {
+    const visibleCard = page.locator(".profile-card h2");
+    if (!(await visibleCard.isVisible())) break;
+    const previousName = await visibleCard.textContent();
+    await page.getByRole("button", { name: "Pass" }).click();
+    if (previousName)
+      await expect(
+        page.getByRole("heading", { name: previousName }),
+      ).not.toBeVisible();
+  }
+  await expect(
+    page.getByRole("heading", { name: "That’s the whole set." }),
+  ).toBeVisible();
+  await expect(page.getByText(/no recycling decisions/i)).toBeVisible();
+  await expect(
+    page.getByText(/Only newly eligible profiles may appear/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Start over" }),
+  ).not.toBeVisible();
 
   await page.getByRole("button", { name: "Preferences" }).click();
   const batchSettings = page

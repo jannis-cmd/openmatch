@@ -48,6 +48,8 @@ This design follows two evidence constraints: stated and revealed preferences ca
 
 The exploratory profile's position within the batch is also selected by the same public seed, avoiding a systematic first- or last-position advantage. The entire batch, mode, probability, and seed are then snapshotted so Save, Pass, refresh, or an app restart cannot redraw extra exploratory profiles. Profile, preference, batch-size, or weekly-seed changes intentionally create a fresh snapshot. Its selection probability is `1 / eligibleCandidateCount`; that value is recorded only if the person explicitly chooses Interested or Pass. The lottery changes selection, never eligibility or any score. This 20% allocation is a testable prototype hypothesis, not an evidence-backed optimum, and must be preregistered and compared against other allocations before a pilot.
 
+The public weekly window starts Monday at `00:00 UTC`. The API publishes both the current seed and exact next boundary. Finishing a batch offers no “start over” action: Pass/Interested resolutions remain resolved, and a later window may contain only newly eligible profiles. The development reset endpoint is not exposed by either client and is not a product replenishment mechanism.
+
 No swipe trains a global model of human desirability. Feedback belongs to the person who gave it, can be exported/deleted, and cannot reduce another person’s standing.
 
 ## Explanation object
