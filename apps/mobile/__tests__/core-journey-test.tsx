@@ -397,6 +397,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.getByText("A separate conversation with Noah.")).toBeTruthy(),
   );
+  expect(
+    screen.getByLabelText("Noah: A separate conversation with Noah."),
+  ).toBeTruthy();
   expect(screen.getByLabelText("Message Noah")).toBeTruthy();
   await fireEvent.press(screen.getByText("Mara"));
   await waitFor(() =>
@@ -430,6 +433,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.getByText("See https://example.com")).toBeTruthy(),
   );
+  expect(screen.getByLabelText("You: See https://example.com")).toBeTruthy();
   warningSpy.mockRestore();
   expect(profile.name).toBe("Taylor");
   expect(profile.city).toBe("Winterthur");

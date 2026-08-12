@@ -822,11 +822,26 @@ textarea {
   color: #858981;
 }
 .bubble {
-  align-self: flex-end;
   max-width: 75%;
-  background: #dfeae3;
   padding: 11px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bubble.sent {
+  align-self: flex-end;
+  background: #dfeae3;
   border-radius: 16px 16px 4px 16px;
+}
+.bubble.received {
+  align-self: flex-start;
+  background: #f1f1ed;
+  border-radius: 16px 16px 16px 4px;
+}
+.message-author {
+  color: #62675f;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 .composer {
   display: grid;

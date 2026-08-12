@@ -2607,11 +2607,20 @@ function ConnectionsView({
               Start with something from their profile—not a generated line.
             </p>
           ) : (
-            messages.map((message) => (
-              <p className="bubble" key={message.id}>
-                {message.text}
-              </p>
-            ))
+            messages.map((message) => {
+              const sent = message.senderId === "me";
+              const author = sent ? "You" : name;
+              return (
+                <div
+                  className={"bubble " + (sent ? "sent" : "received")}
+                  aria-label={author + ": " + message.text}
+                  key={message.id}
+                >
+                  <span className="message-author">{author}</span>
+                  <span>{message.text}</span>
+                </div>
+              );
+            })
           )}
         </div>
         {connection.profile && (

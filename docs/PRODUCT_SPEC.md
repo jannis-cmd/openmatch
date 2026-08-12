@@ -109,6 +109,7 @@ viability, transactional delivery, moderation readiness, or pilot consent.
 ### 4.5 Messaging and meeting
 
 - Text messages after mutual connection; image attachments disabled at MVP to reduce unsolicited sexual content and moderation burden.
+- Every message visibly and accessibly identifies its author; sent/received state never relies on color or alignment alone.
 - When more than one connection exists, the person explicitly chooses the conversation; drafts, messages, meeting preferences, and safety actions must never leak across that selection boundary.
 - Optional profile-specific conversation prompts, never AI-written impersonation.
 - Mute, unmatch, block, and report remain one tap away.

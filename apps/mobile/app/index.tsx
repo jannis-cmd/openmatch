@@ -1025,11 +1025,30 @@ export default function App() {
                       line.
                     </Text>
                   ) : (
-                    messages.map((message) => (
-                      <Text style={styles.mobileBubble} key={message.id}>
-                        {message.text}
-                      </Text>
-                    ))
+                    messages.map((message) => {
+                      const sent = message.senderId === "me";
+                      const author = sent
+                        ? "You"
+                        : (connection.profile?.name ?? "Connection");
+                      return (
+                        <View
+                          accessible
+                          accessibilityLabel={author + ": " + message.text}
+                          style={[
+                            styles.mobileBubble,
+                            sent
+                              ? styles.mobileBubbleSent
+                              : styles.mobileBubbleReceived,
+                          ]}
+                          key={message.id}
+                        >
+                          <Text style={styles.mobileBubbleAuthor}>
+                            {author}
+                          </Text>
+                          <Text>{message.text}</Text>
+                        </View>
+                      );
+                    })
                   )}
                   {connection.profile && (
                     <>
@@ -2887,12 +2906,26 @@ const styles = StyleSheet.create({
   connectionChoiceText: { color: "#555B55" },
   connectionChoiceTextSelected: { color: "#24513E", fontWeight: "700" },
   mobileBubble: {
-    alignSelf: "flex-end",
-    backgroundColor: "#DFEAE3",
     padding: 12,
     borderRadius: 16,
     marginBottom: 12,
     maxWidth: "85%",
+    gap: 3,
+  },
+  mobileBubbleSent: {
+    alignSelf: "flex-end",
+    backgroundColor: "#DFEAE3",
+    borderBottomRightRadius: 4,
+  },
+  mobileBubbleReceived: {
+    alignSelf: "flex-start",
+    backgroundColor: "#F1F1ED",
+    borderBottomLeftRadius: 4,
+  },
+  mobileBubbleAuthor: {
+    color: "#62675F",
+    fontSize: 12,
+    fontWeight: "700",
   },
   safetyLink: { color: "#8A4040", textAlign: "center", paddingTop: 20 },
   safetyNotice: {

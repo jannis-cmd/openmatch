@@ -297,11 +297,32 @@ test("first run through a persistent connection and safety action", async ({
   await expect(composer).toHaveValue(/You mentioned/);
   await composer.fill("Hello from the repeatable journey");
   await page.getByRole("button", { name: "Send" }).click();
+  const maraConnections = (await (
+    await request.get(apiBase + "/v1/connections", {
+      headers: maraAccount.headers,
+    })
+  ).json()) as { items: Array<{ id: string }> };
+  expect(maraConnections.items).toHaveLength(1);
+  expect(
+    (
+      await request.post(
+        apiBase +
+          "/v1/connections/" +
+          maraConnections.items[0].id +
+          "/messages",
+        {
+          headers: maraAccount.headers,
+          data: { text: "Hello back from Mara" },
+        },
+      )
+    ).status(),
+  ).toBe(201);
   await page.reload();
   await page.getByRole("button", { name: /Connections · 1/ }).click();
   await expect(
-    page.getByText("Hello from the repeatable journey"),
+    page.getByLabel("You: Hello from the repeatable journey"),
   ).toBeVisible();
+  await expect(page.getByLabel("Mara: Hello back from Mara")).toBeVisible();
   await expectAccessible(page);
 
   await page.getByRole("button", { name: "Today" }).click();
