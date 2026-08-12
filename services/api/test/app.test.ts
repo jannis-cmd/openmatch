@@ -1854,10 +1854,12 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       await request("/v1/preferences/suggestions")
     ).json()) as {
       items: unknown[];
+      observationCount: number;
       minimumObservations: number;
       automaticChanges: boolean;
     };
     assert.deepEqual(suggestions.items, []);
+    assert.equal(suggestions.observationCount, 1);
     assert.equal(suggestions.minimumObservations, 20);
     assert.equal(suggestions.automaticChanges, false);
     const connections = (await (await request("/v1/connections")).json()) as {
@@ -2108,6 +2110,17 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       dataExport.preferenceObservations[0].selectionProbability,
       1 / 3,
     );
+    assert.deepEqual(
+      await (
+        await request("/v1/preferences/suggestions", { method: "DELETE" })
+      ).json(),
+      { cleared: 1, observationCount: 0 },
+    );
+    const afterLearningClear = (await (
+      await request("/v1/me/export")
+    ).json()) as { decisions: unknown[]; preferenceObservations: unknown[] };
+    assert.equal(afterLearningClear.preferenceObservations.length, 0);
+    assert.equal(afterLearningClear.decisions.length, 1);
     assert.equal(
       dataExport.messages.some(({ text }) => text === POLITE_CLOSE_MESSAGE),
       true,

@@ -42,6 +42,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let reportPayload: { reason?: string; details?: string } | null = null;
   let connectionActive = false;
   let meetingPreference = "not_asked";
+  let preferenceObservationCount = 0;
   let demoSessionRequests = 0;
   let accountRequests = 0;
   let restoredBearerUsed = false;
@@ -184,9 +185,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
           weights: { ...preferences.weights, ...body.weights },
         }),
       );
+    if (path === "/v1/preferences/suggestions" && init.method === "DELETE")
+      return response({
+        cleared: preferenceObservationCount,
+        observationCount: (preferenceObservationCount = 0),
+      });
     if (path === "/v1/preferences/suggestions")
       return response({
         items: [],
+        observationCount: preferenceObservationCount,
         minimumObservations: 20,
         automaticChanges: false,
       });
@@ -298,6 +305,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       });
     if (path === "/v1/introductions/mara/decision" && init.method === "POST") {
       connectionActive = body.decision === "interested";
+      preferenceObservationCount = 1;
       return response({
         profileId: "mara",
         decision: body.decision,
@@ -526,6 +534,12 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(onboardingComplete).toBe(true);
   expect(consentAccepted).toBe(true);
   await fireEvent.press(screen.getByText("Preferences"));
+  expect(
+    screen.getByLabelText(
+      "1 decision example is currently stored for preference suggestions",
+    ),
+  ).toBeTruthy();
+  expect(screen.getByText("Clear learning examples")).toBeTruthy();
   await fireEvent.press(screen.getByLabelText("1 introductions per batch"));
   await waitFor(() => expect(batchSize).toBe(1));
   await fireEvent.press(screen.getByLabelText("Lower youngest age"));

@@ -167,6 +167,8 @@ export default function App() {
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
+  const [preferenceObservationCount, setPreferenceObservationCount] =
+    useState(0);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
@@ -314,6 +316,7 @@ export default function App() {
       setConnections(nextConnections.items);
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
+      setPreferenceObservationCount(nextSuggestions.observationCount);
       setAccountStatus(nextAccountStatus.status);
       setDelivery(nextDelivery);
       setTransparency(nextTransparency);
@@ -369,7 +372,9 @@ export default function App() {
     try {
       await api.updatePreferences(next);
       setIntroductions((await api.introductions()).items);
-      setSuggestions((await api.preferenceSuggestions()).items);
+      const nextSuggestions = await api.preferenceSuggestions();
+      setSuggestions(nextSuggestions.items);
+      setPreferenceObservationCount(nextSuggestions.observationCount);
     } catch {
       setError("Preferences could not be saved.");
     }
@@ -995,6 +1000,37 @@ export default function App() {
             <PreferencesScreen
               value={preferences}
               suggestions={suggestions}
+              observationCount={preferenceObservationCount}
+              clearObservations={() =>
+                Alert.alert(
+                  "Clear learning examples?",
+                  "The decision examples used for preference suggestions will be deleted. Your Interested and Pass decisions will stay unchanged.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Clear",
+                      style: "destructive",
+                      onPress: () =>
+                        void api
+                          .clearPreferenceObservations()
+                          .then((result) => {
+                            setSuggestions([]);
+                            setPreferenceObservationCount(
+                              result.observationCount,
+                            );
+                            setSafetyNotice(
+                              result.cleared
+                                ? `Cleared ${result.cleared} learning example${result.cleared === 1 ? "" : "s"}.`
+                                : "There were no learning examples to clear.",
+                            );
+                          })
+                          .catch(() =>
+                            setError("Learning examples could not be cleared."),
+                          ),
+                    },
+                  ],
+                )
+              }
               delivery={delivery}
               setBatchSize={(batchSize) =>
                 void api
@@ -2836,12 +2872,16 @@ function PreferencesScreen({
   value,
   onChange,
   suggestions,
+  observationCount = 0,
+  clearObservations = () => undefined,
   delivery,
   setBatchSize,
 }: {
   value: Preferences;
   onChange: (value: Preferences) => void;
   suggestions?: WeightSuggestion[];
+  observationCount?: number;
+  clearObservations?: () => void;
   delivery?: DeliverySettings;
   setBatchSize?: (batchSize: DeliverySettings["batchSize"]) => void;
 }) {
@@ -3125,10 +3165,21 @@ function PreferencesScreen({
               </View>
             ))
           )}
-          <Text style={styles.mathNote}>
+          <Text
+            style={styles.mathNote}
+            accessibilityLabel={`${observationCount} decision ${observationCount === 1 ? "example is" : "examples are"} currently stored for preference suggestions`}
+          >
             Decisions only. Messages, dwell time, taps, and photos are never
-            learning inputs. Nothing changes automatically.
+            learning inputs. Nothing changes automatically. {observationCount}{" "}
+            decision {observationCount === 1 ? "example is" : "examples are"}{" "}
+            currently stored for this purpose.
           </Text>
+          <Action
+            label="Clear learning examples"
+            secondary
+            disabled={observationCount === 0}
+            onPress={clearObservations}
+          />
         </View>
       )}
       <View style={styles.scoreCard}>

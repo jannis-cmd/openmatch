@@ -587,6 +587,14 @@ test("first run through a persistent connection and safety action", async ({
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText(/Nothing suggested yet/)).toBeVisible();
   await expect(page.getByText(/Nothing changes automatically/)).toBeVisible();
+  await expect(
+    page.getByText(/decision examples are currently stored/),
+  ).toBeVisible();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Clear learning examples" }).click();
+  await expect(
+    page.getByText(/0 decision examples are currently stored/),
+  ).toBeVisible();
   await page
     .getByRole("combobox", { name: "Smoking boundary" })
     .selectOption("any");

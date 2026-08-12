@@ -394,9 +394,15 @@ export function createApiClient(
     preferenceSuggestions: () =>
       request<{
         items: WeightSuggestion[];
+        observationCount: number;
         minimumObservations: number;
         automaticChanges: false;
       }>("/v1/preferences/suggestions"),
+    clearPreferenceObservations: () =>
+      request<{ cleared: number; observationCount: 0 }>(
+        "/v1/preferences/suggestions",
+        json("DELETE"),
+      ),
     onboarding: () => request<{ complete: boolean }>("/v1/onboarding"),
     accountStatus: () =>
       request<{ status: AccountStatus }>("/v1/account/status"),

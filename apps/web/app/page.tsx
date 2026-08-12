@@ -208,6 +208,8 @@ function AppExperience({
   const [directoryConsent, setDirectoryConsent] =
     useState<DirectoryConsentReceipt | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
+  const [preferenceObservationCount, setPreferenceObservationCount] =
+    useState(0);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
@@ -273,6 +275,7 @@ function AppExperience({
       setConnections(nextConnections.items);
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
+      setPreferenceObservationCount(nextSuggestions.observationCount);
       setAccountStatus(nextAccountStatus.status);
       setDelivery(nextDelivery);
       setTransparency(nextTransparency);
@@ -322,7 +325,9 @@ function AppExperience({
     try {
       await api.updatePreferences(next);
       setIntroductions((await api.introductions()).items);
-      setSuggestions((await api.preferenceSuggestions()).items);
+      const nextSuggestions = await api.preferenceSuggestions();
+      setSuggestions(nextSuggestions.items);
+      setPreferenceObservationCount(nextSuggestions.observationCount);
     } catch {
       setError("Preferences could not be saved.");
     }
@@ -780,6 +785,27 @@ function AppExperience({
                     setIntroductions((await api.introductions()).items);
                   }}
                   suggestions={suggestions}
+                  observationCount={preferenceObservationCount}
+                  clearObservations={async () => {
+                    if (
+                      !window.confirm(
+                        "Clear the decision examples used for preference suggestions? Your Interested and Pass decisions will stay unchanged.",
+                      )
+                    )
+                      return;
+                    try {
+                      const result = await api.clearPreferenceObservations();
+                      setSuggestions([]);
+                      setPreferenceObservationCount(result.observationCount);
+                      setNotice(
+                        result.cleared
+                          ? `Cleared ${result.cleared} learning example${result.cleared === 1 ? "" : "s"}.`
+                          : "There were no learning examples to clear.",
+                      );
+                    } catch {
+                      setError("Learning examples could not be cleared.");
+                    }
+                  }}
                   onChange={(next) => void savePreferences(next)}
                 />
               )}
@@ -2166,12 +2192,16 @@ function PreferencesView({
   delivery,
   setBatchSize,
   suggestions,
+  observationCount,
+  clearObservations,
   onChange,
 }: {
   value: Preferences;
   delivery: DeliverySettings;
   setBatchSize: (batchSize: DeliverySettings["batchSize"]) => Promise<void>;
   suggestions: WeightSuggestion[];
+  observationCount: number;
+  clearObservations: () => Promise<void>;
   onChange: (value: Preferences) => void;
 }) {
   const setWeight = (key: keyof Preferences["weights"], weight: number) =>
@@ -2344,8 +2374,17 @@ function PreferencesView({
         )}
         <p className="help">
           Decisions only. Messages, dwell time, taps, and photos are never
-          learning inputs. Nothing changes automatically.
+          learning inputs. Nothing changes automatically. {observationCount}{" "}
+          decision {observationCount === 1 ? "example is" : "examples are"}{" "}
+          currently stored for this purpose.
         </p>
+        <button
+          className="danger-secondary"
+          disabled={observationCount === 0}
+          onClick={() => void clearObservations()}
+        >
+          Clear learning examples
+        </button>
       </section>
     </div>
   );

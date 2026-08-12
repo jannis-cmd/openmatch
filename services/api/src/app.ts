@@ -911,9 +911,15 @@ export function createApp(
       )
         return send(response, 200, {
           items: store.preferenceSuggestions(),
+          observationCount: store.preferenceObservationCount(),
           minimumObservations: 20,
           automaticChanges: false,
         });
+      if (
+        request.method === "DELETE" &&
+        url.pathname === "/v1/preferences/suggestions"
+      )
+        return send(response, 200, store.clearPreferenceObservations());
       if (request.method === "PATCH" && url.pathname === "/v1/preferences")
         return send(
           response,

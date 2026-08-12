@@ -48,6 +48,8 @@ End-to-end encryption for messaging is an open design question because user safe
 
 Source code, formulas, field purposes, and aggregate audits are public. Individual preference settings remain personal data. Candidate-side factor weights default to private, including in the fictional demo; a complete trace is returned only when that candidate's `explanationSharing` setting is `shared`. Redaction occurs after the complete score is calculated and cannot change eligibility, directed fit, reciprocal fit, or ordering. The explanation distinguishes private personal inputs from undocumented system factors: private inputs may affect a score, but undocumented system inputs may not.
 
+Preference-learning examples are private, inspectable in the account export, counted in the preferences interface, and removable as a separate category. Clearing them disables any suggestions derived from them but deliberately does not rewrite Interested/Pass decisions, connection history, or another person's state.
+
 Demo candidate generation uses an internal distance estimate between coarse profile regions. Demo introduction and connection payloads remove that number and expose only a coarse distance band. Account-to-account testing does not have a privacy-reviewed geocoder: it admits only completed, active accounts whose normalized self-entered city/region text matches exactly and labels them “Same approximate region.” It does not claim a distance. Both approaches require replacement or triangulation testing before a pilot, especially in sparsely populated regions.
 
 ## Development-service boundary

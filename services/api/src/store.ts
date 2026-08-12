@@ -438,6 +438,22 @@ export class Store {
     });
   }
 
+  preferenceObservationCount() {
+    return (
+      this.db
+        .prepare("SELECT COUNT(*) AS count FROM preference_observations")
+        .get() as {
+        count: number;
+      }
+    ).count;
+  }
+
+  clearPreferenceObservations() {
+    const cleared = this.preferenceObservationCount();
+    this.db.prepare("DELETE FROM preference_observations").run();
+    return { cleared, observationCount: 0 };
+  }
+
   connections() {
     return (
       this.db
