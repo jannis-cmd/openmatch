@@ -20,8 +20,42 @@ import {
 } from "@openmatch/matching";
 
 type View = "today" | "connections" | "preferences" | "profile" | "about";
+type SiteView = "landing" | "sign-in" | "app";
 
 export default function Home() {
+  const [siteView, setSiteView] = useState<SiteView>("landing");
+  useEffect(() => {
+    if (window.sessionStorage.getItem("openmatch-demo-session") === "active") {
+      setSiteView("app");
+    }
+  }, []);
+
+  const openApp = () => {
+    window.sessionStorage.setItem("openmatch-demo-session", "active");
+    setSiteView("app");
+  };
+
+  const exitApp = () => {
+    window.sessionStorage.removeItem("openmatch-demo-session");
+    setSiteView("landing");
+  };
+
+  if (siteView === "landing") {
+    return (
+      <LandingPage signIn={() => setSiteView("sign-in")} tryDemo={openApp} />
+    );
+  }
+
+  if (siteView === "sign-in") {
+    return (
+      <SignInPage back={() => setSiteView("landing")} continueToApp={openApp} />
+    );
+  }
+
+  return <AppExperience exit={exitApp} />;
+}
+
+function AppExperience({ exit }: { exit: () => void }) {
   const api = useMemo(
     () =>
       createApiClient(
@@ -114,7 +148,7 @@ export default function Home() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <button className="brand" onClick={() => setView("today")}>
+        <button className="brand" onClick={exit} aria-label="OpenMatch home">
           OpenMatch
         </button>
         <span className="nonprofit">Nonprofit · Open source</span>
@@ -460,6 +494,276 @@ export default function Home() {
           )}
         </section>
       </div>
+    </main>
+  );
+}
+
+function Mark() {
+  return (
+    <span className="openmatch-mark" aria-hidden="true">
+      <span />
+      <span />
+    </span>
+  );
+}
+
+function LandingPage({
+  signIn,
+  tryDemo,
+}: {
+  signIn: () => void;
+  tryDemo: () => void;
+}) {
+  return (
+    <main className="landing-shell">
+      <header className="landing-nav">
+        <a className="landing-brand" href="#top" aria-label="OpenMatch home">
+          <Mark />
+          OpenMatch
+        </a>
+        <nav aria-label="Website navigation">
+          <a href="#how">How it works</a>
+          <a href="#principles">Principles</a>
+          <a href="#evidence">Evidence</a>
+        </nav>
+        <button className="nav-sign-in" onClick={signIn}>
+          Sign in
+        </button>
+      </header>
+
+      <section className="hero" id="top">
+        <p className="landing-eyebrow">A nonprofit introduction service</p>
+        <h1>Made to help you leave.</h1>
+        <p className="hero-copy">
+          OpenMatch offers a small number of thoughtful introductions, explains
+          every one, and has no reason to keep you swiping. No ads. No premium
+          ranking. No hidden score.
+        </p>
+        <div className="hero-actions">
+          <button className="primary-action" onClick={tryDemo}>
+            Try the private demo
+          </button>
+          <a className="text-action" href="#how">
+            See how matching works <span aria-hidden="true">↓</span>
+          </a>
+        </div>
+        <div className="hero-proof" aria-label="OpenMatch commitments">
+          <span>Open source</span>
+          <span>Nonprofit</span>
+          <span>Finite introductions</span>
+          <span>Your data is yours</span>
+        </div>
+      </section>
+
+      <section className="promise" id="principles">
+        <div>
+          <p className="landing-eyebrow">Different incentives</p>
+          <h2>The product succeeds when you meet someone—not when you stay.</h2>
+        </div>
+        <div className="promise-grid">
+          <article>
+            <span>01</span>
+            <h3>No attention tricks</h3>
+            <p>
+              A finite set of introductions replaces the endless feed. There are
+              no streaks, boosts, ads, or pay-to-win placement.
+            </p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Nothing hidden</h3>
+            <p>
+              See which factors contributed, how they were weighted, and the
+              exact public code that produced an introduction.
+            </p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>You remain in control</h3>
+            <p>
+              Learning can suggest preference changes, but it never changes your
+              settings or decides who you should like.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section className="algorithm-section" id="how">
+        <div className="algorithm-intro">
+          <p className="landing-eyebrow">The whole matching idea</p>
+          <h2>Five understandable steps. No black box.</h2>
+          <p>
+            OpenMatch does not claim to calculate love. It helps find people
+            whose stated needs fit in both directions, then gets out of the way.
+          </p>
+        </div>
+        <AlgorithmGraphic />
+        <div className="plain-formula">
+          <p>What raises an introduction</p>
+          <strong>Mutual fit, not one-sided appeal</strong>
+          <span>
+            Both people’s needs count. A weak fit on either side pulls the
+            result down.
+          </span>
+        </div>
+      </section>
+
+      <section className="evidence-section" id="evidence">
+        <div className="evidence-heading">
+          <p className="landing-eyebrow">Evidence, with humility</p>
+          <h2>Research guides the choices. It does not make promises.</h2>
+        </div>
+        <div className="evidence-copy">
+          <p>
+            Relationship research supports asking about important values,
+            relationship intentions, habits, and constraints. But studies also
+            show that long-term chemistry is difficult to predict from profile
+            answers alone.
+          </p>
+          <p>
+            So OpenMatch uses evidence to remove obvious incompatibilities and
+            create plausible introductions—not to label anyone a soulmate. We
+            publish the sources, uncertainties, decisions, and revisions.
+          </p>
+          <div className="evidence-links">
+            <a
+              href="https://github.com/jannis-cmd/openmatch/blob/main/research/LITERATURE_MAP.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Read the research map ↗
+            </a>
+            <a
+              href="https://github.com/jannis-cmd/openmatch/blob/main/docs/MATCHING.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Inspect the matching method ↗
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section className="final-callout">
+        <Mark />
+        <h2>A calmer way to meet.</h2>
+        <p>
+          The first prototype is local, transparent, and intentionally small.
+        </p>
+        <button className="primary-action" onClick={tryDemo}>
+          Open the demo
+        </button>
+      </section>
+
+      <footer className="landing-footer">
+        <div>
+          <strong>OpenMatch</strong>
+          <span>Nonprofit · Open source · In development</span>
+        </div>
+        <div>
+          <a href="https://github.com/jannis-cmd/openmatch">GitHub</a>
+          <a href="#evidence">Research</a>
+          <button onClick={signIn}>Sign in</button>
+        </div>
+      </footer>
+    </main>
+  );
+}
+
+function AlgorithmGraphic() {
+  const steps = [
+    {
+      number: "1",
+      title: "Boundaries first",
+      copy: "Age, distance, intent, and other non-negotiables must work for both people.",
+    },
+    {
+      number: "2",
+      title: "Fit both ways",
+      copy: "Your preferences are compared with their profile—and theirs with yours.",
+    },
+    {
+      number: "3",
+      title: "Balance the result",
+      copy: "The weaker direction matters, preventing one-sided compatibility from looking strong.",
+    },
+    {
+      number: "4",
+      title: "Add real-world context",
+      copy: "Distance helps order eligible people, but popularity and payment never do.",
+    },
+    {
+      number: "5",
+      title: "Offer a few introductions",
+      copy: "You choose independently. A conversation opens only after mutual interest.",
+    },
+  ];
+
+  return (
+    <div
+      className="algorithm-flow"
+      aria-label="The five OpenMatch matching steps"
+    >
+      {steps.map((step, index) => (
+        <div className="algorithm-step" key={step.number}>
+          <div className="step-number">{step.number}</div>
+          <div className="step-copy">
+            <h3>{step.title}</h3>
+            <p>{step.copy}</p>
+          </div>
+          {index < steps.length - 1 && (
+            <span className="flow-line" aria-hidden="true" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SignInPage({
+  back,
+  continueToApp,
+}: {
+  back: () => void;
+  continueToApp: () => void;
+}) {
+  const [email, setEmail] = useState("");
+
+  return (
+    <main className="sign-in-shell">
+      <button className="sign-in-brand" onClick={back}>
+        <Mark /> OpenMatch
+      </button>
+      <form
+        className="sign-in-card"
+        onSubmit={(event) => {
+          event.preventDefault();
+          continueToApp();
+        }}
+      >
+        <p className="landing-eyebrow">Private prototype</p>
+        <h1>Welcome back.</h1>
+        <p>
+          Account authentication is not connected yet. Your email stays in this
+          browser and opens the local demonstration only.
+        </p>
+        <label htmlFor="sign-in-email">Email</label>
+        <input
+          id="sign-in-email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          required
+        />
+        <button className="primary-action" type="submit">
+          Continue to the demo
+        </button>
+        <button className="back-action" type="button" onClick={back}>
+          Back to the website
+        </button>
+      </form>
     </main>
   );
 }

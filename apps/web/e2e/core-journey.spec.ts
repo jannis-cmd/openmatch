@@ -19,6 +19,22 @@ test("first run through a persistent connection and safety action", async ({
 }) => {
   await page.goto("/");
   await expect(
+    page.getByRole("heading", { name: "Made to help you leave." }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Five understandable steps. No black box.",
+    }),
+  ).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("button", { name: "Sign in" }).first().click();
+  await expect(
+    page.getByText("Account authentication is not connected yet."),
+  ).toBeVisible();
+  await expectAccessible(page);
+  await page.getByRole("textbox", { name: "Email" }).fill("taylor@example.com");
+  await page.getByRole("button", { name: "Continue to the demo" }).click();
+  await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
   ).toBeVisible();
   await expectAccessible(page);
