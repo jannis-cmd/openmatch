@@ -7,12 +7,14 @@ import type {
 } from "@openmatch/matching";
 
 export type Decision = "interested" | "passed";
+export type MeetingPreference = "not_asked" | "not_yet" | "open_to_plan";
 export type Connection = {
   id: string;
   profileId: string;
   createdAt: string;
   closedAt: string | null;
   muted: boolean;
+  meetingPreference: MeetingPreference;
   profile?: PublicProfile;
 };
 export type Message = {
@@ -198,6 +200,14 @@ export function createApiClient(
       request<{ muted: boolean }>(
         `/v1/connections/${encodeURIComponent(connectionId)}/mute`,
         json("PATCH", { muted }),
+      ),
+    updateMeetingPreference: (
+      connectionId: string,
+      meetingPreference: MeetingPreference,
+    ) =>
+      request<{ meetingPreference: MeetingPreference }>(
+        `/v1/connections/${encodeURIComponent(connectionId)}/meeting-preference`,
+        json("PATCH", { meetingPreference }),
       ),
     block: (profileId: string) =>
       request<{ profileId: string; blocked: true }>(

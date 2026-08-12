@@ -16,7 +16,9 @@ export type Connection = {
   createdAt: string;
   closedAt: string | null;
   muted: boolean;
+  meetingPreference: MeetingPreference;
 };
+export type MeetingPreference = "not_asked" | "not_yet" | "open_to_plan";
 export type Message = {
   id: number;
   connectionId: string;
@@ -70,6 +72,10 @@ export class Store {
     if (!connectionColumns.some(({ name }) => name === "muted"))
       this.db.exec(
         "ALTER TABLE connections ADD COLUMN muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1))",
+      );
+    if (!connectionColumns.some(({ name }) => name === "meeting_preference"))
+      this.db.exec(
+        "ALTER TABLE connections ADD COLUMN meeting_preference TEXT NOT NULL DEFAULT 'not_asked' CHECK(meeting_preference IN ('not_asked','not_yet','open_to_plan'))",
       );
     this.seed();
   }
@@ -298,7 +304,7 @@ export class Store {
     return (
       this.db
         .prepare(
-          "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted FROM connections WHERE closed_at IS NULL ORDER BY created_at DESC",
+          "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted,meeting_preference AS meetingPreference FROM connections WHERE closed_at IS NULL ORDER BY created_at DESC",
         )
         .all() as unknown as Array<
         Omit<Connection, "muted"> & { muted: number }
@@ -308,7 +314,7 @@ export class Store {
   connection(id: string) {
     const connection = this.db
       .prepare(
-        "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted FROM connections WHERE id=? AND closed_at IS NULL",
+        "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted,meeting_preference AS meetingPreference FROM connections WHERE id=? AND closed_at IS NULL",
       )
       .get(id) as unknown as
       (Omit<Connection, "muted"> & { muted: number }) | undefined;
@@ -367,6 +373,14 @@ export class Store {
       )
       .run(muted ? 1 : 0, id);
     return result.changes ? { muted } : undefined;
+  }
+  updateMeetingPreference(id: string, preference: MeetingPreference) {
+    const result = this.db
+      .prepare(
+        "UPDATE connections SET meeting_preference=? WHERE id=? AND closed_at IS NULL",
+      )
+      .run(preference, id);
+    return result.changes ? { meetingPreference: preference } : undefined;
   }
   block(profileId: string) {
     const now = new Date().toISOString();
@@ -429,7 +443,7 @@ export class Store {
       connections: (
         this.db
           .prepare(
-            "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted FROM connections ORDER BY created_at",
+            "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted,meeting_preference AS meetingPreference FROM connections ORDER BY created_at",
           )
           .all() as Array<Record<string, unknown> & { muted: number }>
       ).map((connection) => ({

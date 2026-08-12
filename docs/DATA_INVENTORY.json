@@ -152,7 +152,15 @@
       "purpose": "Represent mutual interest and whether a conversation is open or closed.",
       "retention": "prototype",
       "access": ["person", "service", "operator"],
-      "fields": ["id", "profileId", "createdAt", "closedAt", "muted"]
+      "fields": [
+        "id",
+        "profileId",
+        "createdAt",
+        "closedAt",
+        "muted",
+        "meetingPreference"
+      ],
+      "disclosure": "The meeting preference is private, reversible, not sent to the demo candidate, and is not evidence that a meeting occurred."
     },
     {
       "id": "savedIntroductions",

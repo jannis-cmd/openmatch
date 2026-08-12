@@ -312,6 +312,18 @@ input {
 .exploration-note span {
   color: #59655d;
 }
+.meeting-card {
+  margin: 24px 0;
+}
+.meeting-card .setting-actions {
+  margin-top: 16px;
+}
+.meeting-safety {
+  margin: 16px 0 0;
+  padding-left: 20px;
+  color: #536158;
+  line-height: 1.65;
+}
 .account-status span {
   flex: 1;
   color: #536158;

@@ -460,6 +460,9 @@ export function createApp(
       const connectionMute = url.pathname.match(
         /^\/v1\/connections\/([^/]+)\/mute$/,
       );
+      const meetingPreference = url.pathname.match(
+        /^\/v1\/connections\/([^/]+)\/meeting-preference$/,
+      );
       if (request.method === "PATCH" && connectionMute) {
         const body = (await readJson(request)) as { muted?: unknown };
         if (typeof body.muted !== "boolean")
@@ -467,6 +470,26 @@ export function createApp(
         const result = store.updateConnectionMute(
           connectionMute[1],
           body.muted,
+        );
+        return result
+          ? send(response, 200, result)
+          : send(response, 404, { error: "connection_not_found" });
+      }
+      if (request.method === "PATCH" && meetingPreference) {
+        const body = (await readJson(request)) as {
+          meetingPreference?: unknown;
+        };
+        if (
+          !["not_asked", "not_yet", "open_to_plan"].includes(
+            String(body.meetingPreference),
+          )
+        )
+          return send(response, 400, {
+            error: "invalid_meeting_preference",
+          });
+        const result = store.updateMeetingPreference(
+          meetingPreference[1],
+          body.meetingPreference as "not_asked" | "not_yet" | "open_to_plan",
         );
         return result
           ? send(response, 200, result)

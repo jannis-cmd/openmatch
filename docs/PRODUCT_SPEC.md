@@ -101,6 +101,7 @@ The batch size is a testable starting hypothesis—not settled science. Users ma
 - Optional profile-specific conversation prompts, never AI-written impersonation.
 - Mute, unmatch, block, and report remain one tap away.
 - Optional “Would you like to meet?” card after reciprocal activity. It suggests public-place safety practices but never exposes location.
+- The executable prototype implements this as a private, reversible planning preference rather than an outcome claim. It does not notify the static demo candidate or record that a meeting occurred.
 - Optional video-date path may be tested before in-person planning. No beauty, emotion, deception, disability, or safety inference is performed on video.
 - Users can close a conversation politely with a standard message; silence is never penalized.
 

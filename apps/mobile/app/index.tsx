@@ -715,6 +715,63 @@ export default function App() {
                     : "This prototype sends no notifications yet; the preference is stored for future delivery."}
                 </Text>
                 <View style={styles.scoreCard}>
+                  <Text style={styles.eyebrow}>Optional next step</Text>
+                  <Text style={styles.name}>
+                    Would you like to plan a first meeting?
+                  </Text>
+                  <Text style={styles.scoreNote}>
+                    This private, reversible preference does not affect matching
+                    and is not a claim that a date happened. The prototype does
+                    not send it to the other person.
+                  </Text>
+                  <View style={styles.adjust}>
+                    <Action
+                      label="Not yet"
+                      secondary={connection.meetingPreference !== "not_yet"}
+                      selected={connection.meetingPreference === "not_yet"}
+                      onPress={() =>
+                        void api
+                          .updateMeetingPreference(connection.id, "not_yet")
+                          .then(load)
+                      }
+                    />
+                    <Action
+                      label="Open to planning"
+                      secondary={
+                        connection.meetingPreference !== "open_to_plan"
+                      }
+                      selected={connection.meetingPreference === "open_to_plan"}
+                      onPress={() =>
+                        void api
+                          .updateMeetingPreference(
+                            connection.id,
+                            "open_to_plan",
+                          )
+                          .then(load)
+                      }
+                    />
+                  </View>
+                  {connection.meetingPreference !== "not_asked" && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      {connection.meetingPreference === "open_to_plan"
+                        ? "Saved privately: open to planning."
+                        : "Saved privately: not yet."}
+                    </Text>
+                  )}
+                  <Text style={styles.reason}>
+                    ✓ Choose a busy public place.
+                  </Text>
+                  <Text style={styles.reason}>
+                    ✓ Keep control of your transport and exact location.
+                  </Text>
+                  <Text style={styles.reason}>
+                    ✓ Tell someone you trust where you are going.
+                  </Text>
+                </View>
+                <View style={styles.scoreCard}>
                   {safetyNotice && (
                     <Text
                       accessibilityLiveRegion="polite"
@@ -1838,19 +1895,21 @@ function Action({
   onPress,
   secondary = false,
   disabled = false,
+  selected,
   accessibilityLabel,
 }: {
   label: string;
   onPress: () => void;
   secondary?: boolean;
   disabled?: boolean;
+  selected?: boolean;
   accessibilityLabel?: string;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, selected }}
       disabled={disabled}
       onPress={onPress}
       style={[

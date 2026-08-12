@@ -5,6 +5,7 @@ import {
   defaultPreferences,
   demoCandidates,
   demoUser,
+  toPublicProfile,
 } from "@openmatch/matching";
 import App from "../app/index";
 
@@ -25,6 +26,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let researchParticipating: boolean | null = null;
   const savedIds = new Set<string>();
   let reportPayload: { reason?: string; details?: string } | null = null;
+  let connectionActive = false;
+  let meetingPreference = "not_asked";
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
@@ -143,7 +146,39 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         finite: true,
         remaining: 3,
       });
-    if (path === "/v1/connections") return response({ items: [] });
+    if (path === "/v1/introductions/mara/decision" && init.method === "POST") {
+      connectionActive = body.decision === "interested";
+      return response({
+        profileId: "mara",
+        decision: body.decision,
+        mutual: connectionActive,
+      });
+    }
+    if (
+      path === "/v1/connections/connection-mara/meeting-preference" &&
+      init.method === "PATCH"
+    ) {
+      meetingPreference = body.meetingPreference;
+      return response({ meetingPreference });
+    }
+    if (path === "/v1/connections")
+      return response({
+        items: connectionActive
+          ? [
+              {
+                id: "connection-mara",
+                profileId: "mara",
+                createdAt: "2026-08-12T12:00:00.000Z",
+                closedAt: null,
+                muted: false,
+                meetingPreference,
+                profile: toPublicProfile(demoCandidates[0].profile),
+              },
+            ]
+          : [],
+      });
+    if (path === "/v1/connections/connection-mara/messages")
+      return response({ items: [] });
     if (path === "/v1/reports" && init.method === "POST") {
       reportPayload = body;
       reportRecords.unshift({
@@ -212,6 +247,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     reason: "scam",
     details: "Suspicious profile context",
   });
+  await fireEvent.press(screen.getByText("Interested"));
+  await waitFor(() => expect(connectionActive).toBe(true));
+  await fireEvent.press(screen.getByText("Connections"));
+  expect(
+    screen.getByText("Would you like to plan a first meeting?"),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByText("Open to planning"));
+  await waitFor(() => expect(meetingPreference).toBe("open_to_plan"));
+  expect(screen.getByText("Saved privately: open to planning.")).toBeTruthy();
+  expect(screen.getByText("✓ Choose a busy public place.")).toBeTruthy();
   expect(profile.name).toBe("Taylor");
   expect(profile.city).toBe("Winterthur");
   expect(profile.readiness).toBe("Ready to meet in person");

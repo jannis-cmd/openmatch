@@ -104,3 +104,26 @@ test("returns the server-confirmed deletion receipt", async () => {
   assert.equal(receipt.mode, "synchronous-local-prototype");
   assert.equal(receipt.applicationBackups, "none");
 });
+
+test("updates a reversible meeting-planning preference", async () => {
+  let received: { url?: string; body?: unknown } = {};
+  const client = createApiClient("http://example.test", async (url, init) => {
+    received = {
+      url: String(url),
+      body: JSON.parse(String(init?.body)),
+    };
+    return new Response(JSON.stringify({ meetingPreference: "open_to_plan" }), {
+      status: 200,
+    });
+  });
+  const result = await client.updateMeetingPreference(
+    "connection-mara",
+    "open_to_plan",
+  );
+  assert.equal(
+    received.url,
+    "http://example.test/v1/connections/connection-mara/meeting-preference",
+  );
+  assert.deepEqual(received.body, { meetingPreference: "open_to_plan" });
+  assert.equal(result.meetingPreference, "open_to_plan");
+});

@@ -122,9 +122,9 @@ test("first run through a persistent connection and safety action", async ({
     .getByLabel("Details optional")
     .fill("A concern visible before matching");
   await page.getByRole("button", { name: "Submit report" }).click();
-  await expect(page.getByRole("status")).toHaveText(
-    "Report received. Reference status: received.",
-  );
+  await expect(
+    page.getByRole("status").filter({ hasText: "Report received" }),
+  ).toHaveText("Report received. Reference status: received.");
   await page.getByRole("button", { name: "See the full calculation" }).click();
   await expect(page.getByText(/Your directed fit:/)).toBeVisible();
   await expect(page.getByText(/Their directed fit:/)).toBeVisible();
@@ -138,6 +138,16 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByRole("button", { name: "Interested" }).click();
   await page.getByRole("button", { name: /Connections · 1/ }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Would you like to plan a first meeting?",
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Open to planning" }).click();
+  await expect(
+    page.getByText("Saved privately: open to planning."),
+  ).toBeVisible();
+  await expect(page.getByText("Choose a busy public place.")).toBeVisible();
   await expect(
     page.getByRole("button", {
       name: "Close politely with a standard message",
@@ -169,9 +179,9 @@ test("first run through a persistent connection and safety action", async ({
     .getByLabel("Details optional")
     .fill("Conversation context for the report");
   await page.getByRole("button", { name: "Submit report" }).click();
-  await expect(page.getByRole("status")).toHaveText(
-    "Report received. Reference status: received.",
-  );
+  await expect(
+    page.getByRole("status").filter({ hasText: "Report received" }),
+  ).toHaveText("Report received. Reference status: received.");
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Block" }).click();
   await expect(

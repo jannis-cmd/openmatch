@@ -108,7 +108,14 @@ test("the public data inventory covers every current storage and export field", 
       "selectionProbability",
       "createdAt",
     ],
-    connections: ["id", "profileId", "createdAt", "closedAt", "muted"],
+    connections: [
+      "id",
+      "profileId",
+      "createdAt",
+      "closedAt",
+      "muted",
+      "meetingPreference",
+    ],
     savedIntroductions: ["profileId", "createdAt"],
     messages: ["id", "connectionId", "senderId", "text", "createdAt"],
     blocks: ["profileId", "createdAt"],
@@ -442,10 +449,15 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(suggestions.minimumObservations, 20);
     assert.equal(suggestions.automaticChanges, false);
     const connections = (await (await request("/v1/connections")).json()) as {
-      items: Array<{ id: string; muted: boolean }>;
+      items: Array<{
+        id: string;
+        muted: boolean;
+        meetingPreference: string;
+      }>;
     };
     assert.equal(connections.items.length, 1);
     assert.equal(connections.items[0].muted, false);
+    assert.equal(connections.items[0].meetingPreference, "not_asked");
     const id = connections.items[0].id;
     assert.equal(
       (
@@ -469,6 +481,32 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
         await request(`/v1/connections/${id}/mute`, {
           method: "PATCH",
           body: JSON.stringify({ muted: "yes" }),
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/meeting-preference`, {
+          method: "PATCH",
+          body: JSON.stringify({ meetingPreference: "open_to_plan" }),
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        (await (await request("/v1/connections")).json()) as {
+          items: Array<{ meetingPreference: string }>;
+        }
+      ).items[0].meetingPreference,
+      "open_to_plan",
+    );
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/meeting-preference`, {
+          method: "PATCH",
+          body: JSON.stringify({ meetingPreference: "met" }),
         })
       ).status,
       400,
@@ -542,7 +580,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       blocks: unknown[];
       preferenceObservations: Array<{ selectionProbability: number }>;
       messages: Array<{ text: string }>;
-      connections: Array<{ muted: boolean }>;
+      connections: Array<{ muted: boolean; meetingPreference: string }>;
       accountStatus: string;
       deliverySettings: { batchSize: number };
       introductionBatch: {
@@ -570,6 +608,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       true,
     );
     assert.equal(dataExport.connections[0].muted, true);
+    assert.equal(dataExport.connections[0].meetingPreference, "open_to_plan");
     assert.equal(dataExport.accountStatus, "active");
     assert.equal(dataExport.deliverySettings.batchSize, 5);
     assert.equal(dataExport.introductionBatch.weeklySeed, publicWeeklySeed());

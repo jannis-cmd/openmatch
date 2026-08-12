@@ -624,6 +624,15 @@ function AppExperience({ exit }: { exit: () => void }) {
                       await load();
                     }
                   }}
+                  setMeetingPreference={async (meetingPreference) => {
+                    if (connections[0]) {
+                      await api.updateMeetingPreference(
+                        connections[0].id,
+                        meetingPreference,
+                      );
+                      await load();
+                    }
+                  }}
                   block={async () => {
                     if (connections[0]) {
                       await api.block(connections[0].profileId);
@@ -1884,6 +1893,7 @@ function ConnectionsView({
   unmatch,
   closePolitely,
   setMuted,
+  setMeetingPreference,
   block,
   report,
 }: {
@@ -1896,6 +1906,9 @@ function ConnectionsView({
   unmatch: () => Promise<void>;
   closePolitely: () => Promise<void>;
   setMuted: (muted: boolean) => Promise<void>;
+  setMeetingPreference: (
+    value: "not_asked" | "not_yet" | "open_to_plan",
+  ) => Promise<void>;
   block: () => Promise<void>;
   report: (reason: ReportReason, details: string) => Promise<void>;
 }) {
@@ -1944,6 +1957,41 @@ function ConnectionsView({
           ? "Muted. Future message notifications would be suppressed. Messages remain available."
           : "This prototype sends no notifications yet; the preference is stored for future delivery."}
       </p>
+      <section className="settings-card meeting-card">
+        <p className="eyebrow">Optional next step</p>
+        <h2>Would you like to plan a first meeting?</h2>
+        <p>
+          This private, reversible preference does not affect matching and is
+          not a claim that a date happened. The prototype does not send it to
+          the other person.
+        </p>
+        <div className="setting-actions" aria-label="Meeting preference">
+          <button
+            aria-pressed={connection.meetingPreference === "not_yet"}
+            onClick={() => void setMeetingPreference("not_yet")}
+          >
+            Not yet
+          </button>
+          <button
+            aria-pressed={connection.meetingPreference === "open_to_plan"}
+            onClick={() => void setMeetingPreference("open_to_plan")}
+          >
+            Open to planning
+          </button>
+        </div>
+        {connection.meetingPreference !== "not_asked" && (
+          <p role="status" className="help">
+            {connection.meetingPreference === "open_to_plan"
+              ? "Saved privately: open to planning."
+              : "Saved privately: not yet."}
+          </p>
+        )}
+        <ul className="meeting-safety">
+          <li>Choose a busy public place.</li>
+          <li>Keep control of your transport and exact location.</li>
+          <li>Tell someone you trust where you are going.</li>
+        </ul>
+      </section>
       <section className="settings-card conversation">
         <div className="connection-head">
           <div>
