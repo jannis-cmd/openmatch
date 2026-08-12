@@ -115,7 +115,7 @@ idempotently, but it is not a production message service.
 
 ### 4.5 Messaging and meeting
 
-While an open conversation is visible, clients quietly synchronize its text messages on a bounded interval and when the native app returns to the foreground. Synchronization pauses in a hidden browser tab or backgrounded app and never creates read receipts, typing indicators, online status, presence history, engagement notifications, or message-content ranking.
+While the app is visible, clients quietly synchronize the minimal connection list so a mutual match or remote closure appears without a reload. An open conversation synchronizes its text messages on a shorter bounded interval and when the native app returns to the foreground. Synchronization pauses in a hidden browser tab or backgrounded app and never creates read receipts, typing indicators, online status, presence history, engagement notifications, or message-content ranking.
 
 - Text messages after mutual connection; image attachments disabled at MVP to reduce unsolicited sexual content and moderation burden.
 - Every message visibly and accessibly identifies its author; sent/received state never relies on color or alignment alone.

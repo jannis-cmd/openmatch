@@ -309,6 +309,28 @@ function AppExperience({
     void load();
   }, [load]);
   useEffect(() => {
+    let active = true;
+    let requestRunning = false;
+    const synchronize = async () => {
+      if (requestRunning || document.visibilityState === "hidden") return;
+      requestRunning = true;
+      try {
+        const { items } = await api.connections();
+        if (active) setConnections(items);
+      } catch {
+        // The full load path owns visible connection errors. Background
+        // reconciliation stays quiet and tries again only while visible.
+      } finally {
+        requestRunning = false;
+      }
+    };
+    const timer = window.setInterval(() => void synchronize(), 10_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [api]);
+  useEffect(() => {
     if (
       accountDeliveryStatus?.state !== "retrying" &&
       securityNotificationDelivery?.state !== "retrying"

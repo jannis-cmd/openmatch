@@ -542,12 +542,23 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "Noah", exact: true }),
   ).toBeVisible();
-  await page.getByText("Safety").click();
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Block" }).click();
+  const noahConnections = (await (
+    await request.get(apiBase + "/v1/connections", {
+      headers: noahAccount.headers,
+    })
+  ).json()) as { items: Array<{ id: string }> };
+  expect(noahConnections.items).toHaveLength(1);
+  expect(
+    (
+      await request.delete(
+        apiBase + "/v1/connections/" + noahConnections.items[0].id,
+        { headers: noahAccount.headers },
+      )
+    ).status(),
+  ).toBe(204);
   await expect(
     page.getByRole("heading", { name: "No connections yet" }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: "Today" }).click();
   for (let remaining = 0; remaining < 3; remaining += 1) {
     const visibleCard = page.locator(".profile-card h2");
