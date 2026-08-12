@@ -155,7 +155,7 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Download Android APK" }),
-  ).toHaveAttribute("href", /-b2IrqTEFDahSZ103ryP4Ff60orR5qThCi3zg0NIX4w\.apk/);
+  ).toHaveAttribute("href", /labA_0e8QUJhJJBYO7I03TSd0wX4uyE2BcELOX-wI7o\.apk/);
   await expect(page.getByText("Waiting for Apple enrollment")).toBeVisible();
   const publicApiRequests: string[] = [];
   page.on("request", (request) => {
@@ -332,24 +332,39 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Return to batch" }).click();
   await expect(page.locator(".profile-card")).toBeVisible();
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    if (await page.getByRole("heading", { name: "Mara, 30" }).isVisible())
-      break;
-    if (await page.getByRole("heading", { name: "Noah, 34" }).isVisible()) {
-      await page.getByRole("button", { name: "Save for later" }).click();
+  if (firstIntroduction === "Mara, 30") {
+    await page.getByRole("button", { name: "Saved (1)" }).click();
+  } else {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
       await expect(
-        page.getByRole("heading", { name: "Noah, 34" }),
-      ).not.toBeVisible();
-      continue;
+        page
+          .locator(".profile-card h2")
+          .or(page.getByRole("heading", { name: "That’s the whole set." })),
+      ).toBeVisible();
+      if (await page.getByRole("heading", { name: "Mara, 30" }).isVisible())
+        break;
+      if (
+        await page
+          .getByRole("heading", { name: "That’s the whole set." })
+          .isVisible()
+      )
+        break;
+      if (await page.getByRole("heading", { name: "Noah, 34" }).isVisible()) {
+        await page.getByRole("button", { name: "Save for later" }).click();
+        await expect(
+          page.getByRole("heading", { name: "Noah, 34" }),
+        ).not.toBeVisible();
+        continue;
+      }
+      const previousIntroduction = await page
+        .locator(".profile-card h2")
+        .textContent();
+      await page.getByRole("button", { name: "Pass" }).click();
+      if (previousIntroduction)
+        await expect(
+          page.getByRole("heading", { name: previousIntroduction }),
+        ).not.toBeVisible();
     }
-    const previousIntroduction = await page
-      .locator(".profile-card h2")
-      .textContent();
-    await page.getByRole("button", { name: "Pass" }).click();
-    if (previousIntroduction)
-      await expect(
-        page.getByRole("heading", { name: previousIntroduction }),
-      ).not.toBeVisible();
   }
   await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
   await expect(page.getByText("Same approximate region")).toBeVisible();
