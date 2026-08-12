@@ -124,6 +124,19 @@ export function validateProfile(value: Profile): Profile {
   if (!Number.isInteger(value.age) || value.age < 18 || value.age > 120)
     throw new RangeError("profile age is invalid");
   if (
+    typeof value.city !== "string" ||
+    value.city.trim().length < 1 ||
+    value.city.trim().length > 80 ||
+    typeof value.pronouns !== "string" ||
+    value.pronouns.length > 50 ||
+    ![
+      "Long-term relationship",
+      "Long-term, open to short",
+      "Still figuring it out",
+    ].includes(value.intent)
+  )
+    throw new RangeError("public profile details are invalid");
+  if (
     typeof value.bio !== "string" ||
     value.bio.trim().length < 1 ||
     value.bio.length > 500

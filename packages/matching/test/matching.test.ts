@@ -224,6 +224,11 @@ test("invalid preferences are rejected before scoring or persistence", () => {
 test("invalid public profile fields are rejected", () => {
   assert.throws(() => validateProfile({ ...demoUser, name: "" }), /name/);
   assert.throws(() => validateProfile({ ...demoUser, age: 17 }), /age/);
+  assert.throws(() => validateProfile({ ...demoUser, city: "" }), /details/);
+  assert.throws(
+    () => validateProfile({ ...demoUser, pronouns: "x".repeat(51) }),
+    /details/,
+  );
   assert.throws(() => validateProfile({ ...demoUser, bio: "" }), /biography/);
 });
 

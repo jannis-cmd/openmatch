@@ -195,6 +195,26 @@ export default function App() {
                 }
               />
             </View>
+            <Text style={styles.setting}>Approximate city or region</Text>
+            <TextInput
+              accessibilityLabel="Approximate city or region"
+              value={profile.city}
+              maxLength={80}
+              onChangeText={(city) => setProfile({ ...profile, city })}
+              style={styles.textField}
+            />
+            <Text style={styles.setting}>Pronouns · optional</Text>
+            <TextInput
+              accessibilityLabel="Pronouns optional"
+              value={profile.pronouns}
+              maxLength={50}
+              onChangeText={(pronouns) => setProfile({ ...profile, pronouns })}
+              style={styles.textField}
+            />
+            <IntentSelector
+              value={profile.intent}
+              onChange={(intent) => setProfile({ ...profile, intent })}
+            />
             <Text style={styles.setting}>About you</Text>
             <TextInput
               accessibilityLabel="About you"
@@ -215,12 +235,19 @@ export default function App() {
             </Text>
             <Action
               label="See my introductions"
-              disabled={!profile.name.trim() || !profile.bio.trim()}
+              disabled={
+                !profile.name.trim() ||
+                !profile.city.trim() ||
+                !profile.bio.trim()
+              }
               onPress={() =>
                 void api
                   .updateProfile({
                     name: profile.name.trim(),
                     age: profile.age,
+                    city: profile.city.trim(),
+                    pronouns: profile.pronouns.trim(),
+                    intent: profile.intent,
                     bio: profile.bio.trim(),
                   })
                   .then(() => api.updatePreferences(preferences))
@@ -608,15 +635,81 @@ export default function App() {
               </Text>
               <View style={styles.scoreCard}>
                 {editingProfile ? (
-                  <TextInput
-                    accessibilityLabel="Profile bio"
-                    multiline
-                    value={bio}
-                    onChangeText={setBio}
-                    style={styles.bioInput}
-                  />
+                  <>
+                    <Text style={styles.setting}>Display name</Text>
+                    <TextInput
+                      accessibilityLabel="Profile display name"
+                      value={profile.name}
+                      maxLength={50}
+                      onChangeText={(name) => setProfile({ ...profile, name })}
+                      style={styles.textField}
+                    />
+                    <Text style={styles.setting}>Age · {profile.age}</Text>
+                    <View style={styles.adjust}>
+                      <Action
+                        label="−"
+                        secondary
+                        onPress={() =>
+                          setProfile({
+                            ...profile,
+                            age: Math.max(18, profile.age - 1),
+                          })
+                        }
+                      />
+                      <Action
+                        label="+"
+                        secondary
+                        onPress={() =>
+                          setProfile({
+                            ...profile,
+                            age: Math.min(120, profile.age + 1),
+                          })
+                        }
+                      />
+                    </View>
+                    <Text style={styles.setting}>
+                      Approximate city or region
+                    </Text>
+                    <TextInput
+                      accessibilityLabel="Profile approximate city or region"
+                      value={profile.city}
+                      maxLength={80}
+                      onChangeText={(city) => setProfile({ ...profile, city })}
+                      style={styles.textField}
+                    />
+                    <Text style={styles.setting}>Pronouns · optional</Text>
+                    <TextInput
+                      accessibilityLabel="Profile pronouns optional"
+                      value={profile.pronouns}
+                      maxLength={50}
+                      onChangeText={(pronouns) =>
+                        setProfile({ ...profile, pronouns })
+                      }
+                      style={styles.textField}
+                    />
+                    <IntentSelector
+                      value={profile.intent}
+                      onChange={(intent) => setProfile({ ...profile, intent })}
+                    />
+                    <Text style={styles.setting}>Biography</Text>
+                    <TextInput
+                      accessibilityLabel="Profile bio"
+                      multiline
+                      value={bio}
+                      maxLength={500}
+                      onChangeText={setBio}
+                      style={styles.bioInput}
+                    />
+                  </>
                 ) : (
-                  <Text style={styles.bio}>{bio}</Text>
+                  <>
+                    <Text style={styles.meta}>
+                      {profile.pronouns || "Pronouns not shown"} ·{" "}
+                      {profile.city}
+                    </Text>
+                    <Text style={styles.intent}>{profile.intent}</Text>
+                    <Text style={styles.bio}>{bio}</Text>
+                  </>
                 )}
                 <View style={styles.prompt}>
                   <Text style={styles.promptLabel}>{profile.prompt}</Text>
@@ -634,10 +727,23 @@ export default function App() {
                 <Action
                   label={editingProfile ? "Done" : "Edit profile"}
                   secondary
+                  disabled={
+                    editingProfile &&
+                    (!profile.name.trim() ||
+                      !profile.city.trim() ||
+                      !bio.trim())
+                  }
                   onPress={() => {
                     if (editingProfile)
                       void api
-                        .updateProfile({ bio })
+                        .updateProfile({
+                          name: profile.name.trim(),
+                          age: profile.age,
+                          city: profile.city.trim(),
+                          pronouns: profile.pronouns.trim(),
+                          intent: profile.intent,
+                          bio: bio.trim(),
+                        })
                         .then(setProfile)
                         .catch(() => setError("Profile could not be saved."));
                     setEditingProfile(!editingProfile);
@@ -962,6 +1068,37 @@ function chooseReportReason(onSelect: (reason: ReportReason) => void) {
   ]);
 }
 
+function IntentSelector({
+  value,
+  onChange,
+}: {
+  value: Profile["intent"];
+  onChange: (value: Profile["intent"]) => void;
+}) {
+  const options: Profile["intent"][] = [
+    "Long-term relationship",
+    "Long-term, open to short",
+    "Still figuring it out",
+  ];
+  return (
+    <View>
+      <Text style={styles.setting}>Relationship intention</Text>
+      {options.map((option) => (
+        <Pressable
+          accessibilityRole="radio"
+          accessibilityState={{ checked: value === option }}
+          style={styles.radioRow}
+          onPress={() => onChange(option)}
+          key={option}
+        >
+          <Text style={styles.radioMark}>{value === option ? "●" : "○"}</Text>
+          <Text style={styles.radioLabel}>{option}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 function Action({
   label,
   onPress,
@@ -1057,6 +1194,25 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#FAFAF7",
   },
+  textField: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: "#CED1CA",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    backgroundColor: "#FAFAF7",
+    fontSize: 16,
+  },
+  radioRow: {
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderBottomWidth: 1,
+    borderColor: "#ECECE7",
+  },
+  radioMark: { width: 22, color: "#286249", fontSize: 18 },
+  radioLabel: { flex: 1, color: "#32352F" },
   prompt: {
     marginTop: 22,
     paddingTop: 18,

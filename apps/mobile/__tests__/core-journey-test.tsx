@@ -65,6 +65,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   const screen = await render(<App />);
   expect(await screen.findByText("Set your boundaries.")).toBeTruthy();
   await fireEvent.changeText(screen.getByLabelText("Name"), "Taylor");
+  await fireEvent.changeText(
+    screen.getByLabelText("Approximate city or region"),
+    "Winterthur",
+  );
   expect(screen.getByLabelText("Lower proximity priority")).toBeTruthy();
   expect(screen.getByLabelText("Raise proximity priority")).toBeTruthy();
   await fireEvent.press(screen.getByText("See my introductions"));
@@ -75,8 +79,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByText("Report this profile")).toBeTruthy();
   expect(screen.getByText("Block Mara")).toBeTruthy();
   expect(profile.name).toBe("Taylor");
+  expect(profile.city).toBe("Winterthur");
   expect(onboardingComplete).toBe(true);
   await fireEvent.press(screen.getByText("Profile"));
+  await fireEvent.press(screen.getByText("Edit profile"));
+  await fireEvent.changeText(
+    screen.getByLabelText("Profile display name"),
+    "Taylor Two",
+  );
+  await fireEvent.press(screen.getByText("Done"));
+  await waitFor(() => expect(profile.name).toBe("Taylor Two"));
   await fireEvent.press(screen.getByText("Pause introductions"));
   await waitFor(() =>
     expect(screen.getByText("Introductions paused")).toBeTruthy(),

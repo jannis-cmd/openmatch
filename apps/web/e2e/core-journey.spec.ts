@@ -39,6 +39,18 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await expectAccessible(page);
   await page.getByRole("textbox", { name: "Name" }).fill("Taylor");
+  await page
+    .getByRole("textbox", { name: "Approximate city or region" })
+    .fill("Winterthur");
+  await page
+    .getByRole("textbox", { name: "Pronouns optional" })
+    .fill("she/her");
+  await page
+    .getByRole("combobox", { name: "Relationship intention" })
+    .selectOption({ label: "Still figuring it out" });
+  await page
+    .getByRole("combobox", { name: "Relationship intention" })
+    .selectOption({ label: "Long-term relationship" });
   await page.getByRole("button", { name: "See my introductions" }).click();
 
   await expect(
@@ -92,6 +104,13 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByRole("button", { name: "Your profile" }).click();
   await expectAccessible(page);
+  await expect(page.getByText(/she\/her · Winterthur/)).toBeVisible();
+  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByRole("textbox", { name: "Display name" }).fill("Taylor Two");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Taylor Two, 31" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Pause introductions" }).click();
   await expect(page.getByRole("status")).toContainText("Introductions paused");
   await page.getByRole("button", { name: "Resume", exact: true }).click();

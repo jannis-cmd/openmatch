@@ -75,8 +75,6 @@ function AppExperience({ exit }: { exit: () => void }) {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [bio, setBio] = useState(demoUser.bio);
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +106,6 @@ function AppExperience({ exit }: { exit: () => void }) {
         api.accountStatus(),
       ]);
       setProfile(nextProfile);
-      setBio(nextProfile.bio);
       setPreferences(nextPreferences);
       setIntroductions(nextIntroductions.items);
       setConnections(nextConnections.items);
@@ -220,6 +217,9 @@ function AppExperience({ exit }: { exit: () => void }) {
                   const saved = await api.updateProfile({
                     name: profile.name.trim(),
                     age: profile.age,
+                    city: profile.city.trim(),
+                    pronouns: profile.pronouns.trim(),
+                    intent: profile.intent,
                     bio: profile.bio.trim(),
                   });
                   await api.updatePreferences(preferences);
@@ -505,16 +505,10 @@ function AppExperience({ exit }: { exit: () => void }) {
               {view === "profile" && (
                 <ProfileView
                   profile={profile}
-                  bio={bio}
-                  editing={editing}
-                  setEditing={async (value) => {
-                    if (!value && editing) {
-                      const saved = await api.updateProfile({ bio });
-                      setProfile(saved);
-                    }
-                    setEditing(value);
+                  saveProfile={async (patch) => {
+                    const saved = await api.updateProfile(patch);
+                    setProfile(saved);
                   }}
-                  setBio={setBio}
                   accountStatus={accountStatus}
                   setAccountStatus={async (status) => {
                     const result = await api.updateAccountStatus(status);
@@ -856,6 +850,7 @@ function OnboardingView({
 }) {
   const valid =
     profile.name.trim().length > 0 &&
+    profile.city.trim().length > 0 &&
     profile.bio.trim().length > 0 &&
     profile.age >= 18 &&
     profile.age <= 120;
@@ -890,6 +885,42 @@ function OnboardingView({
               onProfile({ ...profile, age: Number(event.target.value) })
             }
           />
+        </label>
+        <label>
+          Approximate city or region
+          <input
+            value={profile.city}
+            maxLength={80}
+            onChange={(event) =>
+              onProfile({ ...profile, city: event.target.value })
+            }
+          />
+        </label>
+        <label>
+          Pronouns <span className="optional">optional</span>
+          <input
+            value={profile.pronouns}
+            maxLength={50}
+            onChange={(event) =>
+              onProfile({ ...profile, pronouns: event.target.value })
+            }
+          />
+        </label>
+        <label>
+          Relationship intention
+          <select
+            value={profile.intent}
+            onChange={(event) =>
+              onProfile({
+                ...profile,
+                intent: event.target.value as Profile["intent"],
+              })
+            }
+          >
+            <option>Long-term relationship</option>
+            <option>Long-term, open to short</option>
+            <option>Still figuring it out</option>
+          </select>
         </label>
         <label>
           About you
@@ -1136,25 +1167,29 @@ function PreferencesView({
 
 function ProfileView({
   profile,
-  bio,
-  editing,
-  setEditing,
-  setBio,
+  saveProfile,
   accountStatus,
   setAccountStatus,
   exportData,
   deleteData,
 }: {
   profile: Profile;
-  bio: string;
-  editing: boolean;
-  setEditing: (value: boolean) => void | Promise<void>;
-  setBio: (value: string) => void;
+  saveProfile: (patch: Partial<Profile>) => Promise<void>;
   accountStatus: AccountStatus;
   setAccountStatus: (status: AccountStatus) => Promise<void>;
   exportData: () => Promise<void>;
   deleteData: () => Promise<void>;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(profile);
+  useEffect(() => setDraft(profile), [profile]);
+  const draftValid =
+    draft.name.trim().length > 0 &&
+    draft.city.trim().length > 0 &&
+    draft.bio.trim().length > 0 &&
+    draft.age >= 18 &&
+    draft.age <= 120;
+
   return (
     <div className="narrow">
       <p className="eyebrow">Your profile</p>
@@ -1170,20 +1205,103 @@ function ProfileView({
           <h2>About you</h2>
           <button
             className="text-button"
-            onClick={() => void setEditing(!editing)}
+            disabled={editing && !draftValid}
+            onClick={async () => {
+              if (editing) {
+                await saveProfile({
+                  name: draft.name.trim(),
+                  age: draft.age,
+                  city: draft.city.trim(),
+                  pronouns: draft.pronouns.trim(),
+                  intent: draft.intent,
+                  bio: draft.bio.trim(),
+                });
+              }
+              setEditing(!editing);
+            }}
           >
-            {editing ? "Done" : "Edit"}
+            {editing ? "Save" : "Edit"}
           </button>
         </div>
         {editing ? (
-          <textarea
-            aria-label="Biography"
-            value={bio}
-            maxLength={500}
-            onChange={(event) => setBio(event.target.value)}
-          />
+          <div className="profile-fields">
+            <label>
+              Display name
+              <input
+                value={draft.name}
+                maxLength={50}
+                onChange={(event) =>
+                  setDraft({ ...draft, name: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              Age
+              <input
+                type="number"
+                min="18"
+                max="120"
+                value={draft.age}
+                onChange={(event) =>
+                  setDraft({ ...draft, age: Number(event.target.value) })
+                }
+              />
+            </label>
+            <label>
+              Approximate city or region
+              <input
+                value={draft.city}
+                maxLength={80}
+                onChange={(event) =>
+                  setDraft({ ...draft, city: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              Pronouns <span className="optional">optional</span>
+              <input
+                value={draft.pronouns}
+                maxLength={50}
+                onChange={(event) =>
+                  setDraft({ ...draft, pronouns: event.target.value })
+                }
+              />
+            </label>
+            <label>
+              Relationship intention
+              <select
+                value={draft.intent}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    intent: event.target.value as Profile["intent"],
+                  })
+                }
+              >
+                <option>Long-term relationship</option>
+                <option>Long-term, open to short</option>
+                <option>Still figuring it out</option>
+              </select>
+            </label>
+            <label>
+              Biography
+              <textarea
+                value={draft.bio}
+                maxLength={500}
+                onChange={(event) =>
+                  setDraft({ ...draft, bio: event.target.value })
+                }
+              />
+            </label>
+          </div>
         ) : (
-          <p className="large-copy">{bio}</p>
+          <>
+            <p className="profile-meta">
+              {profile.pronouns || "Pronouns not shown"} · {profile.city} ·{" "}
+              {profile.intent}
+            </p>
+            <p className="large-copy">{profile.bio}</p>
+          </>
         )}
         <div className="prompt">
           <span>{profile.prompt}</span>

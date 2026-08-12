@@ -458,6 +458,41 @@ input {
   width: 100%;
   accent-color: #286249;
 }
+.settings-card select,
+.profile-fields input,
+.profile-fields select {
+  width: 100%;
+  border: 1px solid #cfd2cb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 11px 12px;
+  font: inherit;
+}
+.optional {
+  color: #6a6f68;
+  font-size: 12px;
+  font-weight: 400;
+}
+.profile-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.profile-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+.profile-fields label:last-child {
+  grid-column: 1 / -1;
+}
+.profile-meta {
+  color: #62665e;
+  line-height: 1.5;
+}
 .help {
   color: #5f635c;
   font-size: 13px;
