@@ -110,6 +110,9 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
   const [showSaved, setShowSaved] = useState(false);
   const [details, setDetails] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<
+    string | null
+  >(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -130,6 +133,8 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
   const visibleIntroductions = showSaved ? savedIntroductions : introductions;
   const current = visibleIntroductions[0];
   const connected = connections.length > 0;
+  const selectedConnection =
+    connections.find(({ id }) => id === selectedConnectionId) ?? connections[0];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -175,9 +180,6 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
       setTransparency(nextTransparency);
       setReports(nextReports.items);
       setResearchConsent(nextResearchConsent.receipt);
-      if (nextConnections.items[0])
-        setMessages((await api.messages(nextConnections.items[0].id)).items);
-      else setMessages([]);
     } catch {
       setError(
         "The local API is unavailable. Start it with pnpm dev, then retry.",
@@ -189,6 +191,29 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    let active = true;
+    setMessages([]);
+    setDraft("");
+    if (!selectedConnection) {
+      setSelectedConnectionId(null);
+      return () => {
+        active = false;
+      };
+    }
+    setSelectedConnectionId(selectedConnection.id);
+    void api
+      .messages(selectedConnection.id)
+      .then(({ items }) => {
+        if (active) setMessages(items);
+      })
+      .catch(() => {
+        if (active) setError("Messages could not be loaded.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [api, selectedConnection?.id]);
   const savePreferences = async (next: Preferences) => {
     setPreferences(next);
     try {
@@ -205,6 +230,7 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
     try {
       await api.decide(current.profile.id, decision);
       setDetails(false);
+      setShowSaved(false);
       await load();
     } catch {
       setError("Your decision could not be saved. Please retry.");
@@ -230,7 +256,7 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
             <Nav
               active={view === "connections"}
               onClick={() => setView("connections")}
-              label={`Connections${connected ? " · 1" : ""}`}
+              label={`Connections${connected ? ` · ${connections.length}` : ""}`}
             />
             <Nav
               active={view === "preferences"}
@@ -620,14 +646,16 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
               )}
               {view === "connections" && (
                 <ConnectionsView
-                  connection={connections[0]}
+                  connections={connections}
+                  connection={selectedConnection}
+                  selectConnection={setSelectedConnectionId}
                   messages={messages}
                   notice={notice}
                   draft={draft}
                   setDraft={setDraft}
                   send={async () => {
                     const text = draft.trim();
-                    if (!text || !connections[0]) return;
+                    if (!text || !selectedConnection) return;
                     const safetyFlags = messageSafetyFlags(text);
                     if (
                       safetyFlags.length > 0 &&
@@ -642,7 +670,7 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
                       return;
                     try {
                       const message = await api.sendMessage(
-                        connections[0].id,
+                        selectedConnection.id,
                         text,
                         safetyFlags.length > 0,
                       );
@@ -653,42 +681,45 @@ function AppExperience({ exit, apiUrl }: { exit: () => void; apiUrl: string }) {
                     }
                   }}
                   unmatch={async () => {
-                    if (connections[0]) {
-                      await api.unmatch(connections[0].id);
+                    if (selectedConnection) {
+                      await api.unmatch(selectedConnection.id);
                       await load();
                     }
                   }}
                   closePolitely={async () => {
-                    if (connections[0]) {
-                      await api.closePolitely(connections[0].id);
+                    if (selectedConnection) {
+                      await api.closePolitely(selectedConnection.id);
                       await load();
                     }
                   }}
                   setMuted={async (muted) => {
-                    if (connections[0]) {
-                      await api.updateConnectionMute(connections[0].id, muted);
+                    if (selectedConnection) {
+                      await api.updateConnectionMute(
+                        selectedConnection.id,
+                        muted,
+                      );
                       await load();
                     }
                   }}
                   setMeetingPreference={async (meetingPreference) => {
-                    if (connections[0]) {
+                    if (selectedConnection) {
                       await api.updateMeetingPreference(
-                        connections[0].id,
+                        selectedConnection.id,
                         meetingPreference,
                       );
                       await load();
                     }
                   }}
                   block={async () => {
-                    if (connections[0]) {
-                      await api.block(connections[0].profileId);
+                    if (selectedConnection) {
+                      await api.block(selectedConnection.profileId);
                       await load();
                     }
                   }}
                   report={async (reason, reportDetails) => {
-                    if (connections[0]) {
+                    if (selectedConnection) {
                       const result = await api.report(
-                        connections[0].profileId,
+                        selectedConnection.profileId,
                         reason,
                         reportDetails,
                       );
@@ -2087,7 +2118,9 @@ function CandidateSafety({
 }
 
 function ConnectionsView({
+  connections,
   connection,
+  selectConnection,
   messages,
   notice,
   draft,
@@ -2100,7 +2133,9 @@ function ConnectionsView({
   block,
   report,
 }: {
+  connections: Connection[];
   connection?: Connection;
+  selectConnection: (connectionId: string) => void;
   messages: Message[];
   notice: string | null;
   draft: string;
@@ -2129,12 +2164,27 @@ function ConnectionsView({
   const name = connection.profile?.name ?? "Connection";
   return (
     <div className="narrow">
-      <p className="eyebrow">Connection</p>
+      <p className="eyebrow">
+        {connections.length === 1 ? "Connection" : "Connections"}
+      </p>
       <h1>{name}</h1>
       <p className="intro-copy">
         You both expressed interest. Messages are text-only and have no read
         receipts.
       </p>
+      {connections.length > 1 && (
+        <div className="connection-picker" aria-label="Choose a connection">
+          {connections.map((item) => (
+            <button
+              key={item.id}
+              aria-pressed={item.id === connection.id}
+              onClick={() => selectConnection(item.id)}
+            >
+              {item.profile?.name ?? "Connection"}
+            </button>
+          ))}
+        </div>
+      )}
       <button
         className="text-button"
         onClick={() => {

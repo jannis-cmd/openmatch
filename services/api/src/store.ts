@@ -265,16 +265,18 @@ export class Store {
         observation.selectionProbability,
         now,
       );
-    if (decision === "interested" && profileId === "mara")
+    const mutual =
+      decision === "interested" && ["mara", "noah"].includes(profileId);
+    if (mutual)
       this.db
         .prepare(
           "INSERT OR IGNORE INTO connections(id,profile_id,created_at) VALUES (?,?,?)",
         )
-        .run("connection-mara", profileId, now);
+        .run(`connection-${profileId}`, profileId, now);
     return {
       profileId,
       decision,
-      mutual: decision === "interested" && profileId === "mara",
+      mutual,
     };
   }
 

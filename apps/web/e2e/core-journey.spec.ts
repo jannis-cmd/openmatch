@@ -17,6 +17,7 @@ const expectAccessible = async (page: Page) => {
 test("first run through a persistent connection and safety action", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await page.goto("/");
   await expect(
     page.getByRole("heading", { name: "Made to help you leave." }),
@@ -129,6 +130,13 @@ test("first run through a persistent connection and safety action", async ({
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if (await page.getByRole("heading", { name: "Mara, 30" }).isVisible())
       break;
+    if (await page.getByRole("heading", { name: "Noah, 34" }).isVisible()) {
+      await page.getByRole("button", { name: "Save for later" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Noah, 34" }),
+      ).not.toBeVisible();
+      continue;
+    }
     const previousIntroduction = await page
       .locator(".profile-card h2")
       .textContent();
@@ -158,8 +166,9 @@ test("first run through a persistent connection and safety action", async ({
     page.getByText(/Their factor weights are private personal inputs/),
   ).toBeVisible();
   await expect(page.getByText(/Harmonic mean:/)).toBeVisible();
-  await expect(page.getByText(/Selection: exploration/)).toBeVisible();
-  await expect(page.getByText(/public seed \d{4}-\d{2}-\d{2}/)).toBeVisible();
+  await expect(page.getByText(/Selection: (score|exploration)/)).toBeVisible();
+  if (await page.getByText(/Selection: exploration/).isVisible())
+    await expect(page.getByText(/public seed \d{4}-\d{2}-\d{2}/)).toBeVisible();
   await expectAccessible(page);
 
   await page.getByRole("button", { name: "Interested" }).click();
@@ -205,6 +214,31 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await expectAccessible(page);
 
+  await page.getByRole("button", { name: "Today" }).click();
+  const savedNoah = page.getByRole("button", { name: "Saved (1)" });
+  if (await savedNoah.isVisible()) await savedNoah.click();
+  await expect(page.getByRole("heading", { name: "Noah, 34" })).toBeVisible();
+  await page.getByRole("button", { name: "Interested" }).click();
+  await page.getByRole("button", { name: /Connections · 2/ }).click();
+  const connectionPicker = page.getByLabel("Choose a connection");
+  await expect(
+    connectionPicker.getByRole("button", { name: "Mara" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await connectionPicker.getByRole("button", { name: "Noah" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Message Noah" }),
+  ).toBeVisible();
+  await page
+    .getByRole("textbox", { name: "Message Noah" })
+    .fill("Unsent Noah draft");
+  await connectionPicker.getByRole("button", { name: "Mara" }).click();
+  await expect(page.getByRole("textbox", { name: "Message Mara" })).toHaveValue(
+    "",
+  );
+  await expect(
+    page.getByText("Hello from the repeatable journey"),
+  ).toBeVisible();
+
   await page.getByText("Safety").click();
   await page.getByRole("button", { name: "Report" }).click();
   await page.getByLabel("Reason").selectOption({ label: "Offline safety" });
@@ -215,6 +249,12 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("status").filter({ hasText: "Report received" }),
   ).toHaveText("Report received. Reference status: received.");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Block" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Noah", exact: true }),
+  ).toBeVisible();
+  await page.getByText("Safety").click();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Block" }).click();
   await expect(

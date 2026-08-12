@@ -71,6 +71,9 @@ export default function App() {
   const [showSaved, setShowSaved] = useState(false);
   const [showMath, setShowMath] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<
+    string | null
+  >(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [bio, setBio] = useState(demoUser.bio);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -96,7 +99,8 @@ export default function App() {
   );
   const visibleIntroductions = showSaved ? savedIntroductions : introductions;
   const current = visibleIntroductions[0];
-  const connection = connections[0];
+  const connection =
+    connections.find(({ id }) => id === selectedConnectionId) ?? connections[0];
   const load = useCallback(async () => {
     if (!apiConfiguration.url) {
       setLoading(false);
@@ -146,11 +150,6 @@ export default function App() {
       setTransparency(nextTransparency);
       setReports(nextReports.items);
       setResearchConsent(nextResearchConsent.receipt);
-      setMessages(
-        nextConnections.items[0]
-          ? (await api.messages(nextConnections.items[0].id)).items
-          : [],
-      );
     } catch {
       setError(
         "Cannot reach the local API. Check EXPO_PUBLIC_OPENMATCH_API_URL and retry.",
@@ -162,6 +161,29 @@ export default function App() {
   useEffect(() => {
     void load();
   }, [load]);
+  useEffect(() => {
+    let active = true;
+    setMessages([]);
+    setDraft("");
+    if (!connection) {
+      setSelectedConnectionId(null);
+      return () => {
+        active = false;
+      };
+    }
+    setSelectedConnectionId(connection.id);
+    void api
+      .messages(connection.id)
+      .then(({ items }) => {
+        if (active) setMessages(items);
+      })
+      .catch(() => {
+        if (active) setSafetyNotice("Messages could not be loaded. Retry.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [api, connection?.id]);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void load();
@@ -183,6 +205,7 @@ export default function App() {
     try {
       await api.decide(current.profile.id, value);
       setShowMath(false);
+      setShowSaved(false);
       await load();
     } catch {
       setError("Your decision could not be saved.");
@@ -727,6 +750,39 @@ export default function App() {
                 <Text style={styles.subtle}>
                   You both expressed interest. Text only, with no read receipts.
                 </Text>
+                {connections.length > 1 && (
+                  <View
+                    style={styles.connectionPicker}
+                    accessibilityRole="radiogroup"
+                    accessibilityLabel="Choose a connection"
+                  >
+                    {connections.map((item) => (
+                      <Pressable
+                        accessibilityRole="radio"
+                        accessibilityState={{
+                          checked: item.id === connection.id,
+                        }}
+                        style={[
+                          styles.connectionChoice,
+                          item.id === connection.id &&
+                            styles.connectionChoiceSelected,
+                        ]}
+                        onPress={() => setSelectedConnectionId(item.id)}
+                        key={item.id}
+                      >
+                        <Text
+                          style={
+                            item.id === connection.id
+                              ? styles.connectionChoiceTextSelected
+                              : styles.connectionChoiceText
+                          }
+                        >
+                          {item.profile?.name ?? "Connection"}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
                 <Action
                   label="Close politely with a standard message"
                   secondary
@@ -2394,6 +2450,28 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 12,
   },
+  connectionPicker: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 18,
+    marginBottom: 6,
+  },
+  connectionChoice: {
+    minHeight: 44,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#CED1CA",
+    borderRadius: 24,
+    backgroundColor: "#FFF",
+    paddingHorizontal: 16,
+  },
+  connectionChoiceSelected: {
+    borderColor: "#39715A",
+    backgroundColor: "#DFEAE3",
+  },
+  connectionChoiceText: { color: "#555B55" },
+  connectionChoiceTextSelected: { color: "#24513E", fontWeight: "700" },
   mobileBubble: {
     alignSelf: "flex-end",
     backgroundColor: "#DFEAE3",

@@ -99,6 +99,7 @@ The batch size is a testable starting hypothesis—not settled science. Users ma
 ### 4.5 Messaging and meeting
 
 - Text messages after mutual connection; image attachments disabled at MVP to reduce unsolicited sexual content and moderation burden.
+- When more than one connection exists, the person explicitly chooses the conversation; drafts, messages, meeting preferences, and safety actions must never leak across that selection boundary.
 - Optional profile-specific conversation prompts, never AI-written impersonation.
 - Mute, unmatch, block, and report remain one tap away.
 - Optional “Would you like to meet?” card after reciprocal activity. It suggests public-place safety practices but never exposes location.

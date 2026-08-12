@@ -764,6 +764,28 @@ textarea {
   align-items: flex-start;
   justify-content: space-between;
 }
+.connection-picker {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: -10px 0 24px;
+  padding: 2px 0 8px;
+}
+.connection-picker button {
+  flex: 0 0 auto;
+  border: 1px solid #cfd4cc;
+  border-radius: 99px;
+  background: #fff;
+  padding: 10px 15px;
+  color: #455048;
+  cursor: pointer;
+}
+.connection-picker button[aria-pressed="true"] {
+  border-color: #286249;
+  background: #e6eee8;
+  color: #173d30;
+  font-weight: 680;
+}
 .card-title h2,
 .connection-head h2 {
   margin: 0;

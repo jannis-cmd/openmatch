@@ -187,6 +187,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
                 meetingPreference,
                 profile: toPublicProfile(demoCandidates[0].profile),
               },
+              {
+                id: "connection-noah",
+                profileId: "noah",
+                createdAt: "2026-08-11T12:00:00.000Z",
+                closedAt: null,
+                muted: false,
+                meetingPreference: "not_asked",
+                profile: toPublicProfile(demoCandidates[1].profile),
+              },
             ]
           : [],
       });
@@ -208,6 +217,18 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/connections/connection-mara/messages")
       return response({ items: [] });
+    if (path === "/v1/connections/connection-noah/messages")
+      return response({
+        items: [
+          {
+            id: 2,
+            connectionId: "connection-noah",
+            senderId: "noah",
+            text: "A separate conversation with Noah.",
+            createdAt: "2026-08-12T11:00:00.000Z",
+          },
+        ],
+      });
     if (path === "/v1/reports" && init.method === "POST") {
       reportPayload = body;
       reportRecords.unshift({
@@ -290,6 +311,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Interested"));
   await waitFor(() => expect(connectionActive).toBe(true));
   await fireEvent.press(screen.getByText("Connections"));
+  expect(screen.getByLabelText("Choose a connection")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Noah"));
+  await waitFor(() =>
+    expect(screen.getByText("A separate conversation with Noah.")).toBeTruthy(),
+  );
+  expect(screen.getByLabelText("Message Noah")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Mara"));
+  await waitFor(() =>
+    expect(screen.getByLabelText("Message Mara")).toBeTruthy(),
+  );
   expect(
     screen.getByText("Would you like to plan a first meeting?"),
   ).toBeTruthy();
