@@ -16,7 +16,16 @@ const expectAccessible = async (page: Page) => {
 
 test("public privacy and support pages describe the real prototype", async ({
   page,
+  request,
 }) => {
+  const manifestResponse = await request.get("/manifest.webmanifest");
+  expect(manifestResponse.ok()).toBe(true);
+  await expect(manifestResponse.json()).resolves.toMatchObject({
+    name: "OpenMatch",
+    display: "standalone",
+    start_url: "/",
+    icons: [{ src: "/openmatch-icon.svg", purpose: "maskable" }],
+  });
   await page.goto("/privacy");
   await expect(
     page.getByRole("heading", {
