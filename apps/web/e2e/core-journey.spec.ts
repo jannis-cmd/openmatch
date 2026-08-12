@@ -257,4 +257,8 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
   ).toBeVisible();
+  await expect(page.getByText("Local data deletion completed")).toBeVisible();
+  await expect(
+    page.getByText(/No application-managed backups exist/),
+  ).toBeVisible();
 });

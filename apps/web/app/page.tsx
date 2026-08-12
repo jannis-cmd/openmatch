@@ -5,6 +5,7 @@ import {
   createApiClient,
   type AccountStatus,
   type Connection,
+  type DeletionReceipt,
   type DeliverySettings,
   type Message,
   type ReportRecord,
@@ -96,6 +97,8 @@ function AppExperience({ exit }: { exit: () => void }) {
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
+  const [deletionReceipt, setDeletionReceipt] =
+    useState<DeletionReceipt | null>(null);
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
     null,
   );
@@ -241,34 +244,47 @@ function AppExperience({ exit }: { exit: () => void }) {
             </div>
           )}
           {!loading && !error && !onboarded && (
-            <OnboardingView
-              profile={profile}
-              preferences={preferences}
-              onProfile={setProfile}
-              onPreferences={setPreferences}
-              complete={async () => {
-                try {
-                  const saved = await api.updateProfile({
-                    name: profile.name.trim(),
-                    age: profile.age,
-                    city: profile.city.trim(),
-                    pronouns: profile.pronouns.trim(),
-                    intent: profile.intent,
-                    readiness: profile.readiness,
-                    bio: profile.bio.trim(),
-                  });
-                  await api.updatePreferences(preferences);
-                  await api.acceptPrototypeConsent();
-                  await api.completeOnboarding();
-                  setProfile(saved);
-                  await load();
-                } catch {
-                  setError(
-                    "Setup could not be saved. Check the fields and retry.",
-                  );
-                }
-              }}
-            />
+            <>
+              {deletionReceipt && (
+                <div className="deletion-receipt" role="status">
+                  <strong>Local data deletion completed</strong>
+                  <span>
+                    Completed synchronously at{" "}
+                    {new Date(deletionReceipt.completedAt).toLocaleString()}. No
+                    application-managed backups exist in this prototype.
+                  </span>
+                </div>
+              )}
+              <OnboardingView
+                profile={profile}
+                preferences={preferences}
+                onProfile={setProfile}
+                onPreferences={setPreferences}
+                complete={async () => {
+                  try {
+                    const saved = await api.updateProfile({
+                      name: profile.name.trim(),
+                      age: profile.age,
+                      city: profile.city.trim(),
+                      pronouns: profile.pronouns.trim(),
+                      intent: profile.intent,
+                      readiness: profile.readiness,
+                      bio: profile.bio.trim(),
+                    });
+                    await api.updatePreferences(preferences);
+                    await api.acceptPrototypeConsent();
+                    await api.completeOnboarding();
+                    setDeletionReceipt(null);
+                    setProfile(saved);
+                    await load();
+                  } catch {
+                    setError(
+                      "Setup could not be saved. Check the fields and retry.",
+                    );
+                  }
+                }}
+              />
+            </>
           )}
           {!loading && !error && onboarded && (
             <>
@@ -646,7 +662,7 @@ function AppExperience({ exit }: { exit: () => void }) {
                         "Delete all local OpenMatch demo data? This cannot be undone.",
                       )
                     ) {
-                      await api.deleteAccountData();
+                      setDeletionReceipt(await api.deleteAccountData());
                       await load();
                     }
                   }}

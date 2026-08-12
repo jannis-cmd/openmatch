@@ -1,4 +1,5 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
+import { Alert } from "react-native";
 import {
   createIntroductions,
   defaultPreferences,
@@ -28,6 +29,19 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
     const body = init.body ? JSON.parse(String(init.body)) : {};
+    if (path === "/v1/me" && init.method === "DELETE") {
+      onboardingComplete = false;
+      consentAccepted = false;
+      researchParticipating = null;
+      savedIds.clear();
+      reportRecords.length = 0;
+      return response({
+        deleted: true,
+        completedAt: "2026-08-12T12:00:00.000Z",
+        mode: "synchronous-local-prototype",
+        applicationBackups: "none",
+      });
+    }
     if (path === "/v1/me" && init.method === "PATCH")
       return response((profile = { ...profile, ...body, id: "me" }));
     if (path === "/v1/me") return response(profile);
@@ -244,4 +258,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByText("Open data inventory")).toBeTruthy();
   expect(screen.getByText("Safer dating")).toBeTruthy();
   expect(screen.getByText("Open FTC romance-scam guidance")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Profile"));
+  const alertSpy = jest.spyOn(Alert, "alert");
+  await fireEvent.press(screen.getByText("Delete local data"));
+  const destructiveAction = alertSpy.mock.calls.at(-1)?.[2]?.[1];
+  expect(destructiveAction?.text).toBe("Delete");
+  destructiveAction?.onPress?.();
+  await waitFor(() =>
+    expect(screen.getByText("Local data deletion completed")).toBeTruthy(),
+  );
+  expect(screen.getByText(/No application-managed backups exist/)).toBeTruthy();
+  alertSpy.mockRestore();
 });

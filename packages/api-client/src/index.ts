@@ -45,6 +45,12 @@ export type ResearchConsentReceipt = {
   noticeVersion: "research-prototype-0.1";
   updatedAt: string;
 };
+export type DeletionReceipt = {
+  deleted: true;
+  completedAt: string;
+  mode: "synchronous-local-prototype";
+  applicationBackups: "none";
+};
 export type TransparencyVersion = {
   matching: string;
   hiddenFactors: false;
@@ -100,7 +106,7 @@ export function createApiClient(
     updateProfile: (patch: Partial<Profile>) =>
       request<Profile>("/v1/me", json("PATCH", patch)),
     exportData: () => request<Record<string, unknown>>("/v1/me/export"),
-    deleteAccountData: () => request<void>("/v1/me", json("DELETE")),
+    deleteAccountData: () => request<DeletionReceipt>("/v1/me", json("DELETE")),
     preferences: () => request<Preferences>("/v1/preferences"),
     updatePreferences: (patch: Partial<Preferences>) =>
       request<Preferences>("/v1/preferences", json("PATCH", patch)),

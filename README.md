@@ -61,7 +61,7 @@ The repository now contains a thin, local-first vertical slice:
 - decision-only preference suggestions that never apply automatically;
 - genuine two-sided eligibility and directed fit from both people's explicit demo preferences;
 - profile and privacy views;
-- self-service JSON export and local demo-data deletion;
+- self-service JSON export and synchronous local demo-data deletion with a non-retained completion receipt;
 - the same shared matching package on web, iOS, Android, and API;
 - a SQLite development API with profile, preferences, introductions, decisions, reset, and transparency endpoints.
 

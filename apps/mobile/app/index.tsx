@@ -16,6 +16,7 @@ import {
   createApiClient,
   type AccountStatus,
   type Connection,
+  type DeletionReceipt,
   type DeliverySettings,
   type Message,
   type ReportRecord,
@@ -74,6 +75,8 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
+  const [deletionReceipt, setDeletionReceipt] =
+    useState<DeletionReceipt | null>(null);
   const [draft, setDraft] = useState("");
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
@@ -198,6 +201,18 @@ export default function App() {
           <Text style={styles.nonprofit}>Nonprofit · Open</Text>
         </View>
         <ScrollView contentContainerStyle={styles.page}>
+          {deletionReceipt && (
+            <View style={styles.deletionReceipt} accessibilityRole="alert">
+              <Text style={styles.deletionReceiptTitle}>
+                Local data deletion completed
+              </Text>
+              <Text style={styles.scoreNote}>
+                Completed synchronously at{" "}
+                {new Date(deletionReceipt.completedAt).toLocaleString()}. No
+                application-managed backups exist in this prototype.
+              </Text>
+            </View>
+          )}
           <Text style={styles.eyebrow}>A small, honest beginning</Text>
           <Text style={styles.title}>Set your boundaries.</Text>
           <Text style={styles.subtle}>
@@ -333,6 +348,7 @@ export default function App() {
                   .then(() => api.updatePreferences(preferences))
                   .then(() => api.acceptPrototypeConsent())
                   .then(() => api.completeOnboarding())
+                  .then(() => setDeletionReceipt(null))
                   .then(load)
                   .catch(() => setError("Setup could not be saved."))
               }
@@ -1076,7 +1092,10 @@ export default function App() {
                           text: "Delete",
                           style: "destructive",
                           onPress: () =>
-                            void api.deleteAccountData().then(load),
+                            void api.deleteAccountData().then((receipt) => {
+                              setDeletionReceipt(receipt);
+                              return load();
+                            }),
                         },
                       ],
                     )
@@ -1932,6 +1951,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E2DC",
     marginTop: 6,
+  },
+  deletionReceipt: {
+    backgroundColor: "#EAF4ED",
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#B8D2C0",
+  },
+  deletionReceiptTitle: {
+    color: "#234A34",
+    fontSize: 17,
+    fontWeight: "700",
+    marginBottom: 5,
   },
   score: {
     fontSize: 60,

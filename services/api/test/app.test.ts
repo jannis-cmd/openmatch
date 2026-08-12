@@ -496,15 +496,62 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     );
     assert.equal(dataExport.savedIntroductions.length, 1);
     assert.equal(dataExport.savedIntroductions[0].profileId, "lea");
-    assert.equal((await request("/v1/me", { method: "DELETE" })).status, 204);
-    assert.equal(
-      (
-        (await (await request("/v1/onboarding")).json()) as {
-          complete: boolean;
-        }
-      ).complete,
-      false,
+    const deletionResponse = await request("/v1/me", { method: "DELETE" });
+    assert.equal(deletionResponse.status, 200);
+    const deletionReceipt = (await deletionResponse.json()) as {
+      deleted: boolean;
+      completedAt: string;
+      mode: string;
+      applicationBackups: string;
+    };
+    assert.deepEqual(
+      {
+        deleted: deletionReceipt.deleted,
+        mode: deletionReceipt.mode,
+        applicationBackups: deletionReceipt.applicationBackups,
+      },
+      {
+        deleted: true,
+        mode: "synchronous-local-prototype",
+        applicationBackups: "none",
+      },
     );
+    assert.equal(Number.isNaN(Date.parse(deletionReceipt.completedAt)), false);
+    const resetExport = (await (
+      await request("/v1/me/export")
+    ).json()) as Record<string, unknown> & {
+      profile: { id: string };
+      onboardingComplete: boolean;
+      consentReceipt: unknown;
+      researchConsentReceipt: unknown;
+      accountStatus: string;
+      deliverySettings: { batchSize: number };
+      decisions: unknown[];
+      preferenceObservations: unknown[];
+      connections: unknown[];
+      messages: unknown[];
+      blocks: unknown[];
+      reports: unknown[];
+      savedIntroductions: unknown[];
+    };
+    assert.equal(resetExport.profile.id, "me");
+    assert.equal(resetExport.onboardingComplete, false);
+    assert.equal(resetExport.consentReceipt, null);
+    assert.equal(resetExport.researchConsentReceipt, null);
+    assert.equal(resetExport.accountStatus, "active");
+    assert.deepEqual(resetExport.deliverySettings, { batchSize: 5 });
+    for (const collection of [
+      "decisions",
+      "preferenceObservations",
+      "connections",
+      "messages",
+      "blocks",
+      "reports",
+      "savedIntroductions",
+    ] as const) {
+      assert.deepEqual(resetExport[collection], []);
+    }
+    assert.equal("deletionReceipt" in resetExport, false);
     assert.deepEqual(await (await request("/v1/consents/research")).json(), {
       receipt: null,
     });

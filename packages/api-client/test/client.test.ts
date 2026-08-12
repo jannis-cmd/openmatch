@@ -83,3 +83,24 @@ test("accepts only an explicit versioned prototype consent request", async () =>
   });
   assert.equal(receipt.noticeVersion, "prototype-0.1");
 });
+
+test("returns the server-confirmed deletion receipt", async () => {
+  let receivedMethod: string | undefined;
+  const client = createApiClient("http://example.test", async (_url, init) => {
+    receivedMethod = init?.method;
+    return new Response(
+      JSON.stringify({
+        deleted: true,
+        completedAt: "2026-08-12T12:00:00.000Z",
+        mode: "synchronous-local-prototype",
+        applicationBackups: "none",
+      }),
+      { status: 200 },
+    );
+  });
+  const receipt = await client.deleteAccountData();
+  assert.equal(receivedMethod, "DELETE");
+  assert.equal(receipt.deleted, true);
+  assert.equal(receipt.mode, "synchronous-local-prototype");
+  assert.equal(receipt.applicationBackups, "none");
+});

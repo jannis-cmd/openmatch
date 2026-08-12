@@ -139,7 +139,12 @@ export function createApp(
         return send(response, 200, store.exportData());
       if (request.method === "DELETE" && url.pathname === "/v1/me") {
         store.reset();
-        return send(response, 204, null);
+        return send(response, 200, {
+          deleted: true,
+          completedAt: new Date().toISOString(),
+          mode: "synchronous-local-prototype",
+          applicationBackups: "none",
+        });
       }
       if (request.method === "PATCH" && url.pathname === "/v1/me")
         return send(
