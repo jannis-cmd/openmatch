@@ -822,6 +822,12 @@ function AppExperience({
                         }
                       : undefined
                   }
+                  generateRecoveryCodes={
+                    authToken
+                      ? (currentPassword) =>
+                          api.generateRecoveryCodes(currentPassword)
+                      : undefined
+                  }
                   revokeSession={async (sessionId) => {
                     await api.revokeSession(sessionId);
                     setAccountSessions((await api.sessions()).items);
@@ -1207,7 +1213,8 @@ function SignInPage({
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"sign-in" | "create">("sign-in");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [mode, setMode] = useState<"sign-in" | "create" | "recover">("sign-in");
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const api = useMemo(
@@ -1237,7 +1244,9 @@ function SignInPage({
             const session =
               mode === "create"
                 ? await api.createAccount(email, password)
-                : await api.signIn(email, password);
+                : mode === "recover"
+                  ? await api.recoverAccount(email, recoveryCode, password)
+                  : await api.signIn(email, password);
             continueToApp(session.token);
           } catch (error) {
             const code = error instanceof Error ? error.message : "";
@@ -1250,7 +1259,11 @@ function SignInPage({
                     ? "Choose a less common passphrase."
                     : code.includes("invalid_password")
                       ? "Use a passphrase between 15 and 128 characters."
-                      : "Email or passphrase was not accepted.",
+                      : code.includes("invalid_recovery")
+                        ? "The email or unused recovery code was not accepted."
+                        : code.includes("password_unchanged")
+                          ? "Choose a new passphrase different from the current one."
+                          : "Email or passphrase was not accepted.",
             );
           } finally {
             setSubmitting(false);
@@ -1258,7 +1271,13 @@ function SignInPage({
         }}
       >
         <p className="landing-eyebrow">Private account</p>
-        <h1>{mode === "create" ? "Create your account." : "Welcome back."}</h1>
+        <h1>
+          {mode === "create"
+            ? "Create your account."
+            : mode === "recover"
+              ? "Recover your account."
+              : "Welcome back."}
+        </h1>
         <p>
           Your private data and conversations stay isolated. After setup, the
           public profile you choose can appear to mutually eligible active
@@ -1278,12 +1297,31 @@ function SignInPage({
           placeholder="you@example.com"
           required
         />
-        <label htmlFor="sign-in-password">Passphrase</label>
+        {mode === "recover" && (
+          <>
+            <label htmlFor="recovery-code">Unused recovery code</label>
+            <input
+              id="recovery-code"
+              autoComplete="one-time-code"
+              value={recoveryCode}
+              onChange={(event) => setRecoveryCode(event.target.value)}
+              placeholder="xxxx-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx"
+              required
+            />
+          </>
+        )}
+        <label htmlFor="sign-in-password">
+          {mode === "recover" ? "New passphrase" : "Passphrase"}
+        </label>
         <input
           id="sign-in-password"
           type="password"
-          autoComplete={mode === "create" ? "new-password" : "current-password"}
-          minLength={mode === "create" ? 15 : undefined}
+          autoComplete={
+            mode === "create" || mode === "recover"
+              ? "new-password"
+              : "current-password"
+          }
+          minLength={mode === "create" || mode === "recover" ? 15 : undefined}
           maxLength={128}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -1299,7 +1337,9 @@ function SignInPage({
             ? "Please wait…"
             : mode === "create"
               ? "Create account"
-              : "Sign in"}
+              : mode === "recover"
+                ? "Recover account"
+                : "Sign in"}
         </button>
         <button
           className="back-action"
@@ -1312,6 +1352,17 @@ function SignInPage({
           {mode === "create"
             ? "I already have an account"
             : "Create an account"}
+        </button>
+        <button
+          className="back-action"
+          type="button"
+          onClick={() => {
+            setAuthError(null);
+            setRecoveryCode("");
+            setMode(mode === "recover" ? "sign-in" : "recover");
+          }}
+        >
+          {mode === "recover" ? "Back to sign in" : "Use a recovery code"}
         </button>
         <button className="back-action" type="button" onClick={back}>
           Back to the website
@@ -1992,6 +2043,7 @@ function ProfileView({
   setDirectoryConsent,
   sessions,
   changePassword,
+  generateRecoveryCodes,
   revokeSession,
   setResearchConsent,
   setAccountStatus,
@@ -2011,6 +2063,9 @@ function ProfileView({
     currentPassword: string,
     newPassword: string,
   ) => Promise<void>;
+  generateRecoveryCodes?: (
+    currentPassword: string,
+  ) => Promise<{ codes: string[]; createdAt: string }>;
   revokeSession: (sessionId: string) => Promise<void>;
   setResearchConsent: (participating: boolean) => Promise<void>;
   setAccountStatus: (status: AccountStatus) => Promise<void>;
@@ -2024,6 +2079,9 @@ function ProfileView({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [recoveryPassword, setRecoveryPassword] = useState("");
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [draft, setDraft] = useState(profile);
   useEffect(() => setDraft(profile), [profile]);
   const draftValid =
@@ -2302,6 +2360,73 @@ function ProfileView({
           </form>
           {passwordNotice && <p role="status">{passwordNotice}</p>}
           {passwordError && <p role="alert">{passwordError}</p>}
+        </section>
+      )}
+      {generateRecoveryCodes && (
+        <section className="settings-card">
+          <h2>Recovery codes</h2>
+          <p>
+            Recovery codes let you replace a forgotten passphrase without email.
+            Each code works once, and creating a new set invalidates the old
+            set. Keep them outside this device, ideally in a password manager.
+            OpenMatch cannot restore lost codes.
+          </p>
+          {recoveryCodes.length ? (
+            <div className="recovery-code-set" role="status">
+              <strong>Copy these now. They will not be shown again.</strong>
+              <ul>
+                {recoveryCodes.map((code) => (
+                  <li key={code}>{code}</li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() =>
+                  void navigator.clipboard.writeText(recoveryCodes.join("\n"))
+                }
+              >
+                Copy all codes
+              </button>
+              <button type="button" onClick={() => setRecoveryCodes([])}>
+                I saved them—hide codes
+              </button>
+            </div>
+          ) : (
+            <form
+              className="profile-fields"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                setRecoveryError(null);
+                try {
+                  const result = await generateRecoveryCodes(recoveryPassword);
+                  setRecoveryPassword("");
+                  setRecoveryCodes(result.codes);
+                } catch (error) {
+                  setRecoveryError(
+                    error instanceof ApiError &&
+                      error.code === "invalid_current_password"
+                      ? "The current passphrase was not accepted."
+                      : "Recovery codes could not be created.",
+                  );
+                }
+              }}
+            >
+              <label>
+                Current passphrase
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={recoveryPassword}
+                  maxLength={128}
+                  onChange={(event) => setRecoveryPassword(event.target.value)}
+                />
+              </label>
+              <button type="submit" disabled={!recoveryPassword}>
+                Create new recovery codes
+              </button>
+            </form>
+          )}
+          {recoveryError && <p role="alert">{recoveryError}</p>}
         </section>
       )}
       <section className="settings-card">
@@ -2883,9 +3008,9 @@ function AboutView({
             expiring session, and a scrypt-protected passphrase. Completed
             active accounts can currently meet only when their self-entered
             approximate region text matches exactly; the service does not
-            geocode or estimate distance. Email verification, recovery, and an
-            independent security review are still required before any
-            real-person pilot.
+            geocode or estimate distance. Verified contact ownership,
+            provider-backed recovery notifications, and an independent security
+            review are still required before any real-person pilot.
           </p>
         ) : (
           <p>

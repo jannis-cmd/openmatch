@@ -137,6 +137,9 @@ export default function App() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [recoveryPassword, setRecoveryPassword] = useState("");
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [introductionReportOpen, setIntroductionReportOpen] = useState(false);
   const [connectionReportOpen, setConnectionReportOpen] = useState(false);
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
@@ -146,6 +149,12 @@ export default function App() {
   const current = visibleIntroductions[0];
   const connection =
     connections.find(({ id }) => id === selectedConnectionId) ?? connections[0];
+  useEffect(() => {
+    if (tab === "Profile" && accessMode === "account") return;
+    setRecoveryCodes([]);
+    setRecoveryPassword("");
+    setRecoveryError(null);
+  }, [accessMode, tab]);
   useEffect(() => {
     let active = true;
     if (!apiConfiguration.url) {
@@ -1384,6 +1393,89 @@ export default function App() {
               )}
               {accessMode === "account" && (
                 <View style={styles.scoreCard}>
+                  <Text style={styles.name}>Recovery codes</Text>
+                  <Text style={styles.scoreNote}>
+                    Recovery codes let you replace a forgotten passphrase
+                    without email. Each code works once. Creating a new set
+                    invalidates the old one. Store them outside this device,
+                    ideally in a password manager. OpenMatch cannot restore lost
+                    codes.
+                  </Text>
+                  {recoveryCodes.length ? (
+                    <>
+                      <Text
+                        accessibilityLiveRegion="polite"
+                        style={styles.setting}
+                      >
+                        Copy these now. They will not be shown again.
+                      </Text>
+                      {recoveryCodes.map((code) => (
+                        <Text key={code} selectable style={styles.codeText}>
+                          {code}
+                        </Text>
+                      ))}
+                      <Action
+                        label="Share or save codes"
+                        secondary
+                        onPress={() =>
+                          void Share.share({
+                            title: "OpenMatch recovery codes",
+                            message: recoveryCodes.join("\n"),
+                          })
+                        }
+                      />
+                      <Action
+                        label="I saved them—hide codes"
+                        secondary
+                        onPress={() => setRecoveryCodes([])}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.setting}>Current passphrase</Text>
+                      <TextInput
+                        accessibilityLabel="Passphrase for recovery codes"
+                        autoCapitalize="none"
+                        autoComplete="current-password"
+                        secureTextEntry
+                        value={recoveryPassword}
+                        maxLength={128}
+                        onChangeText={setRecoveryPassword}
+                        style={styles.textField}
+                      />
+                      <Action
+                        label="Create new recovery codes"
+                        secondary
+                        disabled={!recoveryPassword}
+                        onPress={() => {
+                          setRecoveryError(null);
+                          void api
+                            .generateRecoveryCodes(recoveryPassword)
+                            .then(({ codes }) => {
+                              setRecoveryPassword("");
+                              setRecoveryCodes(codes);
+                            })
+                            .catch((error) =>
+                              setRecoveryError(
+                                error instanceof ApiError &&
+                                  error.code === "invalid_current_password"
+                                  ? "The current passphrase was not accepted."
+                                  : "Recovery codes could not be created.",
+                              ),
+                            );
+                        }}
+                      />
+                    </>
+                  )}
+                  {recoveryError && (
+                    <Text accessibilityRole="alert" style={styles.errorText}>
+                      {recoveryError}
+                    </Text>
+                  )}
+                </View>
+              )}
+              {accessMode === "account" && (
+                <View style={styles.scoreCard}>
                   <Text style={styles.name}>Change passphrase</Text>
                   <Text style={styles.scoreNote}>
                     Enter your current passphrase, then choose at least 15
@@ -1852,7 +1944,7 @@ export default function App() {
                 </Text>
                 <Text style={styles.scoreNote}>
                   {accessMode === "account"
-                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Email verification, recovery, and an independent security review are still required before a real-person pilot."
+                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Verified contact ownership, provider-backed recovery notifications, and an independent security review are still required before a real-person pilot."
                     : "The temporary bearer token only gates this shared local demo. It does not verify identity or isolate one person’s data from another client. Do not use this demo with real profiles."}
                 </Text>
               </View>
@@ -1971,9 +2063,10 @@ function MobileAuthentication({
   tryDemo?: () => void;
   notice?: string | null;
 }) {
-  const [mode, setMode] = useState<"sign-in" | "create">("sign-in");
+  const [mode, setMode] = useState<"sign-in" | "create" | "recover">("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const submit = async () => {
@@ -1983,7 +2076,9 @@ function MobileAuthentication({
       const session =
         mode === "create"
           ? await api.createAccount(email, password)
-          : await api.signIn(email, password);
+          : mode === "recover"
+            ? await api.recoverAccount(email, recoveryCode, password)
+            : await api.signIn(email, password);
       try {
         await onAuthenticated(session.token);
       } catch {
@@ -2003,7 +2098,11 @@ function MobileAuthentication({
                 ? "Use a passphrase between 15 and 128 characters."
                 : code === "secure_session_storage_unavailable"
                   ? "This device could not protect the session. No account session was kept."
-                  : "Email or passphrase was not accepted.",
+                  : code === "invalid_recovery"
+                    ? "The email or unused recovery code was not accepted."
+                    : code === "password_unchanged"
+                      ? "Choose a new passphrase different from the current one."
+                      : "Email or passphrase was not accepted.",
       );
     } finally {
       setSubmitting(false);
@@ -2015,7 +2114,11 @@ function MobileAuthentication({
         <Text style={styles.brand}>OpenMatch</Text>
         <Text style={styles.eyebrow}>Private account</Text>
         <Text style={styles.title}>
-          {mode === "create" ? "Create your account." : "Welcome back."}
+          {mode === "create"
+            ? "Create your account."
+            : mode === "recover"
+              ? "Recover your account."
+              : "Welcome back."}
         </Text>
         <Text style={styles.subtle}>
           Your private data and conversations stay isolated. After setup, the
@@ -2034,11 +2137,30 @@ function MobileAuthentication({
           onChangeText={setEmail}
           style={styles.textField}
         />
-        <Text style={styles.setting}>Passphrase</Text>
+        {mode === "recover" && (
+          <>
+            <Text style={styles.setting}>Unused recovery code</Text>
+            <TextInput
+              accessibilityLabel="Unused recovery code"
+              autoCapitalize="none"
+              autoComplete="one-time-code"
+              value={recoveryCode}
+              onChangeText={setRecoveryCode}
+              style={styles.textField}
+            />
+          </>
+        )}
+        <Text style={styles.setting}>
+          {mode === "recover" ? "New passphrase" : "Passphrase"}
+        </Text>
         <TextInput
           accessibilityLabel="Passphrase"
           autoCapitalize="none"
-          autoComplete={mode === "create" ? "new-password" : "current-password"}
+          autoComplete={
+            mode === "create" || mode === "recover"
+              ? "new-password"
+              : "current-password"
+          }
           secureTextEntry
           value={password}
           onChangeText={setPassword}
@@ -2055,14 +2177,28 @@ function MobileAuthentication({
               ? "Please wait…"
               : mode === "create"
                 ? "Create account"
-                : "Sign in"
+                : mode === "recover"
+                  ? "Recover account"
+                  : "Sign in"
           }
           disabled={
             submitting ||
             !email.trim() ||
-            (mode === "create" ? password.length < 15 : !password)
+            (mode === "create" || mode === "recover"
+              ? password.length < 15
+              : !password) ||
+            (mode === "recover" && !recoveryCode.trim())
           }
           onPress={() => void submit()}
+        />
+        <Action
+          label={mode === "recover" ? "Back to sign in" : "Use a recovery code"}
+          secondary
+          onPress={() => {
+            setAuthError(null);
+            setRecoveryCode("");
+            setMode(mode === "recover" ? "sign-in" : "recover");
+          }}
         />
         <Action
           label={
@@ -2080,8 +2216,9 @@ function MobileAuthentication({
           <Action label="Use local demo" secondary onPress={tryDemo} />
         )}
         <Text style={styles.mathNote}>
-          Account sessions currently last up to 12 hours. Password recovery and
-          verified email are not implemented, so do not use a valuable password.
+          Account sessions currently last up to 12 hours. Recovery codes are
+          one-time secrets, not email verification or identity proofing. Do not
+          use a valuable password in this prototype.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -2759,6 +2896,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F5F5F1" },
   authPage: { padding: 24, gap: 14, justifyContent: "center", flexGrow: 1 },
   errorText: { color: "#8A2727", lineHeight: 21 },
+  codeText: {
+    color: "#294536",
+    fontFamily: Platform.select({ ios: "Menlo", android: "monospace" }),
+    fontSize: 13,
+    lineHeight: 22,
+  },
   header: {
     height: 58,
     paddingHorizontal: 20,

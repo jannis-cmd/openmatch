@@ -90,6 +90,13 @@ export type AuthSession = {
 export type PasswordChangeSession = AuthSession & {
   otherSessionsRevoked: true;
 };
+export type RecoverySession = PasswordChangeSession & {
+  recoveryCodesRevoked: true;
+};
+export type RecoveryCodeSet = {
+  codes: string[];
+  createdAt: string;
+};
 export type ApiClientOptions = {
   initialToken?: string | null;
   demoSessions?: boolean;
@@ -176,6 +183,12 @@ export function createApiClient(
     options.onTokenChange?.(body.token);
     return body as AuthSession;
   };
+  const adoptSession = (body: Partial<AuthSession>) => {
+    if (typeof body.token !== "string" || typeof body.expiresAt !== "string")
+      throw new ApiError(500, "invalid_session");
+    sessionPromise = Promise.resolve(body.token);
+    options.onTokenChange?.(body.token);
+  };
   const request = async <T>(
     path: string,
     init: RequestInit = {},
@@ -233,6 +246,39 @@ export function createApiClient(
       sessionPromise = Promise.resolve(session.token);
       options.onTokenChange?.(session.token);
       return session;
+    },
+    generateRecoveryCodes: (currentPassword: string) =>
+      request<RecoveryCodeSet>(
+        "/v1/account/recovery-codes",
+        json("POST", { currentPassword }),
+      ),
+    recoverAccount: async (
+      email: string,
+      recoveryCode: string,
+      newPassword: string,
+    ) => {
+      const response = await fetcher(`${origin}/v1/account/recover`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email,
+          recoveryCode,
+          newPassword,
+          client: options.client,
+        }),
+      });
+      const body = (await response
+        .json()
+        .catch(() => ({}))) as Partial<RecoverySession> & { error?: string };
+      if (!response.ok)
+        throw new ApiError(response.status, body.error ?? "recovery_failed");
+      if (
+        body.otherSessionsRevoked !== true ||
+        body.recoveryCodesRevoked !== true
+      )
+        throw new ApiError(500, "invalid_session");
+      adoptSession(body);
+      return body as RecoverySession;
     },
     signOut: async () => {
       if (sessionPromise) {

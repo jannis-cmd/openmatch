@@ -44,6 +44,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let restoredBearerUsed = false;
   let otherSessionRevoked = false;
   let passwordChanged = false;
+  let recoveryCodesGenerated = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -83,6 +84,19 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         authentication: true,
         otherSessionsRevoked: true,
       });
+    }
+    if (path === "/v1/account/recovery-codes" && init.method === "POST") {
+      recoveryCodesGenerated = true;
+      return response(
+        {
+          codes: Array.from(
+            { length: 8 },
+            (_, index) => `${index}111-2222-3333-4444-5555-6666-7777-8888`,
+          ),
+          createdAt: "2026-08-12T12:00:00.000Z",
+        },
+        201,
+      );
     }
     if (path === "/v1/sessions" && init.method !== "DELETE")
       return response({
@@ -537,6 +551,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(clearSessionToken).toHaveBeenCalled();
   expect(screen.getByLabelText("Email")).toBeTruthy();
   expect(screen.getByLabelText("Passphrase")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Use a recovery code"));
+  expect(screen.getByText("Recover your account.")).toBeTruthy();
+  expect(screen.getByLabelText("Unused recovery code")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Back to sign in"));
   await fireEvent.press(screen.getByText("Create an account"));
   expect(screen.getByText("Create your account.")).toBeTruthy();
   await fireEvent.changeText(
@@ -592,6 +610,22 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(
     screen.getByText(/Passphrase changed. Every other session was signed out/),
   ).toBeTruthy();
+  await fireEvent.changeText(
+    screen.getByLabelText("Passphrase for recovery codes"),
+    "a replacement native passphrase",
+  );
+  await fireEvent.press(screen.getByText("Create new recovery codes"));
+  await waitFor(() => expect(recoveryCodesGenerated).toBe(true));
+  expect(
+    screen.getByText("Copy these now. They will not be shown again."),
+  ).toBeTruthy();
+  expect(
+    screen.getByText("0111-2222-3333-4444-5555-6666-7777-8888"),
+  ).toBeTruthy();
+  await fireEvent.press(screen.getByText("I saved them—hide codes"));
+  expect(
+    screen.queryByText("0111-2222-3333-4444-5555-6666-7777-8888"),
+  ).toBeNull();
   await screen.unmount();
   (restoreSessionToken as jest.Mock).mockResolvedValueOnce("r".repeat(43));
   const previousDemoRequests = demoSessionRequests;

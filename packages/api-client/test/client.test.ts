@@ -142,6 +142,62 @@ test("changes a passphrase and adopts the rotated session", async () => {
   assert.deepEqual(tokenChanges, [newToken]);
 });
 
+test("creates recovery codes and adopts a recovered session", async () => {
+  const oldToken = "o".repeat(43);
+  const recoveredToken = "r".repeat(43);
+  const tokenChanges: Array<string | null> = [];
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async (url, init) => {
+      requests.push({ url: String(url), init });
+      if (String(url).endsWith("/recovery-codes"))
+        return new Response(
+          JSON.stringify({
+            codes: ["1111-2222-3333-4444-5555-6666-7777-8888"],
+            createdAt: "2026-08-12T00:00:00.000Z",
+          }),
+          { status: 201 },
+        );
+      return new Response(
+        JSON.stringify({
+          token: recoveredToken,
+          expiresAt: "2026-08-13T00:00:00.000Z",
+          authentication: true,
+          otherSessionsRevoked: true,
+          recoveryCodesRevoked: true,
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch,
+    {
+      initialToken: oldToken,
+      demoSessions: false,
+      client: "ios",
+      onTokenChange: (token) => tokenChanges.push(token),
+    },
+  );
+  const generated = await client.generateRecoveryCodes("current passphrase");
+  assert.equal(generated.codes.length, 1);
+  assert.equal(
+    new Headers(requests[0]?.init?.headers).get("authorization"),
+    "Bearer " + oldToken,
+  );
+  const recovered = await client.recoverAccount(
+    "person@example.org",
+    generated.codes[0]!,
+    "replacement passphrase",
+  );
+  assert.equal(recovered.recoveryCodesRevoked, true);
+  assert.deepEqual(JSON.parse(String(requests[1]?.init?.body)), {
+    email: "person@example.org",
+    recoveryCode: generated.codes[0],
+    newPassword: "replacement passphrase",
+    client: "ios",
+  });
+  assert.deepEqual(tokenChanges, [recoveredToken]);
+});
+
 test("turns API failures into inspectable errors", async () => {
   const client = createApiClient(
     "http://example.test",

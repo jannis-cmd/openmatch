@@ -201,7 +201,10 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("button", { name: /Revoke Web browser session/ }),
   ).toHaveCount(0);
-  await page
+  const passphraseCard = page
+    .getByRole("heading", { name: "Change passphrase" })
+    .locator("..");
+  await passphraseCard
     .getByLabel("Current passphrase")
     .fill("a repeatable browser test passphrase");
   await page
@@ -215,6 +218,23 @@ test("first run through a persistent connection and safety action", async ({
     page.getByText("Passphrase changed. Every other session was signed out."),
   ).toBeVisible();
   await expect(page.getByText("Web browser · This session")).toBeVisible();
+  const recoveryCard = page
+    .getByRole("heading", { name: "Recovery codes" })
+    .locator("..");
+  await recoveryCard
+    .getByLabel("Current passphrase")
+    .fill("a replacement browser test passphrase");
+  await recoveryCard
+    .getByRole("button", { name: "Create new recovery codes" })
+    .click();
+  await expect(
+    recoveryCard.getByText("Copy these now. They will not be shown again."),
+  ).toBeVisible();
+  await expect(recoveryCard.locator("li")).toHaveCount(8);
+  await recoveryCard
+    .getByRole("button", { name: "I saved them—hide codes" })
+    .click();
+  await expect(recoveryCard.locator("li")).toHaveCount(0);
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByLabel("Profile prompt")).toBeVisible();
   await expect(page.getByLabel(/Values 1–5/)).toBeVisible();

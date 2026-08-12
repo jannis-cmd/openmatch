@@ -5,7 +5,7 @@
   "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
-    "accountDeletion": "DELETE /v1/me synchronously resets only the current account's application data. For an authenticated account, DELETE /v1/account synchronously removes credentials, all sessions, and its application-data file. Neither path retains a server-side receipt.",
+    "accountDeletion": "DELETE /v1/me synchronously resets only the current account's application data. For an authenticated account, DELETE /v1/account synchronously removes credentials, recovery-code hashes, all sessions, and its application-data file. Neither path retains a server-side receipt.",
     "backups": "The prototype does not create application-managed backups. Host-level backups are outside this prototype and must be resolved before a pilot."
   },
   "accessRoles": {
@@ -41,6 +41,15 @@
       "access": ["person", "deviceClient"],
       "fields": ["rawSessionToken"],
       "disclosure": "Stored device-only and readable only while the device is unlocked. It is not migrated in device backups. If secure storage is unavailable or malformed, the client uses no token and requires sign-in. The token is excluded from export."
+    },
+    {
+      "id": "accountRecoveryCodes",
+      "storage": "account_recovery_codes table in the authentication SQLite database",
+      "purpose": "Let a person who previously saved a code replace a forgotten passphrase without relying on an unverified email inbox.",
+      "retention": "Until one code is used, a replacement set is created, the account is deleted, or the operator removes the authentication database.",
+      "access": ["service", "operator"],
+      "fields": ["codeHash", "accountId", "createdAt"],
+      "disclosure": "Eight independent 128-bit codes are returned only once when created after current-passphrase verification. The service stores only SHA-256 hashes. Successful recovery invalidates the entire set, replaces the passphrase salt/hash, revokes every session, and returns one fresh session in the same transaction. Codes are credentials, are excluded from export, and do not verify email or identity."
     },
     {
       "id": "demoSessions",

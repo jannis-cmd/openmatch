@@ -313,6 +313,39 @@ export function createApp(
           throw error;
         }
       }
+      if (request.method === "POST" && url.pathname === "/v1/account/recover") {
+        if (!accounts)
+          return send(response, 404, { error: "accounts_disabled" });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          email?: unknown;
+          recoveryCode?: unknown;
+          newPassword?: unknown;
+          client?: unknown;
+        };
+        try {
+          const session = accounts.recoverAccount(
+            body.email,
+            body.recoveryCode,
+            body.newPassword,
+            body.client,
+          );
+          return send(response, 200, {
+            token: session.token,
+            expiresAt: session.expiresAt,
+            authentication: true,
+            otherSessionsRevoked: true,
+            recoveryCodesRevoked: true,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
       const authorization = request.headers.authorization;
       const token = authorization?.startsWith("Bearer ")
         ? authorization.slice("Bearer ".length)
@@ -416,6 +449,36 @@ export function createApp(
             authentication: true,
             otherSessionsRevoked: true,
           });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/recovery-codes"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          currentPassword?: unknown;
+        };
+        try {
+          return send(
+            response,
+            201,
+            accounts.generateRecoveryCodes(
+              accountSession.accountId,
+              body.currentPassword,
+            ),
+          );
         } catch (error) {
           if (error instanceof AccountError)
             return send(response, error.status, { error: error.code });

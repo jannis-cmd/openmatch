@@ -31,6 +31,7 @@ const COMMON_PASSWORDS = new Set([
   "welcomecomewelcome",
 ]);
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const RECOVERY_CODE_COUNT = 8;
 const SCRYPT_OPTIONS = { N: 32_768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
 type AccountRow = {
@@ -107,6 +108,11 @@ export class Accounts {
         expires_at INTEGER NOT NULL,
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS account_recovery_codes (
+        code_hash TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL
+      );
     `);
     const sessionColumns = this.db
       .prepare("PRAGMA table_info(account_sessions)")
@@ -153,6 +159,15 @@ export class Accounts {
 
   private passwordHash(password: string, salt: Buffer) {
     return scryptSync(password, salt, 64, SCRYPT_OPTIONS);
+  }
+
+  private recoveryCodeHash(value: unknown) {
+    const compact =
+      typeof value === "string"
+        ? value.trim().toLocaleLowerCase().replaceAll("-", "")
+        : "";
+    if (!/^[0-9a-f]{32}$/.test(compact)) return null;
+    return createHash("sha256").update(compact).digest("base64url");
   }
 
   private passwordMatches(account: AccountRow | undefined, value: unknown) {
@@ -419,6 +434,110 @@ export class Accounts {
       token,
       expiresAt: new Date(expiresAt).toISOString(),
       store: this.store(accountId),
+    };
+  }
+
+  generateRecoveryCodes(accountId: string, currentPasswordValue: unknown) {
+    const account = this.db
+      .prepare(
+        "SELECT id,email,password_hash,password_salt,created_at FROM accounts WHERE id=?",
+      )
+      .get(accountId) as AccountRow | undefined;
+    if (!account || !this.passwordMatches(account, currentPasswordValue))
+      throw new AccountError("invalid_current_password", 400);
+    const codes = Array.from({ length: RECOVERY_CODE_COUNT }, () =>
+      randomBytes(16)
+        .toString("hex")
+        .match(/.{1,4}/g)!
+        .join("-"),
+    );
+    const createdAt = new Date().toISOString();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare("DELETE FROM account_recovery_codes WHERE account_id=?")
+        .run(accountId);
+      const insert = this.db.prepare(
+        "INSERT INTO account_recovery_codes(code_hash,account_id,created_at) VALUES (?,?,?)",
+      );
+      for (const code of codes)
+        insert.run(this.recoveryCodeHash(code), accountId, createdAt);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return { codes, createdAt };
+  }
+
+  recoverAccount(
+    emailValue: unknown,
+    recoveryCodeValue: unknown,
+    newPasswordValue: unknown,
+    clientValue?: unknown,
+  ) {
+    const email = this.normalizeEmail(emailValue);
+    const codeHash =
+      this.recoveryCodeHash(recoveryCodeValue) ??
+      createHash("sha256").update("invalid recovery code").digest("base64url");
+    const account = this.db
+      .prepare(
+        `SELECT accounts.id,accounts.email,accounts.password_hash,accounts.password_salt,accounts.created_at
+         FROM accounts JOIN account_recovery_codes
+         ON account_recovery_codes.account_id=accounts.id
+         WHERE accounts.email=? AND account_recovery_codes.code_hash=?`,
+      )
+      .get(email, codeHash) as AccountRow | undefined;
+    if (!account) throw new AccountError("invalid_recovery", 400);
+    const newPassword = this.validatePassword(newPasswordValue);
+    if (this.passwordMatches(account, newPassword))
+      throw new AccountError("password_unchanged", 400);
+    const salt = randomBytes(16);
+    const token = randomBytes(32).toString("base64url");
+    const tokenHash = createHash("sha256").update(token).digest("base64url");
+    const sessionId = randomUUID();
+    const expiresAt = Date.now() + this.sessionTtlMs;
+    const createdAt = new Date().toISOString();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare(
+          "UPDATE accounts SET password_hash=?,password_salt=? WHERE id=?",
+        )
+        .run(
+          this.passwordHash(newPassword, salt).toString("base64url"),
+          salt.toString("base64url"),
+          account.id,
+        );
+      this.db
+        .prepare("DELETE FROM account_recovery_codes WHERE account_id=?")
+        .run(account.id);
+      this.db
+        .prepare("DELETE FROM account_sessions WHERE account_id=?")
+        .run(account.id);
+      this.db
+        .prepare(
+          "INSERT INTO account_sessions(token_hash,id,account_id,client,expires_at,created_at) VALUES (?,?,?,?,?,?)",
+        )
+        .run(
+          tokenHash,
+          sessionId,
+          account.id,
+          this.sessionClient(clientValue),
+          expiresAt,
+          createdAt,
+        );
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return {
+      accountId: account.id,
+      sessionId,
+      token,
+      expiresAt: new Date(expiresAt).toISOString(),
+      store: this.store(account.id),
     };
   }
 

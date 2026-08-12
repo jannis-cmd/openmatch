@@ -635,6 +635,145 @@ test("changing a passphrase verifies the current secret and atomically rotates e
   }
 });
 
+test("one-time recovery codes replace credentials and revoke every session and code", async () => {
+  const accounts = new Accounts(":memory:", { dataDirectory: null });
+  const server = createApp({
+    store: new Store(":memory:"),
+    accounts,
+    demoSessionsEnabled: false,
+    authRateLimit: { maximum: 20, windowMs: 60_000 },
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = "http://127.0.0.1:" + address.port;
+  const oldPassword = "the original recovery passphrase";
+  const newPassword = "the recovered account passphrase";
+  const auth = (token: string) => ({
+    "content-type": "application/json",
+    authorization: "Bearer " + token,
+  });
+  try {
+    const created = await accountSession(
+      base,
+      "/v1/accounts",
+      "recover@example.org",
+      oldPassword,
+      "android",
+    );
+    const second = await accountSession(
+      base,
+      "/v1/sessions",
+      "recover@example.org",
+      oldPassword,
+      "ios",
+    );
+    assert.ok(created.body.token && second.body.token);
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/recovery-codes", {
+          method: "POST",
+          headers: auth(created.body.token),
+          body: JSON.stringify({ currentPassword: "wrong current value" }),
+        })
+      ).status,
+      400,
+    );
+    const generated = await fetch(base + "/v1/account/recovery-codes", {
+      method: "POST",
+      headers: auth(created.body.token),
+      body: JSON.stringify({ currentPassword: oldPassword }),
+    });
+    assert.equal(generated.status, 201);
+    const firstCodeSet = (await generated.json()) as {
+      codes: string[];
+      createdAt: string;
+    };
+    assert.equal(firstCodeSet.codes.length, 8);
+    assert.ok(Date.parse(firstCodeSet.createdAt));
+    for (const code of firstCodeSet.codes)
+      assert.match(code, /^(?:[0-9a-f]{4}-){7}[0-9a-f]{4}$/);
+    const stored = accounts.db
+      .prepare(
+        "SELECT code_hash AS codeHash FROM account_recovery_codes ORDER BY code_hash",
+      )
+      .all() as Array<{ codeHash: string }>;
+    assert.equal(stored.length, 8);
+    assert.ok(
+      stored.every(({ codeHash }) => !firstCodeSet.codes.includes(codeHash)),
+    );
+    const recover = (code: string, password = newPassword) =>
+      fetch(base + "/v1/account/recover", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "recover@example.org",
+          recoveryCode: code,
+          newPassword: password,
+          client: "web",
+        }),
+      });
+    const replacementSetResponse = await fetch(
+      base + "/v1/account/recovery-codes",
+      {
+        method: "POST",
+        headers: auth(created.body.token),
+        body: JSON.stringify({ currentPassword: oldPassword }),
+      },
+    );
+    const codeSet = (await replacementSetResponse.json()) as {
+      codes: string[];
+    };
+    assert.equal((await recover(firstCodeSet.codes[0]!)).status, 400);
+    assert.equal((await recover("not-a-code")).status, 400);
+    const unchanged = await recover(codeSet.codes[0]!, oldPassword);
+    assert.equal(unchanged.status, 400);
+    assert.equal(
+      ((await unchanged.json()) as { error: string }).error,
+      "password_unchanged",
+    );
+    const recovered = await recover(codeSet.codes[0]!);
+    assert.equal(recovered.status, 200);
+    const recoveredBody = (await recovered.json()) as {
+      token: string;
+      otherSessionsRevoked: boolean;
+      recoveryCodesRevoked: boolean;
+    };
+    assert.equal(recoveredBody.otherSessionsRevoked, true);
+    assert.equal(recoveredBody.recoveryCodesRevoked, true);
+    const remainingCodes = accounts.db
+      .prepare("SELECT count(*) AS count FROM account_recovery_codes")
+      .get() as { count: number };
+    assert.equal(remainingCodes.count, 0);
+    for (const token of [created.body.token, second.body.token])
+      assert.equal(
+        (await fetch(base + "/v1/me", { headers: auth(token) })).status,
+        401,
+      );
+    assert.equal(
+      (await fetch(base + "/v1/me", { headers: auth(recoveredBody.token) }))
+        .status,
+      200,
+    );
+    assert.equal((await recover(codeSet.codes[1]!)).status, 400);
+    assert.equal(
+      (
+        await accountSession(
+          base,
+          "/v1/sessions",
+          "recover@example.org",
+          oldPassword,
+        )
+      ).response.status,
+      401,
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("account reset is atomic when storage rejects a deletion", () => {
   const store = new Store(":memory:");
   try {
@@ -686,6 +825,7 @@ test("the public data inventory covers every current storage and export field", 
       "expiresAt",
       "createdAt",
     ],
+    accountRecoveryCodes: ["codeHash", "accountId", "createdAt"],
     mobileSession: ["rawSessionToken"],
     demoSessions: ["tokenHash", "expiresAt"],
     profile: [
