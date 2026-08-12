@@ -24,6 +24,7 @@ import {
   ALGORITHM_VERSION,
   defaultPreferences,
   demoUser,
+  explainMatch,
   nearestPriority,
   PRIORITY_LEVELS,
   priorityLabel,
@@ -930,6 +931,7 @@ export default function App() {
                 Algorithm {transparency?.matching ?? ALGORITHM_VERSION} · No
                 hidden factors · Prototype
               </Text>
+              <MobileScoreCalculator />
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Inspect the work</Text>
                 <Text style={styles.scoreNote}>
@@ -1305,6 +1307,95 @@ function PreferencesScreen({
         </Text>
       </View>
     </>
+  );
+}
+
+function MobileScoreCalculator() {
+  const [yourFit, setYourFit] = useState(80);
+  const [theirFit, setTheirFit] = useState(60);
+  const [boundaryWorks, setBoundaryWorks] = useState(true);
+  const explanation = explainMatch({
+    boundaries: [
+      {
+        id: "synthetic-boundary",
+        label: "Synthetic mutual boundary",
+        satisfiedForA: boundaryWorks,
+        satisfiedForB: boundaryWorks,
+      },
+    ],
+    factors: [
+      {
+        id: "synthetic-fit",
+        label: "Synthetic fit",
+        compatibilityA: yourFit / 100,
+        compatibilityB: theirFit / 100,
+        weightA: 1,
+        weightB: 1,
+      },
+    ],
+  });
+  const reciprocal = Math.round(explanation.reciprocalFit * 100);
+  const final = Math.round(explanation.finalScore * 100);
+  const adjust = (value: number, change: number) =>
+    Math.max(0, Math.min(100, value + change));
+
+  return (
+    <View style={styles.scoreCard}>
+      <Text style={styles.eyebrow}>Try it locally</Text>
+      <Text style={styles.name}>Reciprocal score calculator</Text>
+      <Text style={styles.scoreNote}>
+        Synthetic values only. Nothing is sent to the server.
+      </Text>
+      <Text style={styles.setting}>Your directed fit: {yourFit}%</Text>
+      <View style={styles.adjust}>
+        <Action
+          label="− 10"
+          accessibilityLabel="Lower your directed fit"
+          secondary
+          onPress={() => setYourFit(adjust(yourFit, -10))}
+        />
+        <Action
+          label="+ 10"
+          accessibilityLabel="Raise your directed fit"
+          secondary
+          onPress={() => setYourFit(adjust(yourFit, 10))}
+        />
+      </View>
+      <Text style={styles.setting}>Their directed fit: {theirFit}%</Text>
+      <View style={styles.adjust}>
+        <Action
+          label="− 10"
+          accessibilityLabel="Lower their directed fit"
+          secondary
+          onPress={() => setTheirFit(adjust(theirFit, -10))}
+        />
+        <Action
+          label="+ 10"
+          accessibilityLabel="Raise their directed fit"
+          secondary
+          onPress={() => setTheirFit(adjust(theirFit, 10))}
+        />
+      </View>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: boundaryWorks }}
+        style={styles.radioRow}
+        onPress={() => setBoundaryWorks(!boundaryWorks)}
+      >
+        <Text style={styles.radioMark}>{boundaryWorks ? "☑" : "☐"}</Text>
+        <Text style={styles.radioLabel}>Mutual boundaries are satisfied</Text>
+      </Pressable>
+      <Text style={styles.name}>Reciprocal fit: {reciprocal}%</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.name}>
+        Final score: {final}%
+      </Text>
+      <Text style={styles.mathNote}>
+        {yourFit + theirFit === 0
+          ? "When both directed fits are 0, reciprocal fit is defined as 0."
+          : `Harmonic mean: 2 × ${yourFit} × ${theirFit} ÷ (${yourFit} + ${theirFit}) = ${reciprocal}.`}{" "}
+        {!boundaryWorks && "A failed boundary makes the final score 0."}
+      </Text>
+    </View>
   );
 }
 

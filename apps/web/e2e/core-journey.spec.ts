@@ -138,6 +138,28 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Resume", exact: true }).click();
   await expect(page.getByRole("status")).not.toBeVisible();
   await page.getByRole("button", { name: "How it works" }).click();
+  const calculator = page
+    .getByRole("heading", {
+      name: "Reciprocal score calculator",
+    })
+    .locator("..");
+  const calculatorApiRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/v1/"))
+      calculatorApiRequests.push(request.url());
+  });
+  await expect(
+    calculator.locator(".calculator-result > div").nth(1),
+  ).toContainText("Final score69%");
+  await page.getByLabel(/Your directed fit/).fill("20");
+  await expect(
+    calculator.locator(".calculator-result > div").nth(1),
+  ).toContainText("Final score30%");
+  await page.getByLabel("Mutual boundaries are satisfied").uncheck();
+  await expect(
+    calculator.locator(".calculator-result > div").nth(1),
+  ).toContainText("Final score0%");
+  expect(calculatorApiRequests).toEqual([]);
   await expect(
     page.getByRole("heading", { name: "Known limits" }),
   ).toBeVisible();

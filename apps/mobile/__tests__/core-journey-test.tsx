@@ -146,6 +146,12 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   expect(accountStatus).toBe("paused");
   await fireEvent.press(screen.getByText("Method"));
+  expect(screen.getByText("Reciprocal score calculator")).toBeTruthy();
+  expect(screen.getByText("Final score: 69%")).toBeTruthy();
+  await fireEvent.press(screen.getByLabelText("Lower your directed fit"));
+  expect(screen.getByText("Final score: 65%")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Mutual boundaries are satisfied"));
+  expect(screen.getByText("Final score: 0%")).toBeTruthy();
   expect(screen.getByText("Known limits")).toBeTruthy();
   expect(screen.getByText("Open matching source code")).toBeTruthy();
   expect(screen.getByText("Safer dating")).toBeTruthy();

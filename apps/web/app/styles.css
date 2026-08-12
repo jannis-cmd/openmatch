@@ -598,6 +598,47 @@ input {
 .transparency-links h2:not(:first-child) {
   margin-top: 34px;
 }
+.calculator {
+  margin-top: 22px;
+}
+.calculator label:not(.calculator-check) {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+.calculator input[type="range"] {
+  accent-color: #315c47;
+  width: 100%;
+}
+.calculator-check {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin: 22px 0;
+}
+.calculator-result {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.calculator-result div {
+  background: #f0f2ed;
+  border-radius: 16px;
+  padding: 16px;
+}
+.calculator-result span,
+.calculator-result strong {
+  display: block;
+}
+.calculator-result strong {
+  font-size: 28px;
+  margin-top: 4px;
+}
+.calculator-formula {
+  color: #5f635c;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
 textarea {
   font: inherit;
   width: 100%;

@@ -13,6 +13,7 @@ import {
   ALGORITHM_VERSION,
   defaultPreferences,
   demoUser,
+  explainMatch,
   nearestPriority,
   PRIORITY_LEVELS,
   priorityLabel,
@@ -1748,6 +1749,7 @@ function AboutView({
         Algorithm {transparency?.matching ?? ALGORITHM_VERSION} · Deterministic
         · No hidden factors · Prototype
       </div>
+      <ScoreCalculator />
       <section className="transparency-links settings-card">
         <h2>Inspect the work</h2>
         <p>
@@ -1816,5 +1818,90 @@ function AboutView({
         </a>
       </section>
     </div>
+  );
+}
+
+function ScoreCalculator() {
+  const [yourFit, setYourFit] = useState(80);
+  const [theirFit, setTheirFit] = useState(60);
+  const [boundaryWorks, setBoundaryWorks] = useState(true);
+  const explanation = explainMatch({
+    boundaries: [
+      {
+        id: "synthetic-boundary",
+        label: "Synthetic mutual boundary",
+        satisfiedForA: boundaryWorks,
+        satisfiedForB: boundaryWorks,
+      },
+    ],
+    factors: [
+      {
+        id: "synthetic-fit",
+        label: "Synthetic fit",
+        compatibilityA: yourFit / 100,
+        compatibilityB: theirFit / 100,
+        weightA: 1,
+        weightB: 1,
+      },
+    ],
+  });
+  const reciprocal = Math.round(explanation.reciprocalFit * 100);
+  const final = Math.round(explanation.finalScore * 100);
+
+  return (
+    <section className="calculator settings-card">
+      <p className="eyebrow">Try it locally</p>
+      <h2>Reciprocal score calculator</h2>
+      <p>
+        These are synthetic values. Move either side to see why a high one-sided
+        fit cannot hide a low one. Nothing is sent to the server.
+      </p>
+      <label htmlFor="your-directed-fit">
+        Your directed fit <strong>{yourFit}%</strong>
+      </label>
+      <input
+        id="your-directed-fit"
+        type="range"
+        min="0"
+        max="100"
+        value={yourFit}
+        onChange={(event) => setYourFit(Number(event.target.value))}
+      />
+      <label htmlFor="their-directed-fit">
+        Their directed fit <strong>{theirFit}%</strong>
+      </label>
+      <input
+        id="their-directed-fit"
+        type="range"
+        min="0"
+        max="100"
+        value={theirFit}
+        onChange={(event) => setTheirFit(Number(event.target.value))}
+      />
+      <label className="calculator-check">
+        <input
+          type="checkbox"
+          checked={boundaryWorks}
+          onChange={(event) => setBoundaryWorks(event.target.checked)}
+        />
+        Mutual boundaries are satisfied
+      </label>
+      <div className="calculator-result" aria-live="polite">
+        <div>
+          <span>Reciprocal fit</span>
+          <strong>{reciprocal}%</strong>
+        </div>
+        <div>
+          <span>Final score</span>
+          <strong>{final}%</strong>
+        </div>
+      </div>
+      <p className="calculator-formula">
+        {yourFit + theirFit === 0
+          ? "When both directed fits are 0, reciprocal fit is defined as 0."
+          : `Harmonic mean: 2 × ${yourFit} × ${theirFit} ÷ (${yourFit} + ${theirFit}) = ${reciprocal}.`}{" "}
+        {!boundaryWorks && "A failed boundary makes the final score 0."}
+      </p>
+    </section>
   );
 }
