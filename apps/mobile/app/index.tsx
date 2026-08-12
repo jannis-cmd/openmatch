@@ -441,6 +441,13 @@ export default function App() {
     setError(operationLimitMessage(error, fallback));
     return false;
   };
+  const recordSecurityNotification = (status: SecurityNotificationStatus) => {
+    void api
+      .securityNotificationStatus()
+      .then(setSecurityNotificationDelivery)
+      .catch(() => undefined);
+    return securityNotice(status);
+  };
   const runCrossAccountAction = async (
     action: () => Promise<unknown>,
     fallback: string,
@@ -496,7 +503,7 @@ export default function App() {
           if (notification)
             setPasswordNotice(
               "Account recovered. Every previous session and recovery code was invalidated." +
-                securityNotice(notification),
+                recordSecurityNotification(notification),
             );
           if (notification) setTab("Profile");
           setAccessMode("account");
@@ -1824,7 +1831,7 @@ export default function App() {
                                       setBackupPassword("");
                                       setBackupNotice(
                                         "Backup security email removed." +
-                                          securityNotice(
+                                          recordSecurityNotification(
                                             result.securityNotification,
                                           ),
                                       );
@@ -1877,7 +1884,9 @@ export default function App() {
                               setBackupCode("");
                               setBackupNotice(
                                 "Backup security email confirmed." +
-                                  securityNotice(result.securityNotification),
+                                  recordSecurityNotification(
+                                    result.securityNotification,
+                                  ),
                               );
                             })
                             .catch((error) =>
@@ -2092,7 +2101,9 @@ export default function App() {
                               setRecoveryCodes(codes);
                               setRecoveryNotice(
                                 "Every older recovery code is now invalid." +
-                                  securityNotice(securityNotification),
+                                  recordSecurityNotification(
+                                    securityNotification,
+                                  ),
                               );
                             })
                             .catch((error) =>
@@ -2191,7 +2202,9 @@ export default function App() {
                             setConfirmPassword("");
                             setPasswordNotice(
                               "Passphrase changed. Every other session was signed out." +
-                                securityNotice(session.securityNotification),
+                                recordSecurityNotification(
+                                  session.securityNotification,
+                                ),
                             );
                           } catch {
                             await api.signOut().catch(() => undefined);

@@ -390,6 +390,17 @@ function AppExperience({
     setError(operationLimitMessage(error, fallback));
     return false;
   };
+  const synchronizeSecurityNotification = async (
+    status: SecurityNotificationStatus,
+  ) => {
+    try {
+      setSecurityNotificationDelivery(await api.securityNotificationStatus());
+    } catch {
+      // The operation response still states whether the immediate attempt
+      // succeeded. A later load can recover durable queue status.
+    }
+    return status;
+  };
 
   const runCrossAccountAction = async (
     action: () => Promise<unknown>,
@@ -1083,7 +1094,9 @@ function AppExperience({
                           const result =
                             await api.confirmNotificationEmail(code);
                           setNotificationEmail(result);
-                          return result.securityNotification;
+                          return synchronizeSecurityNotification(
+                            result.securityNotification,
+                          );
                         }
                       : undefined
                   }
@@ -1093,7 +1106,9 @@ function AppExperience({
                           const result =
                             await api.removeNotificationEmail(currentPassword);
                           setNotificationEmail(result);
-                          return result.securityNotification;
+                          return synchronizeSecurityNotification(
+                            result.securityNotification,
+                          );
                         }
                       : undefined
                   }
@@ -1120,14 +1135,22 @@ function AppExperience({
                             newPassword,
                           );
                           setAccountSessions((await api.sessions()).items);
-                          return result.securityNotification;
+                          return synchronizeSecurityNotification(
+                            result.securityNotification,
+                          );
                         }
                       : undefined
                   }
                   generateRecoveryCodes={
                     authToken
-                      ? (currentPassword) =>
-                          api.generateRecoveryCodes(currentPassword)
+                      ? async (currentPassword) => {
+                          const result =
+                            await api.generateRecoveryCodes(currentPassword);
+                          await synchronizeSecurityNotification(
+                            result.securityNotification,
+                          );
+                          return result;
+                        }
                       : undefined
                   }
                   revokeSession={async (sessionId) => {

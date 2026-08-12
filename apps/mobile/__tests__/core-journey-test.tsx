@@ -45,6 +45,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let meetingPreference = "not_asked";
   let preferenceObservationCount = 0;
   let deliveryRetrying = false;
+  let securityNotificationRetrying = false;
   let demoSessionRequests = 0;
   let accountRequests = 0;
   let restoredBearerUsed = false;
@@ -95,6 +96,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/account/recovery-codes" && init.method === "POST") {
       recoveryCodesGenerated = true;
+      securityNotificationRetrying = true;
       return response(
         {
           codes: Array.from(
@@ -102,7 +104,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
             (_, index) => `${index}111-2222-3333-4444-5555-6666-7777-8888`,
           ),
           createdAt: "2026-08-12T12:00:00.000Z",
-          securityNotification: "not_configured",
+          securityNotification: "failed",
         },
         201,
       );
@@ -215,15 +217,21 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         lastAttemptAt: deliveryRetrying ? "2026-08-12T12:01:00.000Z" : null,
         automaticDiscard: false,
       });
-    if (path === "/v1/account/security-notification-status")
+    if (path === "/v1/account/security-notification-status") {
+      if (init.method === "POST") securityNotificationRetrying = false;
       return response({
-        state: "clear",
-        pendingCount: 0,
-        oldestCreatedAt: null,
-        retryAttempts: 0,
-        lastAttemptAt: null,
+        state: securityNotificationRetrying ? "retrying" : "clear",
+        pendingCount: securityNotificationRetrying ? 1 : 0,
+        oldestCreatedAt: securityNotificationRetrying
+          ? "2026-08-12T12:00:00.000Z"
+          : null,
+        retryAttempts: securityNotificationRetrying ? 1 : 0,
+        lastAttemptAt: securityNotificationRetrying
+          ? "2026-08-12T12:01:00.000Z"
+          : null,
         automaticDiscard: false,
       });
+    }
     if (path === "/v1/delivery" && init.method === "PATCH") {
       batchSize = body.batchSize;
       return response({ batchSize });
@@ -746,6 +754,13 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   await fireEvent.press(screen.getByText("Create new recovery codes"));
   await waitFor(() => expect(recoveryCodesGenerated).toBe(true));
+  await waitFor(() =>
+    expect(screen.getByText("Security email is retrying")).toBeTruthy(),
+  );
+  await fireEvent.press(screen.getByText("Retry email"));
+  await waitFor(() =>
+    expect(screen.queryByText("Security email is retrying")).toBeNull(),
+  );
   expect(
     screen.getByText("Copy these now. They will not be shown again."),
   ).toBeTruthy();
