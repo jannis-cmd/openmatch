@@ -391,16 +391,26 @@ export default function App() {
       };
     }
     setSelectedConnectionId(connection.id);
-    void api
-      .messages(connection.id)
-      .then(({ items }) => {
+    let requestRunning = false;
+    const synchronize = async (showError: boolean) => {
+      if (requestRunning || (!showError && AppState.currentState !== "active"))
+        return;
+      requestRunning = true;
+      try {
+        const { items } = await api.messages(connection.id);
         if (active) setMessages(items);
-      })
-      .catch(() => {
-        if (active) setSafetyNotice("Messages could not be loaded. Retry.");
-      });
+      } catch {
+        if (active && showError)
+          setSafetyNotice("Messages could not be loaded. Retry.");
+      } finally {
+        requestRunning = false;
+      }
+    };
+    void synchronize(true);
+    const timer = setInterval(() => void synchronize(false), 5_000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
   }, [api, connection?.id]);
   useEffect(() => {

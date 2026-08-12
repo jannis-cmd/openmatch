@@ -345,16 +345,24 @@ function AppExperience({
       };
     }
     setSelectedConnectionId(selectedConnection.id);
-    void api
-      .messages(selectedConnection.id)
-      .then(({ items }) => {
+    let requestRunning = false;
+    const synchronize = async (showError: boolean) => {
+      if (requestRunning || document.visibilityState === "hidden") return;
+      requestRunning = true;
+      try {
+        const { items } = await api.messages(selectedConnection.id);
         if (active) setMessages(items);
-      })
-      .catch(() => {
-        if (active) setError("Messages could not be loaded.");
-      });
+      } catch {
+        if (active && showError) setError("Messages could not be loaded.");
+      } finally {
+        requestRunning = false;
+      }
+    };
+    void synchronize(true);
+    const timer = window.setInterval(() => void synchronize(false), 5_000);
     return () => {
       active = false;
+      window.clearInterval(timer);
     };
   }, [api, selectedConnection?.id]);
   const savePreferences = async (next: Preferences) => {

@@ -476,12 +476,12 @@ test("first run through a persistent connection and safety action", async ({
       )
     ).status(),
   ).toBe(201);
-  await page.reload();
-  await page.getByRole("button", { name: /Connections · 1/ }).click();
   await expect(
     page.getByLabel("You: Hello from the repeatable journey"),
   ).toBeVisible();
-  await expect(page.getByLabel("Mara: Hello back from Mara")).toBeVisible();
+  await expect(page.getByLabel("Mara: Hello back from Mara")).toBeVisible({
+    timeout: 7_000,
+  });
   await expectAccessible(page);
 
   await page.getByRole("button", { name: "Today" }).click();
