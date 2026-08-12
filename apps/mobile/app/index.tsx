@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { resolveApiConfiguration } from "../lib/api-configuration";
+import { resolveWebConfiguration } from "../lib/web-configuration";
 import {
   clearSessionToken,
   persistSessionToken,
@@ -80,6 +81,14 @@ export default function App() {
     () =>
       resolveApiConfiguration(
         process.env.EXPO_PUBLIC_OPENMATCH_API_URL,
+        __DEV__,
+      ),
+    [],
+  );
+  const webConfiguration = useMemo(
+    () =>
+      resolveWebConfiguration(
+        process.env.EXPO_PUBLIC_OPENMATCH_WEB_URL,
         __DEV__,
       ),
     [],
@@ -2332,6 +2341,34 @@ export default function App() {
                     ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Passkeys, email-delivery monitoring, provider-backed recovery notifications, and an independent security review are still required before a real-person pilot."
                     : "The temporary bearer token only gates this shared local demo. It does not verify identity or isolate one person’s data from another client. Do not use this demo with real profiles."}
                 </Text>
+              </View>
+              <View style={styles.scoreCard}>
+                <Text style={styles.name}>Privacy and support</Text>
+                <Text style={styles.scoreNote}>
+                  Read what this prototype stores, why it stores it, how to use
+                  account controls, and which support functions do not exist
+                  yet.
+                </Text>
+                {webConfiguration.url ? (
+                  <>
+                    <Action
+                      label="Open privacy notice"
+                      secondary
+                      onPress={() =>
+                        void Linking.openURL(`${webConfiguration.url}/privacy`)
+                      }
+                    />
+                    <Action
+                      label="Open prototype support"
+                      secondary
+                      onPress={() =>
+                        void Linking.openURL(`${webConfiguration.url}/support`)
+                      }
+                    />
+                  </>
+                ) : (
+                  <Text style={styles.mathNote}>{webConfiguration.error}</Text>
+                )}
               </View>
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Safer dating</Text>

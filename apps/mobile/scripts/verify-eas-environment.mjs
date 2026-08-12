@@ -1,17 +1,17 @@
-export function validateReleaseApiUrl(value) {
+export function validateReleaseOrigin(value, variableName) {
   if (!value?.trim()) {
-    return "EXPO_PUBLIC_OPENMATCH_API_URL is required for every EAS build.";
+    return `${variableName} is required for every EAS build.`;
   }
 
   let parsed;
   try {
     parsed = new URL(value.trim());
   } catch {
-    return "EXPO_PUBLIC_OPENMATCH_API_URL must be a valid URL.";
+    return `${variableName} must be a valid URL.`;
   }
 
   if (parsed.protocol !== "https:") {
-    return "EXPO_PUBLIC_OPENMATCH_API_URL must use HTTPS for an EAS build.";
+    return `${variableName} must use HTTPS for an EAS build.`;
   }
 
   if (
@@ -21,19 +21,26 @@ export function validateReleaseApiUrl(value) {
     parsed.hash ||
     (parsed.pathname !== "/" && parsed.pathname !== "")
   ) {
-    return "EXPO_PUBLIC_OPENMATCH_API_URL must be a plain origin without credentials, a path, query, or fragment.";
+    return `${variableName} must be a plain origin without credentials, a path, query, or fragment.`;
   }
 
   return null;
 }
 
+export const validateReleaseApiUrl = (value) =>
+  validateReleaseOrigin(value, "EXPO_PUBLIC_OPENMATCH_API_URL");
+
 if (process.env.EAS_BUILD === "true" || process.env.EAS_BUILD === "1") {
   const error = validateReleaseApiUrl(
     process.env.EXPO_PUBLIC_OPENMATCH_API_URL,
   );
+  const webError = validateReleaseOrigin(
+    process.env.EXPO_PUBLIC_OPENMATCH_WEB_URL,
+    "EXPO_PUBLIC_OPENMATCH_WEB_URL",
+  );
 
-  if (error) {
-    console.error(`OpenMatch mobile configuration error: ${error}`);
+  if (error || webError) {
+    console.error(`OpenMatch mobile configuration error: ${error ?? webError}`);
     process.exit(1);
   }
 

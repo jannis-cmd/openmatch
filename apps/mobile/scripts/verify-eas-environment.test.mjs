@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { validateReleaseApiUrl } from "./verify-eas-environment.mjs";
+import {
+  validateReleaseApiUrl,
+  validateReleaseOrigin,
+} from "./verify-eas-environment.mjs";
 
 test("requires a service URL", () => {
   assert.match(validateReleaseApiUrl(undefined), /required/);
@@ -20,6 +23,20 @@ test("rejects URL components beyond the origin", () => {
 
 test("accepts a plain HTTPS origin", () => {
   assert.equal(validateReleaseApiUrl(" https://api.example.com/ "), null);
+});
+
+test("validates the separately configured public website origin", () => {
+  assert.match(
+    validateReleaseOrigin(undefined, "EXPO_PUBLIC_OPENMATCH_WEB_URL"),
+    /OPENMATCH_WEB_URL is required/,
+  );
+  assert.equal(
+    validateReleaseOrigin(
+      "https://openmatch.example:8443",
+      "EXPO_PUBLIC_OPENMATCH_WEB_URL",
+    ),
+    null,
+  );
 });
 
 test("builds shared workspace packages before EAS bundles the app", async () => {

@@ -551,6 +551,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByText(/temporary bearer token only gates/)).toBeTruthy();
   expect(screen.getByText("Open matching source code")).toBeTruthy();
   expect(screen.getByText("Open data inventory")).toBeTruthy();
+  expect(screen.getByText("Privacy and support")).toBeTruthy();
+  expect(screen.getByText("Open privacy notice")).toBeTruthy();
+  expect(screen.getByText("Open prototype support")).toBeTruthy();
   expect(screen.getByText("Safer dating")).toBeTruthy();
   expect(screen.getByText("Open FTC romance-scam guidance")).toBeTruthy();
   expect(screen.getByText("Independent support in Switzerland")).toBeTruthy();

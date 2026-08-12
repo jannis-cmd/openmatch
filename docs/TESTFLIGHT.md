@@ -44,9 +44,13 @@ for a distributed build.
 
 ## Configure an EAS environment
 
-Every EAS build requires `EXPO_PUBLIC_OPENMATCH_API_URL` to be a plain HTTPS
-origin. Configure it separately for the `development`, `preview`, or
-`production` EAS environment rather than committing it to `eas.json`:
+Every EAS build requires two plain HTTPS origins:
+
+- `EXPO_PUBLIC_OPENMATCH_API_URL` for private application data and matching;
+- `EXPO_PUBLIC_OPENMATCH_WEB_URL` for the public privacy and support pages.
+
+Configure them separately for the `development`, `preview`, or `production`
+EAS environment rather than committing either value to `eas.json`:
 
 ```bash
 cd apps/mobile
@@ -55,15 +59,21 @@ eas env:create \
   --name EXPO_PUBLIC_OPENMATCH_API_URL \
   --value https://api.example.org \
   --visibility plaintext
+eas env:create \
+  --environment preview \
+  --name EXPO_PUBLIC_OPENMATCH_WEB_URL \
+  --value https://openmatch.example.org \
+  --visibility plaintext
 eas env:list --environment preview
 ```
 
 The value is public app configuration, not a secret. Never place API keys or
 credentials in an `EXPO_PUBLIC_*` variable.
 
-The build hook stops an EAS build if the URL is absent, uses HTTP, or contains
-credentials, a path, query, or fragment. The app also checks the configuration
-at runtime and displays a configuration error without making a request.
+The build hook stops an EAS build if either URL is absent, uses HTTP, or contains
+credentials, a path, query, or fragment. The app also validates both values at
+runtime. Service misconfiguration fails closed; public-link misconfiguration is
+shown in the Method tab instead of opening an invented destination.
 
 ## Preview build
 
