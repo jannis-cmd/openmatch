@@ -12,6 +12,11 @@ tailnet. The iOS and Android production build profiles receive the API origin
 through the EAS `production` environment. No private IP address is embedded in
 the application.
 
+The API enables both isolated accounts and the explicitly labeled private demo.
+Demo sessions use separate random bearer tokens but intentionally share one
+sample identity and dataset. They are suitable only for owner testing on this
+restricted tailnet and must be disabled before any public deployment.
+
 The Mac runs production builds of the API and web client as user LaunchAgents:
 
 - `org.openmatch.api` proxies local port `4000` through tailnet HTTPS port 443.

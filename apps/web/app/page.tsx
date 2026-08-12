@@ -264,7 +264,7 @@ function AppExperience({
       setNotificationEmail(nextNotificationEmail);
     } catch {
       setError(
-        "The local API is unavailable. Start it with pnpm dev, then retry.",
+        "OpenMatch could not reach its configured service. Check your connection and retry.",
       );
     } finally {
       setLoading(false);

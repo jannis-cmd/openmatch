@@ -291,7 +291,7 @@ export default function App() {
       setNotificationEmail(nextNotificationEmail);
     } catch {
       setError(
-        "Cannot reach the local API. Check EXPO_PUBLIC_OPENMATCH_API_URL and retry.",
+        "OpenMatch could not reach its configured service. Check your connection and retry.",
       );
     } finally {
       setLoading(false);
