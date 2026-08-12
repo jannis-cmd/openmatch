@@ -159,7 +159,11 @@ export function createApp(
             finite: true,
             remaining: 0,
           });
-        const hidden = new Set([...store.decidedIds(), ...store.hiddenIds()]);
+        const hidden = new Set([
+          ...store.decidedIds(),
+          ...store.hiddenIds(),
+          ...store.savedIds(),
+        ]);
         const items = createIntroductions(
           store.profile(),
           demoCandidates,
@@ -171,6 +175,55 @@ export function createApp(
           remaining: items.length,
         });
       }
+      if (
+        request.method === "GET" &&
+        url.pathname === "/v1/introductions/saved"
+      ) {
+        if (store.accountStatus() !== "active")
+          return send(response, 200, { items: [] });
+        const saved = store.savedIds();
+        const unavailable = new Set([
+          ...store.decidedIds(),
+          ...store.hiddenIds(),
+        ]);
+        return send(response, 200, {
+          items: createIntroductions(
+            store.profile(),
+            demoCandidates,
+            store.preferences(),
+          ).filter(
+            (item) =>
+              saved.has(item.profile.id) && !unavailable.has(item.profile.id),
+          ),
+        });
+      }
+      const savedIntroduction = url.pathname.match(
+        /^\/v1\/introductions\/([^/]+)\/saved$/,
+      );
+      if (request.method === "POST" && savedIntroduction) {
+        const profileId = savedIntroduction[1];
+        if (!knownProfile(profileId))
+          return send(response, 404, { error: "profile_not_found" });
+        if (
+          store.decidedIds().has(profileId) ||
+          store.hiddenIds().has(profileId)
+        )
+          return send(response, 409, { error: "profile_not_available" });
+        const eligible = createIntroductions(
+          store.profile(),
+          demoCandidates,
+          store.preferences(),
+        ).some((item) => item.profile.id === profileId);
+        if (!eligible)
+          return send(response, 409, { error: "profile_not_eligible" });
+        return send(response, 201, store.saveIntroduction(profileId));
+      }
+      if (request.method === "DELETE" && savedIntroduction)
+        return send(
+          response,
+          store.unsaveIntroduction(savedIntroduction[1]) ? 204 : 404,
+          null,
+        );
       const decision = url.pathname.match(
         /^\/v1\/introductions\/([^/]+)\/decision$/,
       );

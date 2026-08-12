@@ -20,6 +20,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let preferences = structuredClone(defaultPreferences);
   let accountStatus = "active";
   let consentAccepted = false;
+  const savedIds = new Set<string>();
   let reportPayload: { reason?: string; details?: string } | null = null;
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
@@ -67,9 +68,29 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         status: "prototype",
         objective: "useful introductions, not engagement",
       });
+    if (path === "/v1/introductions/saved")
+      return response({
+        items: createIntroductions(profile, demoCandidates, preferences).filter(
+          (item) => savedIds.has(item.profile.id),
+        ),
+      });
+    const saved = path.match(/^\/v1\/introductions\/([^/]+)\/saved$/);
+    if (saved && init.method === "POST") {
+      savedIds.add(saved[1]);
+      return response(
+        { profileId: saved[1], saved: true, createdAt: "now" },
+        201,
+      );
+    }
+    if (saved && init.method === "DELETE") {
+      savedIds.delete(saved[1]);
+      return response(null, 204);
+    }
     if (path === "/v1/introductions")
       return response({
-        items: createIntroductions(profile, demoCandidates, preferences),
+        items: createIntroductions(profile, demoCandidates, preferences).filter(
+          (item) => !savedIds.has(item.profile.id),
+        ),
         finite: true,
         remaining: 3,
       });
@@ -107,6 +128,12 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     expect(screen.getByText("Your introductions")).toBeTruthy(),
   );
   expect(screen.getByText("Mara, 30")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Save for later"));
+  await waitFor(() => expect(screen.getByText("Noah, 34")).toBeTruthy());
+  await fireEvent.press(screen.getByText("Saved (1)"));
+  expect(screen.getByText("Mara, 30")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Return to batch"));
+  await waitFor(() => expect(screen.getByText("Mara, 30")).toBeTruthy());
   expect(screen.getByText("Report this profile")).toBeTruthy();
   expect(screen.getByText("Block Mara")).toBeTruthy();
   await fireEvent.press(screen.getByText("Report this profile"));

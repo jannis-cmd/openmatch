@@ -67,6 +67,14 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "3 remaining" }),
   ).toBeVisible();
   await expect(page.getByText("Within 5 km")).toBeVisible();
+  await page.getByRole("button", { name: "Save for later" }).click();
+  await expect(
+    page.getByRole("heading", { name: "2 remaining" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Saved (1)" }).click();
+  await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
+  await page.getByRole("button", { name: "Return to batch" }).click();
+  await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
   await page.getByRole("button", { name: "Safety options" }).click();
   await page.getByLabel("Reason").selectOption("other");
   await page

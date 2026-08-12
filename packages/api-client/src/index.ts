@@ -118,6 +118,18 @@ export function createApiClient(
       request<{ items: Introduction[]; finite: true; remaining: number }>(
         "/v1/introductions",
       ),
+    savedIntroductions: () =>
+      request<{ items: Introduction[] }>("/v1/introductions/saved"),
+    saveIntroduction: (profileId: string) =>
+      request<{ profileId: string; saved: true; createdAt: string }>(
+        `/v1/introductions/${encodeURIComponent(profileId)}/saved`,
+        json("POST"),
+      ),
+    unsaveIntroduction: (profileId: string) =>
+      request<void>(
+        `/v1/introductions/${encodeURIComponent(profileId)}/saved`,
+        json("DELETE"),
+      ),
     decide: (profileId: string, decision: Decision) =>
       request<{ profileId: string; decision: Decision; mutual: boolean }>(
         `/v1/introductions/${encodeURIComponent(profileId)}/decision`,

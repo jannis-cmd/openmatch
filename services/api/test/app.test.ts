@@ -72,6 +72,7 @@ test("the public data inventory covers every current storage and export field", 
       "createdAt",
     ],
     connections: ["id", "profileId", "createdAt", "closedAt"],
+    savedIntroductions: ["profileId", "createdAt"],
     messages: ["id", "connectionId", "senderId", "text", "createdAt"],
     blocks: ["profileId", "createdAt"],
     reports: ["id", "profileId", "reason", "details", "status", "createdAt"],
@@ -231,6 +232,24 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.doesNotMatch(introductionsText, /"distanceKm"/);
     assert.match(introductionsText, /"distanceBand":"Within 5 km"/);
     assert.equal(
+      (await request("/v1/introductions/lea/saved", { method: "POST" })).status,
+      201,
+    );
+    const savedIntroductions = (await (
+      await request("/v1/introductions/saved")
+    ).json()) as { items: Array<{ profile: { id: string } }> };
+    assert.deepEqual(
+      savedIntroductions.items.map((item) => item.profile.id),
+      ["lea"],
+    );
+    const afterSave = (await (await request("/v1/introductions")).json()) as {
+      items: Array<{ profile: { id: string } }>;
+    };
+    assert.equal(
+      afterSave.items.some((item) => item.profile.id === "lea"),
+      false,
+    );
+    assert.equal(
       (
         await request("/v1/reports", {
           method: "POST",
@@ -310,6 +329,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       preferenceObservations: unknown[];
       accountStatus: string;
       consentReceipt: { noticeVersion: string };
+      savedIntroductions: Array<{ profileId: string }>;
     };
     assert.equal(dataExport.profile.id, "me");
     assert.equal(dataExport.reports.length, 2);
@@ -317,6 +337,8 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(dataExport.preferenceObservations.length, 1);
     assert.equal(dataExport.accountStatus, "active");
     assert.equal(dataExport.consentReceipt.noticeVersion, "prototype-0.1");
+    assert.equal(dataExport.savedIntroductions.length, 1);
+    assert.equal(dataExport.savedIntroductions[0].profileId, "lea");
     assert.equal((await request("/v1/me", { method: "DELETE" })).status, 204);
     assert.equal(
       (

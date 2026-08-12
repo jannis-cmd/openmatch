@@ -45,6 +45,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, connection_id TEXT NOT NULL REFERENCES connections(id), sender_id TEXT NOT NULL, text TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS blocks (profile_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id TEXT NOT NULL, reason TEXT NOT NULL, details TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS saved_introductions (profile_id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS preference_observations (profile_id TEXT PRIMARY KEY, interested INTEGER NOT NULL CHECK(interested IN (0,1)), factors_json TEXT NOT NULL, selection_probability REAL NOT NULL, created_at TEXT NOT NULL);
     `);
     this.seed();
@@ -142,6 +143,31 @@ export class Store {
       ).map((row) => row.profile_id),
     );
   }
+  savedIds() {
+    return new Set(
+      (
+        this.db
+          .prepare("SELECT profile_id FROM saved_introductions")
+          .all() as Array<{ profile_id: string }>
+      ).map((row) => row.profile_id),
+    );
+  }
+  saveIntroduction(profileId: string) {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        "INSERT INTO saved_introductions(profile_id,created_at) VALUES (?,?) ON CONFLICT(profile_id) DO UPDATE SET created_at=excluded.created_at",
+      )
+      .run(profileId, now);
+    return { profileId, saved: true as const, createdAt: now };
+  }
+  unsaveIntroduction(profileId: string) {
+    return (
+      this.db
+        .prepare("DELETE FROM saved_introductions WHERE profile_id=?")
+        .run(profileId).changes > 0
+    );
+  }
 
   decide(
     profileId: string,
@@ -149,6 +175,9 @@ export class Store {
     observation: Omit<PreferenceObservation, "interested">,
   ) {
     const now = new Date().toISOString();
+    this.db
+      .prepare("DELETE FROM saved_introductions WHERE profile_id=?")
+      .run(profileId);
     this.db
       .prepare(
         "INSERT INTO decisions(profile_id,decision,created_at) VALUES (?,?,?) ON CONFLICT(profile_id) DO UPDATE SET decision=excluded.decision,created_at=excluded.created_at",
@@ -313,12 +342,17 @@ export class Store {
           "SELECT id,profile_id AS profileId,reason,details,status,created_at AS createdAt FROM reports ORDER BY id",
         )
         .all(),
+      savedIntroductions: this.db
+        .prepare(
+          "SELECT profile_id AS profileId,created_at AS createdAt FROM saved_introductions ORDER BY created_at",
+        )
+        .all(),
     };
   }
 
   reset() {
     this.db.exec(
-      "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM reports; DELETE FROM state;",
+      "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM state;",
     );
     this.seed();
   }

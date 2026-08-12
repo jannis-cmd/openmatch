@@ -50,6 +50,10 @@ export default function App() {
   );
   const [profile, setProfile] = useState<Profile>(demoUser);
   const [introductions, setIntroductions] = useState<Introduction[]>([]);
+  const [savedIntroductions, setSavedIntroductions] = useState<Introduction[]>(
+    [],
+  );
+  const [showSaved, setShowSaved] = useState(false);
   const [showMath, setShowMath] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -69,7 +73,8 @@ export default function App() {
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
     null,
   );
-  const current = introductions[0];
+  const visibleIntroductions = showSaved ? savedIntroductions : introductions;
+  const current = visibleIntroductions[0];
   const connection = connections[0];
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,6 +84,7 @@ export default function App() {
         nextProfile,
         nextPreferences,
         nextIntroductions,
+        nextSavedIntroductions,
         nextConnections,
         onboarding,
         nextSuggestions,
@@ -88,6 +94,7 @@ export default function App() {
         api.profile(),
         api.preferences(),
         api.introductions(),
+        api.savedIntroductions(),
         api.connections(),
         api.onboarding(),
         api.preferenceSuggestions(),
@@ -98,6 +105,7 @@ export default function App() {
       setBio(nextProfile.bio);
       setPreferences(nextPreferences);
       setIntroductions(nextIntroductions.items);
+      setSavedIntroductions(nextSavedIntroductions.items);
       setConnections(nextConnections.items);
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
@@ -342,11 +350,25 @@ export default function App() {
           {tab === "Today" &&
             (current ? (
               <>
-                <Text style={styles.eyebrow}>Your introductions</Text>
+                <Text style={styles.eyebrow}>
+                  {showSaved ? "Saved introductions" : "Your introductions"}
+                </Text>
                 <Text accessibilityRole="header" style={styles.title}>
-                  {introductions.length} remaining
+                  {visibleIntroductions.length} remaining
                 </Text>
                 <Text style={styles.subtle}>A finite set. Take your time.</Text>
+                <Action
+                  label={
+                    showSaved
+                      ? "Back to current batch"
+                      : `Saved (${savedIntroductions.length})`
+                  }
+                  secondary
+                  onPress={() => {
+                    setShowMath(false);
+                    setShowSaved(!showSaved);
+                  }}
+                />
                 <View style={styles.card}>
                   <View
                     style={[
@@ -455,6 +477,25 @@ export default function App() {
                 </View>
                 <View style={styles.actions}>
                   <Action
+                    label={showSaved ? "Return to batch" : "Save for later"}
+                    secondary
+                    onPress={() =>
+                      void (showSaved
+                        ? api
+                            .unsaveIntroduction(current.profile.id)
+                            .then(() => {
+                              setShowSaved(false);
+                              return load();
+                            })
+                        : api.saveIntroduction(current.profile.id).then(() => {
+                            setSafetyNotice(
+                              `${current.profile.name} saved for this prototype batch.`,
+                            );
+                            return load();
+                          }))
+                    }
+                  />
+                  <Action
                     label="Pass"
                     secondary
                     onPress={() => void decide("passed")}
@@ -533,13 +574,21 @@ export default function App() {
             ) : (
               <View style={styles.empty}>
                 <Text style={styles.check}>✓</Text>
-                <Text style={styles.name}>You’re all caught up.</Text>
+                <Text style={styles.name}>
+                  {showSaved ? "Nothing saved." : "You’re all caught up."}
+                </Text>
                 <Text style={styles.subtle}>
-                  No endless feed. New introductions arrive Thursday.
+                  {showSaved
+                    ? "Saved profiles stay here until you return them, decide, reset, or delete this local prototype."
+                    : "No endless feed. New introductions arrive Thursday."}
                 </Text>
                 <Action
-                  label="Start over"
-                  onPress={() => void api.reset().then(load)}
+                  label={showSaved ? "Back to current batch" : "Start over"}
+                  onPress={() =>
+                    showSaved
+                      ? setShowSaved(false)
+                      : void api.reset().then(load)
+                  }
                 />
               </View>
             ))}

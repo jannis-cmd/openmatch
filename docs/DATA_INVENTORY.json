@@ -122,6 +122,15 @@
       "fields": ["id", "profileId", "createdAt", "closedAt"]
     },
     {
+      "id": "savedIntroductions",
+      "storage": "saved_introductions table",
+      "purpose": "Keep an eligible profile aside without treating it as Interested or Pass.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["profileId", "createdAt"],
+      "disclosure": "Saving is private and is never disclosed to the other person."
+    },
+    {
       "id": "messages",
       "storage": "messages table",
       "purpose": "Deliver user-written text inside a mutual connection.",

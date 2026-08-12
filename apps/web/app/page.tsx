@@ -73,6 +73,10 @@ function AppExperience({ exit }: { exit: () => void }) {
   );
   const [profile, setProfile] = useState<Profile>(demoUser);
   const [introductions, setIntroductions] = useState<Introduction[]>([]);
+  const [savedIntroductions, setSavedIntroductions] = useState<Introduction[]>(
+    [],
+  );
+  const [showSaved, setShowSaved] = useState(false);
   const [details, setDetails] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -86,7 +90,8 @@ function AppExperience({ exit }: { exit: () => void }) {
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
     null,
   );
-  const current = introductions[0];
+  const visibleIntroductions = showSaved ? savedIntroductions : introductions;
+  const current = visibleIntroductions[0];
   const connected = connections.length > 0;
 
   const load = useCallback(async () => {
@@ -97,6 +102,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         nextProfile,
         nextPreferences,
         nextIntroductions,
+        nextSavedIntroductions,
         nextConnections,
         onboarding,
         nextSuggestions,
@@ -106,6 +112,7 @@ function AppExperience({ exit }: { exit: () => void }) {
         api.profile(),
         api.preferences(),
         api.introductions(),
+        api.savedIntroductions(),
         api.connections(),
         api.onboarding(),
         api.preferenceSuggestions(),
@@ -115,6 +122,7 @@ function AppExperience({ exit }: { exit: () => void }) {
       setProfile(nextProfile);
       setPreferences(nextPreferences);
       setIntroductions(nextIntroductions.items);
+      setSavedIntroductions(nextSavedIntroductions.items);
       setConnections(nextConnections.items);
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
@@ -270,14 +278,33 @@ function AppExperience({ exit }: { exit: () => void }) {
                 <>
                   <div className="section-head">
                     <div>
-                      <p className="eyebrow">Your introductions</p>
+                      <p className="eyebrow">
+                        {showSaved
+                          ? "Saved introductions"
+                          : "Your introductions"}
+                      </p>
                       <h1>
                         {current
-                          ? `${introductions.length} remaining`
-                          : "You’re all caught up"}
+                          ? `${visibleIntroductions.length} remaining`
+                          : showSaved
+                            ? "Nothing saved"
+                            : "You’re all caught up"}
                       </h1>
                     </div>
-                    <p className="calm-note">A finite set. Take your time.</p>
+                    <div>
+                      <p className="calm-note">A finite set. Take your time.</p>
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          setDetails(false);
+                          setShowSaved(!showSaved);
+                        }}
+                      >
+                        {showSaved
+                          ? "Back to current batch"
+                          : `Saved (${savedIntroductions.length})`}
+                      </button>
+                    </div>
                   </div>
                   {current ? (
                     <div className="profile-layout">
@@ -397,6 +424,26 @@ function AppExperience({ exit }: { exit: () => void }) {
                         <div className="decision-row">
                           <button
                             className="pass"
+                            onClick={async () => {
+                              if (showSaved) {
+                                await api.unsaveIntroduction(
+                                  current.profile.id,
+                                );
+                                setShowSaved(false);
+                              } else {
+                                await api.saveIntroduction(current.profile.id);
+                                setNotice(
+                                  `${current.profile.name} saved for this prototype batch.`,
+                                );
+                              }
+                              setDetails(false);
+                              await load();
+                            }}
+                          >
+                            {showSaved ? "Return to batch" : "Save for later"}
+                          </button>
+                          <button
+                            className="pass"
                             onClick={() => decide("passed")}
                           >
                             Pass
@@ -442,17 +489,24 @@ function AppExperience({ exit }: { exit: () => void }) {
                       <div className="empty-mark">✓</div>
                       <h2>That’s the whole set.</h2>
                       <p>
-                        No endless feed. New mutually eligible introductions
-                        arrive Thursday.
+                        {showSaved
+                          ? "Saved profiles stay here until you return them, decide, reset, or delete this local prototype."
+                          : "No endless feed. New mutually eligible introductions arrive Thursday."}
                       </p>
-                      <button
-                        onClick={async () => {
-                          await api.reset();
-                          await load();
-                        }}
-                      >
-                        Start over
-                      </button>
+                      {showSaved ? (
+                        <button onClick={() => setShowSaved(false)}>
+                          Back to current batch
+                        </button>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            await api.reset();
+                            await load();
+                          }}
+                        >
+                          Start over
+                        </button>
+                      )}
                     </div>
                   )}
                 </>
