@@ -9,6 +9,7 @@
     "android": "expo start --android",
     "build": "expo export --platform ios && expo export --platform android",
     "eas-build-pre-install": "node ./scripts/verify-eas-environment.mjs",
+    "eas-build-post-install": "pnpm --dir ../.. build:packages",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand && node --test ./scripts/verify-eas-environment.test.mjs"
   },
