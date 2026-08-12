@@ -41,13 +41,16 @@ demo mode issues random 256-bit bearer tokens but still targets one shared demo
 identity. Separately enabled prototype accounts normalize email, use a
 per-account salted scrypt passphrase hash, persist only SHA-256 session-token
 hashes, and route requests to account-specific SQLite stores. Web and production
-mobile builds expose create/sign-in flows; native session persistence is not yet
-implemented. Synchronous account deletion removes credentials, sessions, and
-the isolated application store. This boundary is covered by cross-account
-isolation tests. Native account tokens use device-only Expo SecureStore and are
-restored before personal data loads; invalid or unavailable secure state is not
-used. This is still not pilot-ready authentication: verification, recovery,
-multi-device session management, migrations, and independent review remain open.
+mobile builds expose create/sign-in flows. Native account tokens use device-only
+Expo SecureStore and are restored before personal data loads; invalid or
+unavailable secure state is not used. Each client submits only an allowlisted
+coarse client type. People can inspect their own session creation and expiry
+times and revoke another session without collecting an IP address, user agent,
+device fingerprint, exact model, or activity history. Synchronous account
+deletion removes credentials, sessions, and the isolated application store.
+Cross-account tests cover application data and session authorization. This is
+still not pilot-ready authentication: verification, recovery, production
+migrations, and independent review remain open.
 
 Native development may explicitly target a local HTTP origin. EAS development,
 preview, and production builds instead read a plain HTTPS origin from their
@@ -68,7 +71,7 @@ Release builds set `OPENMATCH_COMMIT_SHA` to the exact 7–40 character hexadeci
 
 ## Core API surface
 
-`POST /v1/accounts`, `POST /v1/sessions`, `DELETE /v1/session`, `GET/PATCH/DELETE /v1/me`, `GET/PATCH /v1/account/status`, `GET/PATCH /v1/preferences`, `GET /v1/introductions`, `POST /v1/introductions/{id}/decision`, `GET /v1/connections`, `GET/POST /v1/connections/{id}/messages`, `POST /v1/reports`, `POST /v1/profiles/{id}/block`, `GET/PATCH /v1/consents`, `GET /v1/me/export`, `GET /v1/transparency/version`. The prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete; it is not research consent or a substitute for pilot legal review.
+`POST /v1/accounts`, `POST /v1/sessions`, `GET /v1/sessions`, `DELETE /v1/sessions/{id}`, `DELETE /v1/session`, `GET/PATCH/DELETE /v1/me`, `GET/PATCH /v1/account/status`, `GET/PATCH /v1/preferences`, `GET /v1/introductions`, `POST /v1/introductions/{id}/decision`, `GET /v1/connections`, `GET/POST /v1/connections/{id}/messages`, `POST /v1/reports`, `POST /v1/profiles/{id}/block`, `GET/PATCH /v1/consents`, `GET /v1/me/export`, `GET /v1/transparency/version`. The prototype requires an explicit versioned adult/data-use consent receipt before onboarding can complete; it is not research consent or a substitute for pilot legal review.
 
 All list endpoints use opaque pagination. Error schemas are public. Authorization and rate limits are explicit in OpenAPI before implementation.
 

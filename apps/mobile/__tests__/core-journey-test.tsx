@@ -41,15 +41,13 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let demoSessionRequests = 0;
   let accountRequests = 0;
   let restoredBearerUsed = false;
+  let otherSessionRevoked = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
     const path = new URL(String(input)).pathname;
-    if (
-      new Headers(init.headers).get("authorization") ===
-      `Bearer ${"r".repeat(43)}`
-    )
-      restoredBearerUsed = true;
+    const authorization = new Headers(init.headers).get("authorization");
+    if (authorization === `Bearer ${"r".repeat(43)}`) restoredBearerUsed = true;
     const body = init.body ? JSON.parse(String(init.body)) : {};
     if (path === "/v1/demo/session") {
       demoSessionRequests += 1;
@@ -72,6 +70,36 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/session" && init.method === "DELETE")
       return response(null, 204);
+    if (path === "/v1/sessions" && init.method !== "DELETE")
+      return response({
+        items:
+          authorization === `Bearer ${"t".repeat(43)}`
+            ? []
+            : [
+                {
+                  id: "current-session",
+                  client: "ios",
+                  createdAt: "2026-08-12T12:00:00.000Z",
+                  expiresAt: "2026-08-13T00:00:00.000Z",
+                  current: true,
+                },
+                ...(!otherSessionRevoked
+                  ? [
+                      {
+                        id: "other-session",
+                        client: "web",
+                        createdAt: "2026-08-11T12:00:00.000Z",
+                        expiresAt: "2026-08-13T00:00:00.000Z",
+                        current: false,
+                      },
+                    ]
+                  : []),
+              ],
+      });
+    if (path === "/v1/sessions/other-session" && init.method === "DELETE") {
+      otherSessionRevoked = true;
+      return response(null, 204);
+    }
     if (path === "/v1/me" && init.method === "DELETE") {
       onboardingComplete = false;
       consentAccepted = false;
@@ -485,6 +513,13 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() => expect(accountRequests).toBe(1));
   expect(persistSessionToken).toHaveBeenCalledWith("a".repeat(43));
   await waitFor(() => expect(screen.getByText("Sign out")).toBeTruthy());
+  await fireEvent.press(screen.getByText("Profile"));
+  expect(screen.getByText("Active sessions")).toBeTruthy();
+  expect(screen.getByText("iPhone or iPad app · This session")).toBeTruthy();
+  expect(screen.getByText("Web browser")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Sign out this session"));
+  await waitFor(() => expect(otherSessionRevoked).toBe(true));
+  await waitFor(() => expect(screen.queryByText("Web browser")).toBeNull());
   await screen.unmount();
   (restoreSessionToken as jest.Mock).mockResolvedValueOnce("r".repeat(43));
   const previousDemoRequests = demoSessionRequests;

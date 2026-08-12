@@ -281,12 +281,13 @@ export function createApp(
         const body = (await readJson(request)) as {
           email?: unknown;
           password?: unknown;
+          client?: unknown;
         };
         try {
           const session =
             url.pathname === "/v1/accounts"
-              ? accounts.register(body.email, body.password)
-              : accounts.signIn(body.email, body.password);
+              ? accounts.register(body.email, body.password, body.client)
+              : accounts.signIn(body.email, body.password, body.client);
           return send(response, url.pathname === "/v1/accounts" ? 201 : 200, {
             token: session.token,
             expiresAt: session.expiresAt,
@@ -316,6 +317,31 @@ export function createApp(
         if (accountSession && accounts) accounts.revoke(token);
         else if (tokenHash) demoSessions.delete(tokenHash);
         return send(response, 204, null);
+      }
+      if (request.method === "GET" && url.pathname === "/v1/sessions") {
+        if (!accountSession || !accounts)
+          return send(response, 200, { items: [] });
+        return send(response, 200, {
+          items: accounts.sessions(
+            accountSession.accountId,
+            accountSession.sessionId,
+          ),
+        });
+      }
+      const managedSession = url.pathname.match(/^\/v1\/sessions\/([^/]+)$/);
+      if (request.method === "DELETE" && managedSession) {
+        if (!accountSession || !accounts)
+          return send(response, 404, { error: "session_not_found" });
+        if (managedSession[1] === accountSession.sessionId)
+          return send(response, 409, {
+            error: "use_sign_out_for_current_session",
+          });
+        return accounts.revokeSession(
+          accountSession.accountId,
+          managedSession[1],
+        )
+          ? send(response, 204, null)
+          : send(response, 404, { error: "session_not_found" });
       }
       if (request.method === "DELETE" && url.pathname === "/v1/account") {
         if (!accountSession || !accounts)

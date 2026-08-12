@@ -30,8 +30,8 @@
       "purpose": "Authorize one account-specific client session and route every protected operation to that account's isolated store.",
       "retention": "At most 12 hours by default, until sign-out, or until the account record is removed.",
       "access": ["service", "operator"],
-      "fields": ["tokenHash", "accountId", "expiresAt", "createdAt"],
-      "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. Session records and credentials are not included in the application-data export."
+      "fields": ["id", "tokenHash", "accountId", "client", "expiresAt", "createdAt"],
+      "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. The person can see the opaque session identifier, broad allowlisted client type (web, iOS, Android, or unknown), creation time, expiry, and whether it is current, and can revoke another session. OpenMatch does not store an IP address, exact device model, user agent, fingerprint, or activity history for this feature. Session records and credentials are not included in the application-data export."
     },
     {
       "id": "mobileSession",

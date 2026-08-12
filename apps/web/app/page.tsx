@@ -5,6 +5,7 @@ import { resolveWebApiConfiguration } from "../lib/api-configuration.mjs";
 import {
   createApiClient,
   type AccountStatus,
+  type AccountSession,
   type Connection,
   type DeletionReceipt,
   type DeliverySettings,
@@ -129,6 +130,7 @@ function AppExperience({
       createApiClient(apiUrl, fetch, {
         initialToken: authToken,
         demoSessions: !authToken,
+        client: "web",
         onTokenChange: (token) => {
           if (token)
             window.sessionStorage.setItem("openmatch-auth-token", token);
@@ -164,6 +166,7 @@ function AppExperience({
     useState<ResearchConsentReceipt | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
+  const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
@@ -193,6 +196,7 @@ function AppExperience({
         nextTransparency,
         nextReports,
         nextResearchConsent,
+        nextAccountSessions,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -206,6 +210,7 @@ function AppExperience({
         api.transparencyVersion(),
         api.reports(),
         api.researchConsent(),
+        api.sessions(),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -220,6 +225,7 @@ function AppExperience({
       setTransparency(nextTransparency);
       setReports(nextReports.items);
       setResearchConsent(nextResearchConsent.receipt);
+      setAccountSessions(nextAccountSessions.items);
     } catch {
       setError(
         "The local API is unavailable. Start it with pnpm dev, then retry.",
@@ -788,6 +794,11 @@ function AppExperience({
                   accountStatus={accountStatus}
                   reports={reports}
                   researchConsent={researchConsent}
+                  sessions={authToken ? accountSessions : []}
+                  revokeSession={async (sessionId) => {
+                    await api.revokeSession(sessionId);
+                    setAccountSessions((await api.sessions()).items);
+                  }}
                   setResearchConsent={async (participating) => {
                     setResearchConsent(
                       await api.updateResearchConsent(participating),
@@ -1174,7 +1185,12 @@ function SignInPage({
   const [authError, setAuthError] = useState<string | null>(null);
   const api = useMemo(
     () =>
-      apiUrl ? createApiClient(apiUrl, fetch, { demoSessions: false }) : null,
+      apiUrl
+        ? createApiClient(apiUrl, fetch, {
+            demoSessions: false,
+            client: "web",
+          })
+        : null,
     [apiUrl],
   );
 
@@ -1911,12 +1927,21 @@ function PreferencesView({
   );
 }
 
+function sessionClientLabel(client: AccountSession["client"]) {
+  if (client === "web") return "Web browser";
+  if (client === "ios") return "iPhone or iPad app";
+  if (client === "android") return "Android app";
+  return "Earlier OpenMatch client";
+}
+
 function ProfileView({
   profile,
   saveProfile,
   accountStatus,
   reports,
   researchConsent,
+  sessions,
+  revokeSession,
   setResearchConsent,
   setAccountStatus,
   exportData,
@@ -1928,6 +1953,8 @@ function ProfileView({
   accountStatus: AccountStatus;
   reports: ReportRecord[];
   researchConsent: ResearchConsentReceipt | null;
+  sessions: AccountSession[];
+  revokeSession: (sessionId: string) => Promise<void>;
   setResearchConsent: (participating: boolean) => Promise<void>;
   setAccountStatus: (status: AccountStatus) => Promise<void>;
   exportData: () => Promise<void>;
@@ -2091,6 +2118,43 @@ function ProfileView({
             <span key={value}>{value}</span>
           ))}
         </div>
+      </section>
+      <section className="settings-card">
+        <h2>Active sessions</h2>
+        <p>
+          See where your account is signed in and end any session you no longer
+          recognize. OpenMatch stores only the broad client type—not an IP
+          address, device fingerprint, activity history, or exact device model.
+        </p>
+        {sessions.length ? (
+          <div className="report-history">
+            {sessions.map((session) => {
+              const label = sessionClientLabel(session.client);
+              return (
+                <div key={session.id}>
+                  <strong>
+                    {label}
+                    {session.current ? " · This session" : ""}
+                  </strong>
+                  <span>
+                    Started {new Date(session.createdAt).toLocaleString()} ·
+                    Expires {new Date(session.expiresAt).toLocaleDateString()}
+                  </span>
+                  {!session.current && (
+                    <button
+                      aria-label={`Revoke ${label} session started ${new Date(session.createdAt).toLocaleString()}`}
+                      onClick={() => void revokeSession(session.id)}
+                    >
+                      Sign out this session
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="help">Sign in with an account to manage sessions.</p>
+        )}
       </section>
       <section className="settings-card">
         <h2>Optional research</h2>

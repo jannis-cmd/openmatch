@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   POLITE_CLOSE_MESSAGE,
@@ -33,11 +36,12 @@ const accountSession = async (
   path: "/v1/accounts" | "/v1/sessions",
   email: string,
   password: string,
+  client?: "web" | "ios" | "android",
 ) => {
   const response = await fetch(base + path, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, client }),
   });
   const body = (await response.json()) as {
     token?: string;
@@ -46,6 +50,41 @@ const accountSession = async (
   };
   return { response, body };
 };
+
+test("account storage migrates existing sessions to public opaque identifiers", () => {
+  const directory = mkdtempSync(join(tmpdir(), "openmatch-accounts-"));
+  const path = join(directory, "accounts.sqlite");
+  const legacy = new DatabaseSync(path);
+  legacy.exec(`
+    CREATE TABLE accounts (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE account_sessions (
+      token_hash TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    INSERT INTO accounts VALUES ('account-1','person@example.org','hash','salt','2026-08-12T00:00:00.000Z');
+    INSERT INTO account_sessions VALUES ('private-token-hash','account-1',4102444800000,'2026-08-12T00:00:00.000Z');
+  `);
+  legacy.close();
+  const accounts = new Accounts(path, { dataDirectory: null });
+  try {
+    const session = accounts.db
+      .prepare("SELECT id,client FROM account_sessions")
+      .get() as { id: string; client: string };
+    assert.match(session.id, /^[0-9a-f-]{36}$/);
+    assert.equal(session.client, "unknown");
+  } finally {
+    accounts.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test("authenticated accounts have hashed credentials and isolated application data", async () => {
   const accounts = new Accounts(":memory:", { dataDirectory: null });
@@ -66,6 +105,7 @@ test("authenticated accounts have hashed credentials and isolated application da
       "/v1/accounts",
       " First@Example.org ",
       password,
+      "web",
     );
     assert.equal(first.response.status, 201);
     assert.equal(first.body.authentication, true);
@@ -75,6 +115,7 @@ test("authenticated accounts have hashed credentials and isolated application da
       "/v1/accounts",
       "second@example.org",
       "another-secure-passphrase",
+      "android",
     );
     assert.equal(second.response.status, 201);
     assert.ok(second.body.token);
@@ -146,18 +187,91 @@ test("authenticated accounts have hashed credentials and isolated application da
       "/v1/sessions",
       "FIRST@example.org",
       password,
+      "ios",
     );
     assert.equal(signedIn.response.status, 200);
     assert.ok(signedIn.body.token);
     assert.notEqual(signedIn.body.token, first.body.token);
-    await fetch(base + "/v1/session", {
-      method: "DELETE",
-      headers: auth(signedIn.body.token!),
-    });
+    const sessions = (await (
+      await fetch(base + "/v1/sessions", {
+        headers: auth(first.body.token!),
+      })
+    ).json()) as {
+      items: Array<{
+        id: string;
+        client: string;
+        current: boolean;
+        createdAt: string;
+        expiresAt: string;
+      }>;
+    };
+    assert.equal(sessions.items.length, 2);
+    assert.deepEqual(sessions.items.map(({ client }) => client).sort(), [
+      "ios",
+      "web",
+    ]);
+    const currentSession = sessions.items.find(({ current }) => current);
+    const otherSession = sessions.items.find(({ current }) => !current);
+    assert.ok(currentSession && otherSession);
+    assert.ok(Date.parse(currentSession.createdAt));
+    assert.ok(Date.parse(currentSession.expiresAt) > Date.now());
+    assert.equal(
+      (
+        await fetch(base + `/v1/sessions/${currentSession.id}`, {
+          method: "DELETE",
+          headers: auth(first.body.token!),
+        })
+      ).status,
+      409,
+    );
+    const secondSessions = (await (
+      await fetch(base + "/v1/sessions", {
+        headers: auth(second.body.token!),
+      })
+    ).json()) as { items: Array<{ id: string }> };
+    assert.equal(secondSessions.items.length, 1);
+    assert.equal(
+      (
+        await fetch(base + `/v1/sessions/${secondSessions.items[0].id}`, {
+          method: "DELETE",
+          headers: auth(first.body.token!),
+        })
+      ).status,
+      404,
+    );
+    assert.equal(
+      (
+        await fetch(base + `/v1/sessions/${otherSession.id}`, {
+          method: "DELETE",
+          headers: auth(first.body.token!),
+        })
+      ).status,
+      204,
+    );
     assert.equal(
       (
         await fetch(base + "/v1/me", {
           headers: auth(signedIn.body.token!),
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/me", {
+          headers: auth(second.body.token!),
+        })
+      ).status,
+      200,
+    );
+    await fetch(base + "/v1/session", {
+      method: "DELETE",
+      headers: auth(second.body.token!),
+    });
+    assert.equal(
+      (
+        await fetch(base + "/v1/me", {
+          headers: auth(second.body.token!),
         })
       ).status,
       401,
@@ -254,7 +368,14 @@ test("the public data inventory covers every current storage and export field", 
   };
   const expected: Record<string, string[]> = {
     accounts: ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
-    accountSessions: ["tokenHash", "accountId", "expiresAt", "createdAt"],
+    accountSessions: [
+      "id",
+      "tokenHash",
+      "accountId",
+      "client",
+      "expiresAt",
+      "createdAt",
+    ],
     mobileSession: ["rawSessionToken"],
     demoSessions: ["tokenHash", "expiresAt"],
     profile: [

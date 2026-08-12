@@ -3,6 +3,7 @@ import {
   Alert,
   AppState,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -21,6 +22,7 @@ import {
 import {
   ApiError,
   createApiClient,
+  type AccountSession,
   type AccountStatus,
   type Connection,
   type DeletionReceipt,
@@ -50,6 +52,13 @@ import {
 
 type Tab = "Today" | "Connections" | "Preferences" | "Profile" | "Method";
 
+function sessionClientLabel(client: AccountSession["client"]) {
+  if (client === "web") return "Web browser";
+  if (client === "ios") return "iPhone or iPad app";
+  if (client === "android") return "Android app";
+  return "Earlier OpenMatch client";
+}
+
 export default function App() {
   const apiConfiguration = useMemo(
     () =>
@@ -73,6 +82,7 @@ export default function App() {
         {
           initialToken: authToken,
           demoSessions: accessMode === "demo",
+          client: Platform.OS === "ios" ? "ios" : "android",
           onTokenChange: (token) => {
             if (token !== null) return;
             void clearSessionToken().catch(() => undefined);
@@ -111,6 +121,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
+  const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
@@ -184,6 +195,7 @@ export default function App() {
         nextTransparency,
         nextReports,
         nextResearchConsent,
+        nextAccountSessions,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -197,6 +209,7 @@ export default function App() {
         api.transparencyVersion(),
         api.reports(),
         api.researchConsent(),
+        api.sessions(),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -212,6 +225,7 @@ export default function App() {
       setTransparency(nextTransparency);
       setReports(nextReports.items);
       setResearchConsent(nextResearchConsent.receipt);
+      setAccountSessions(nextAccountSessions.items);
     } catch {
       setError(
         "Cannot reach the local API. Check EXPO_PUBLIC_OPENMATCH_API_URL and retry.",
@@ -1270,6 +1284,59 @@ export default function App() {
                   }}
                 />
               </View>
+              {accessMode === "account" && (
+                <View style={styles.scoreCard}>
+                  <Text style={styles.name}>Active sessions</Text>
+                  <Text style={styles.scoreNote}>
+                    See where your account is signed in and end sessions you no
+                    longer recognize. OpenMatch stores only the broad client
+                    type—not an IP address, device fingerprint, activity
+                    history, or exact device model.
+                  </Text>
+                  {accountSessions.map((session) => {
+                    const label = sessionClientLabel(session.client);
+                    return (
+                      <View style={styles.method} key={session.id}>
+                        <View style={styles.methodText}>
+                          <Text style={styles.name}>
+                            {label}
+                            {session.current ? " · This session" : ""}
+                          </Text>
+                          <Text style={styles.mathNote}>
+                            Started{" "}
+                            {new Date(session.createdAt).toLocaleString()}
+                          </Text>
+                          <Text style={styles.mathNote}>
+                            Expires{" "}
+                            {new Date(session.expiresAt).toLocaleDateString()}
+                          </Text>
+                          {!session.current && (
+                            <Action
+                              label="Sign out this session"
+                              accessibilityLabel={`Revoke ${label} session started ${new Date(session.createdAt).toLocaleString()}`}
+                              secondary
+                              onPress={() =>
+                                void api
+                                  .revokeSession(session.id)
+                                  .then(async () =>
+                                    setAccountSessions(
+                                      (await api.sessions()).items,
+                                    ),
+                                  )
+                                  .catch(() =>
+                                    setError(
+                                      "That session could not be signed out.",
+                                    ),
+                                  )
+                              }
+                            />
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Optional research</Text>
                 <Text style={styles.scoreNote}>

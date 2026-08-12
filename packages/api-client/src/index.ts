@@ -85,7 +85,15 @@ export type AuthSession = {
 export type ApiClientOptions = {
   initialToken?: string | null;
   demoSessions?: boolean;
+  client?: "web" | "ios" | "android";
   onTokenChange?: (token: string | null) => void;
+};
+export type AccountSession = {
+  id: string;
+  client: "web" | "ios" | "android" | "unknown";
+  createdAt: string;
+  expiresAt: string;
+  current: boolean;
 };
 
 export class ApiError extends Error {
@@ -142,7 +150,7 @@ export function createApiClient(
     const response = await fetcher(`${origin}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, client: options.client }),
     });
     const body = (await response
       .json()
@@ -214,6 +222,12 @@ export function createApiClient(
       sessionPromise = null;
       options.onTokenChange?.(null);
     },
+    sessions: () => request<{ items: AccountSession[] }>("/v1/sessions"),
+    revokeSession: (sessionId: string) =>
+      request<void>(
+        `/v1/sessions/${encodeURIComponent(sessionId)}`,
+        json("DELETE"),
+      ),
     profile: () => request<Profile>("/v1/me"),
     updateProfile: (patch: Partial<Profile>) =>
       request<Profile>("/v1/me", json("PATCH", patch)),

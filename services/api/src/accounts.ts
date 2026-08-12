@@ -25,9 +25,18 @@ type AccountRow = {
 
 export type AccountSession = {
   accountId: string;
+  sessionId: string;
   token: string;
   expiresAt: string;
   store: Store;
+};
+export type SessionClient = "web" | "ios" | "android" | "unknown";
+export type PublicAccountSession = {
+  id: string;
+  client: SessionClient;
+  createdAt: string;
+  expiresAt: string;
+  current: boolean;
 };
 
 export class AccountError extends Error {
@@ -74,11 +83,35 @@ export class Accounts {
       );
       CREATE TABLE IF NOT EXISTS account_sessions (
         token_hash TEXT PRIMARY KEY,
+        id TEXT UNIQUE NOT NULL,
         account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+        client TEXT NOT NULL CHECK(client IN ('web','ios','android','unknown')),
         expires_at INTEGER NOT NULL,
         created_at TEXT NOT NULL
       );
     `);
+    const sessionColumns = this.db
+      .prepare("PRAGMA table_info(account_sessions)")
+      .all() as Array<{ name: string }>;
+    if (!sessionColumns.some(({ name }) => name === "id"))
+      this.db.exec("ALTER TABLE account_sessions ADD COLUMN id TEXT");
+    if (!sessionColumns.some(({ name }) => name === "client"))
+      this.db.exec(
+        "ALTER TABLE account_sessions ADD COLUMN client TEXT NOT NULL DEFAULT 'unknown'",
+      );
+    const sessionsWithoutId = this.db
+      .prepare(
+        "SELECT token_hash AS tokenHash FROM account_sessions WHERE id IS NULL",
+      )
+      .all() as Array<{ tokenHash: string }>;
+    const assignId = this.db.prepare(
+      "UPDATE account_sessions SET id=? WHERE token_hash=?",
+    );
+    for (const session of sessionsWithoutId)
+      assignId.run(randomUUID(), session.tokenHash);
+    this.db.exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS account_sessions_id ON account_sessions(id)",
+    );
   }
 
   private normalizeEmail(value: unknown) {
@@ -132,31 +165,44 @@ export class Accounts {
     return true;
   }
 
-  private issueSession(accountId: string): AccountSession {
+  private sessionClient(value: unknown): SessionClient {
+    return ["web", "ios", "android"].includes(String(value))
+      ? (value as SessionClient)
+      : "unknown";
+  }
+
+  private issueSession(
+    accountId: string,
+    clientValue: unknown,
+  ): AccountSession {
     this.db
       .prepare("DELETE FROM account_sessions WHERE expires_at<=?")
       .run(Date.now());
     const token = randomBytes(32).toString("base64url");
+    const sessionId = randomUUID();
     const expiresAt = Date.now() + this.sessionTtlMs;
     this.db
       .prepare(
-        "INSERT INTO account_sessions(token_hash,account_id,expires_at,created_at) VALUES (?,?,?,?)",
+        "INSERT INTO account_sessions(token_hash,id,account_id,client,expires_at,created_at) VALUES (?,?,?,?,?,?)",
       )
       .run(
         createHash("sha256").update(token).digest("base64url"),
+        sessionId,
         accountId,
+        this.sessionClient(clientValue),
         expiresAt,
         new Date().toISOString(),
       );
     return {
       accountId,
+      sessionId,
       token,
       expiresAt: new Date(expiresAt).toISOString(),
       store: this.store(accountId),
     };
   }
 
-  register(emailValue: unknown, passwordValue: unknown) {
+  register(emailValue: unknown, passwordValue: unknown, client?: unknown) {
     const email = this.normalizeEmail(emailValue);
     const password = this.validatePassword(passwordValue);
     const id = randomUUID();
@@ -178,10 +224,10 @@ export class Accounts {
         throw new AccountError("account_exists", 409);
       throw error;
     }
-    return this.issueSession(id);
+    return this.issueSession(id, client);
   }
 
-  signIn(emailValue: unknown, passwordValue: unknown) {
+  signIn(emailValue: unknown, passwordValue: unknown, client?: unknown) {
     const email = this.normalizeEmail(emailValue);
     const password =
       typeof passwordValue === "string" && passwordValue.length <= 128
@@ -201,16 +247,17 @@ export class Accounts {
     const actual = this.passwordHash(password, salt);
     if (!account || !timingSafeEqual(actual, expected))
       throw new AccountError("invalid_credentials", 401);
-    return this.issueSession(account.id);
+    return this.issueSession(account.id, client);
   }
 
   authenticate(token: string) {
     const tokenHash = createHash("sha256").update(token).digest("base64url");
     const session = this.db
       .prepare(
-        "SELECT account_id AS accountId,expires_at AS expiresAt FROM account_sessions WHERE token_hash=?",
+        "SELECT id AS sessionId,account_id AS accountId,expires_at AS expiresAt FROM account_sessions WHERE token_hash=?",
       )
-      .get(tokenHash) as { accountId: string; expiresAt: number } | undefined;
+      .get(tokenHash) as
+      { sessionId: string; accountId: string; expiresAt: number } | undefined;
     if (!session || session.expiresAt <= Date.now()) {
       if (session)
         this.db
@@ -220,8 +267,39 @@ export class Accounts {
     }
     return {
       accountId: session.accountId,
+      sessionId: session.sessionId,
       store: this.store(session.accountId),
     };
+  }
+
+  sessions(accountId: string, currentSessionId: string) {
+    this.db
+      .prepare("DELETE FROM account_sessions WHERE expires_at<=?")
+      .run(Date.now());
+    return (
+      this.db
+        .prepare(
+          "SELECT id,client,created_at AS createdAt,expires_at AS expiresAt FROM account_sessions WHERE account_id=? ORDER BY created_at DESC",
+        )
+        .all(accountId) as Array<{
+        id: string;
+        client: SessionClient;
+        createdAt: string;
+        expiresAt: number;
+      }>
+    ).map((session): PublicAccountSession => ({
+      ...session,
+      expiresAt: new Date(session.expiresAt).toISOString(),
+      current: session.id === currentSessionId,
+    }));
+  }
+
+  revokeSession(accountId: string, sessionId: string) {
+    return (
+      this.db
+        .prepare("DELETE FROM account_sessions WHERE account_id=? AND id=?")
+        .run(accountId, sessionId).changes > 0
+    );
   }
 
   revoke(token: string) {

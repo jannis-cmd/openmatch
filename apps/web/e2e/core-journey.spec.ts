@@ -117,6 +117,13 @@ test("first run through a persistent connection and safety action", async ({
     publicApiRequests.filter((url) => url.endsWith("/v1/accounts")),
   ).toHaveLength(1);
   await page.getByRole("button", { name: "Your profile" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Active sessions" }),
+  ).toBeVisible();
+  await expect(page.getByText("Web browser · This session")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Revoke Web browser session/ }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByLabel("Profile prompt")).toBeVisible();
   await expect(page.getByLabel(/Values 1–5/)).toBeVisible();
