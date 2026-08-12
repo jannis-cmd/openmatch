@@ -240,6 +240,76 @@ test("reads, requests, and confirms email ownership without exposing a code", as
   );
 });
 
+test("manages a separately confirmed backup notification email", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async (url, init) => {
+      requests.push({ url: String(url), init });
+      if (String(url).endsWith("/request"))
+        return new Response(
+          JSON.stringify({ sent: true, pendingEmail: "backup@example.org" }),
+          { status: 202 },
+        );
+      if (String(url).endsWith("/confirm"))
+        return new Response(
+          JSON.stringify({
+            primaryEmail: "primary@example.org",
+            primaryVerifiedAt: "2026-08-12T00:00:00.000Z",
+            email: "backup@example.org",
+            verifiedAt: "2026-08-12T01:00:00.000Z",
+            pendingEmail: null,
+            securityNotification: "sent",
+          }),
+          { status: 200 },
+        );
+      if (init?.method === "DELETE")
+        return new Response(
+          JSON.stringify({
+            primaryEmail: "primary@example.org",
+            primaryVerifiedAt: "2026-08-12T00:00:00.000Z",
+            email: null,
+            verifiedAt: null,
+            pendingEmail: null,
+            securityNotification: "sent",
+          }),
+          { status: 200 },
+        );
+      return new Response(
+        JSON.stringify({
+          primaryEmail: "primary@example.org",
+          primaryVerifiedAt: "2026-08-12T00:00:00.000Z",
+          email: null,
+          verifiedAt: null,
+          pendingEmail: null,
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch,
+    { initialToken: "t".repeat(43), demoSessions: false },
+  );
+  assert.equal((await client.notificationEmail()).email, null);
+  await client.requestNotificationEmail(
+    "backup@example.org",
+    "current passphrase",
+  );
+  assert.deepEqual(JSON.parse(String(requests[1]?.init?.body)), {
+    email: "backup@example.org",
+    currentPassword: "current passphrase",
+  });
+  assert.equal(
+    (await client.confirmNotificationEmail("12345678")).email,
+    "backup@example.org",
+  );
+  assert.equal(
+    (await client.removeNotificationEmail("current passphrase")).email,
+    null,
+  );
+  assert.deepEqual(JSON.parse(String(requests[3]?.init?.body)), {
+    currentPassword: "current passphrase",
+  });
+});
+
 test("turns API failures into inspectable errors", async () => {
   const client = createApiClient(
     "http://example.test",

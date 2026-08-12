@@ -34,6 +34,24 @@
       "disclosure": "The eight-digit code is sent through explicitly configured TLS-required SMTP and is never returned by an API endpoint. Only a random-salted scrypt hash persists. A replacement cannot be requested within one minute, does not reset failed attempts, and confirmation shares the strict authentication throttle. When delivery is configured, unconfirmed accounts cannot enter account matching."
     },
     {
+      "id": "accountNotificationAddresses",
+      "storage": "account_notification_addresses table in the authentication SQLite database",
+      "purpose": "Provide a second independently confirmed destination for sparse account-security and recovery notices.",
+      "retention": "Until the person removes or replaces the address, deletes the account, or the operator removes the authentication database.",
+      "access": ["service", "operator"],
+      "fields": ["accountId", "email", "verifiedAt"],
+      "disclosure": "Adding or replacing the address requires the current passphrase and a code delivered to the proposed inbox. It is not a sign-in identifier, recovery credential, matching input, identity proof, or MFA factor. Security notices are attempted at both confirmed addresses without links, secrets, IP addresses, or device fingerprints."
+    },
+    {
+      "id": "accountNotificationVerifications",
+      "storage": "account_notification_verifications table in the authentication SQLite database",
+      "purpose": "Hold the protected one-time confirmation state for a proposed backup notification email.",
+      "retention": "Until accepted, replaced, cancelled after delivery failure, explicitly removed, account deletion, or operator database removal; each code expires after at most 24 hours.",
+      "access": ["service", "operator"],
+      "fields": ["accountId", "email", "codeHash", "codeSalt", "expiresAt", "failedAttempts", "sentAt"],
+      "disclosure": "The proposed email is private account data. The eight-digit code is sent through explicitly configured TLS-required SMTP and never returned by the API; only a random-salted scrypt hash persists. Same-address resend is limited to once per minute and preserves failed attempts."
+    },
+    {
       "id": "accountSessions",
       "storage": "account_sessions table in the authentication SQLite database",
       "purpose": "Authorize one account-specific client session and route every protected operation to that account's isolated store.",

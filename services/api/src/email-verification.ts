@@ -11,7 +11,11 @@ export type EmailVerificationSender = (
 ) => Promise<void>;
 
 export type SecurityNotificationEvent =
-  "password_changed" | "recovery_codes_replaced" | "account_recovered";
+  | "password_changed"
+  | "recovery_codes_replaced"
+  | "account_recovered"
+  | "notification_address_added"
+  | "notification_address_removed";
 
 export type SecurityNotificationMessage = {
   email: string;
@@ -75,6 +79,10 @@ export function smtpAccountEmailSenders(
           "A new set of OpenMatch recovery codes was created. Every older recovery code is now invalid.",
         account_recovered:
           "Your OpenMatch account was recovered with an offline recovery code. The passphrase changed, every previous session ended, and every recovery code is now invalid.",
+        notification_address_added:
+          "A confirmed backup notification email was added to your OpenMatch account.",
+        notification_address_removed:
+          "The backup notification email was removed from your OpenMatch account.",
       }[event];
       return send(email, "Security change to your OpenMatch account", [
         description,

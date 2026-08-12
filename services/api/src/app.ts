@@ -269,18 +269,16 @@ export function createApp(
   ) => {
     if (!accounts || !securityNotificationSender)
       return "not_configured" as const;
-    const status = accounts.emailStatus(accountId);
-    if (!status.verifiedAt) return "unverified" as const;
-    try {
-      await securityNotificationSender({
-        email: status.email,
-        event,
-        occurredAt,
-      });
-      return "sent" as const;
-    } catch {
-      return "failed" as const;
-    }
+    const emails = accounts.notificationEmails(accountId);
+    if (!emails.length) return "unverified" as const;
+    const results = await Promise.allSettled(
+      emails.map((email) =>
+        securityNotificationSender({ email, event, occurredAt }),
+      ),
+    );
+    const sent = results.filter(({ status }) => status === "fulfilled").length;
+    if (sent === emails.length) return "sent" as const;
+    return sent ? ("partial" as const) : ("failed" as const);
   };
   const server = createServer(async (request, response) => {
     const origin = request.headers.origin;
@@ -528,6 +526,132 @@ export function createApp(
             200,
             accounts.confirmEmail(accountSession.accountId, body.code),
           );
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "GET" &&
+        url.pathname === "/v1/account/notification-email"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        return send(
+          response,
+          200,
+          accounts.notificationAddressStatus(accountSession.accountId),
+        );
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/notification-email/request"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!emailVerificationSender)
+          return send(response, 503, {
+            error: "email_delivery_not_configured",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          email?: unknown;
+          currentPassword?: unknown;
+        };
+        try {
+          const verification = accounts.createNotificationAddressVerification(
+            accountSession.accountId,
+            body.currentPassword,
+            body.email,
+          );
+          try {
+            await emailVerificationSender(verification);
+          } catch {
+            accounts.cancelNotificationAddressVerification(
+              accountSession.accountId,
+            );
+            return send(response, 503, { error: "email_delivery_failed" });
+          }
+          return send(response, 202, {
+            sent: true,
+            pendingEmail: verification.email,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/notification-email/confirm"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as { code?: unknown };
+        try {
+          const confirmed = accounts.confirmNotificationAddress(
+            accountSession.accountId,
+            body.code,
+          );
+          const securityNotification = await deliverSecurityNotification(
+            accountSession.accountId,
+            "notification_address_added",
+            confirmed.verifiedAt,
+          );
+          return send(response, 200, {
+            ...accounts.notificationAddressStatus(accountSession.accountId),
+            securityNotification,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "DELETE" &&
+        url.pathname === "/v1/account/notification-email"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          currentPassword?: unknown;
+        };
+        try {
+          accounts.removeNotificationAddress(
+            accountSession.accountId,
+            body.currentPassword,
+          );
+          const securityNotification = await deliverSecurityNotification(
+            accountSession.accountId,
+            "notification_address_removed",
+            new Date().toISOString(),
+          );
+          return send(response, 200, {
+            ...accounts.notificationAddressStatus(accountSession.accountId),
+            securityNotification,
+          });
         } catch (error) {
           if (error instanceof AccountError)
             return send(response, error.status, { error: error.code });

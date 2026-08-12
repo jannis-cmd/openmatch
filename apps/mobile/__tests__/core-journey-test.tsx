@@ -118,6 +118,14 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         verifiedAt: emailVerified ? "2026-08-12T12:00:00.000Z" : null,
         deliveryConfigured: true,
       });
+    if (path === "/v1/account/notification-email")
+      return response({
+        primaryEmail: "native@example.org",
+        primaryVerifiedAt: emailVerified ? "2026-08-12T12:00:00.000Z" : null,
+        email: null,
+        verifiedAt: null,
+        pendingEmail: null,
+      });
     if (path === "/v1/sessions" && init.method !== "DELETE")
       return response({
         items:

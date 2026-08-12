@@ -96,7 +96,7 @@ export type EmailVerificationStatus = {
   deliveryConfigured: boolean;
 };
 export type SecurityNotificationStatus =
-  "sent" | "failed" | "not_configured" | "unverified";
+  "sent" | "partial" | "failed" | "not_configured" | "unverified";
 export type PasswordChangeSession = AuthSession & {
   otherSessionsRevoked: true;
   securityNotification: SecurityNotificationStatus;
@@ -108,6 +108,13 @@ export type RecoveryCodeSet = {
   codes: string[];
   createdAt: string;
   securityNotification: SecurityNotificationStatus;
+};
+export type NotificationEmailStatus = {
+  primaryEmail: string;
+  primaryVerifiedAt: string | null;
+  email: string | null;
+  verifiedAt: string | null;
+  pendingEmail: string | null;
 };
 export type ApiClientOptions = {
   initialToken?: string | null;
@@ -135,7 +142,9 @@ export class ApiError extends Error {
 const isSecurityNotificationStatus = (
   value: unknown,
 ): value is SecurityNotificationStatus =>
-  ["sent", "failed", "not_configured", "unverified"].includes(String(value));
+  ["sent", "partial", "failed", "not_configured", "unverified"].includes(
+    String(value),
+  );
 
 export function createApiClient(
   baseUrl: string,
@@ -315,6 +324,25 @@ export function createApiClient(
         "/v1/account/email-verification/confirm",
         json("POST", { code }),
       ),
+    notificationEmail: () =>
+      request<NotificationEmailStatus>("/v1/account/notification-email"),
+    requestNotificationEmail: (email: string, currentPassword: string) =>
+      request<{ sent: true; pendingEmail: string }>(
+        "/v1/account/notification-email/request",
+        json("POST", { email, currentPassword }),
+      ),
+    confirmNotificationEmail: (code: string) =>
+      request<
+        NotificationEmailStatus & {
+          securityNotification: SecurityNotificationStatus;
+        }
+      >("/v1/account/notification-email/confirm", json("POST", { code })),
+    removeNotificationEmail: (currentPassword: string) =>
+      request<
+        NotificationEmailStatus & {
+          securityNotification: SecurityNotificationStatus;
+        }
+      >("/v1/account/notification-email", json("DELETE", { currentPassword })),
     signOut: async () => {
       if (sessionPromise) {
         const token = await sessionPromise;

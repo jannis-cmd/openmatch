@@ -370,7 +370,23 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByRole("button", { name: "Today" }).click();
   const savedNoah = page.getByRole("button", { name: "Saved (1)" });
-  if (await savedNoah.isVisible()) await savedNoah.click();
+  if (await savedNoah.isVisible()) {
+    await savedNoah.click();
+    if (!(await page.getByRole("heading", { name: "Noah, 34" }).isVisible()))
+      await page.getByRole("button", { name: "Return to batch" }).click();
+  }
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    if (await page.getByRole("heading", { name: "Noah, 34" }).isVisible())
+      break;
+    const previousIntroduction = await page
+      .locator(".profile-card h2")
+      .textContent();
+    await page.getByRole("button", { name: "Pass" }).click();
+    if (previousIntroduction)
+      await expect(
+        page.getByRole("heading", { name: previousIntroduction }),
+      ).not.toBeVisible();
+  }
   await expect(page.getByRole("heading", { name: "Noah, 34" })).toBeVisible();
   await page.getByRole("button", { name: "Interested" }).click();
   await page.getByRole("button", { name: /Connections · 2/ }).click();

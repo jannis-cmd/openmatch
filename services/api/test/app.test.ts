@@ -293,6 +293,87 @@ test("email confirmation is delivered out of band, hashed, expiring, and single 
       await fetch(base + "/v1/account/email-verification", { headers })
     ).json()) as { verifiedAt: string | null };
     assert.equal(status.verifiedAt, confirmedBody.verifiedAt);
+    assert.deepEqual(
+      await (
+        await fetch(base + "/v1/account/notification-email", { headers })
+      ).json(),
+      {
+        primaryEmail: "verify@example.org",
+        primaryVerifiedAt: confirmedBody.verifiedAt,
+        email: null,
+        verifiedAt: null,
+        pendingEmail: null,
+      },
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/notification-email/request", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            email: "backup@example.org",
+            currentPassword: "not the current passphrase",
+          }),
+        })
+      ).status,
+      400,
+    );
+    const backupRequest = await fetch(
+      base + "/v1/account/notification-email/request",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          email: "backup@example.org",
+          currentPassword: "a verification test passphrase",
+        }),
+      },
+    );
+    assert.equal(backupRequest.status, 202);
+    assert.equal(deliveries.length, 2);
+    assert.equal(deliveries[1]?.email, "backup@example.org");
+    assert.match(deliveries[1]?.code ?? "", /^\d{8}$/);
+    assert.deepEqual(
+      await (
+        await fetch(base + "/v1/account/notification-email", { headers })
+      ).json(),
+      {
+        primaryEmail: "verify@example.org",
+        primaryVerifiedAt: confirmedBody.verifiedAt,
+        email: null,
+        verifiedAt: null,
+        pendingEmail: "backup@example.org",
+      },
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/notification-email/confirm", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ code: "00000000" }),
+        })
+      ).status,
+      400,
+    );
+    const backupConfirmed = await fetch(
+      base + "/v1/account/notification-email/confirm",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ code: deliveries[1]!.code }),
+      },
+    );
+    assert.equal(backupConfirmed.status, 200);
+    const backupStatus = (await backupConfirmed.json()) as {
+      email: string;
+      verifiedAt: string;
+      pendingEmail: null;
+      securityNotification: string;
+    };
+    assert.equal(backupStatus.email, "backup@example.org");
+    assert.ok(Date.parse(backupStatus.verifiedAt));
+    assert.equal(backupStatus.pendingEmail, null);
+    assert.equal(backupStatus.securityNotification, "sent");
     const recoveryCodesResponse = await fetch(
       base + "/v1/account/recovery-codes",
       {
@@ -332,17 +413,48 @@ test("email confirmation is delivered out of band, hashed, expiring, and single 
       }),
     });
     assert.equal(recoveredResponse.status, 200);
+    const recoveredSession = (await recoveredResponse.json()) as {
+      token: string;
+      securityNotification: string;
+    };
+    assert.equal(recoveredSession.securityNotification, "sent");
+    const removedBackup = await fetch(base + "/v1/account/notification-email", {
+      method: "DELETE",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${recoveredSession.token}`,
+      },
+      body: JSON.stringify({
+        currentPassword: "a recovered verification test passphrase",
+      }),
+    });
+    assert.equal(removedBackup.status, 200);
     assert.equal(
-      ((await recoveredResponse.json()) as { securityNotification: string })
+      ((await removedBackup.json()) as { securityNotification: string })
         .securityNotification,
       "sent",
     );
     assert.deepEqual(
       securityNotifications.map(({ email, event }) => ({ email, event })),
       [
+        {
+          email: "verify@example.org",
+          event: "notification_address_added",
+        },
+        {
+          email: "backup@example.org",
+          event: "notification_address_added",
+        },
         { email: "verify@example.org", event: "recovery_codes_replaced" },
+        { email: "backup@example.org", event: "recovery_codes_replaced" },
         { email: "verify@example.org", event: "password_changed" },
+        { email: "backup@example.org", event: "password_changed" },
         { email: "verify@example.org", event: "account_recovered" },
+        { email: "backup@example.org", event: "account_recovered" },
+        {
+          email: "verify@example.org",
+          event: "notification_address_removed",
+        },
       ],
     );
     assert.ok(
@@ -1097,6 +1209,16 @@ test("the public data inventory covers every current storage and export field", 
     ],
     accountEmailVerifications: [
       "accountId",
+      "codeHash",
+      "codeSalt",
+      "expiresAt",
+      "failedAttempts",
+      "sentAt",
+    ],
+    accountNotificationAddresses: ["accountId", "email", "verifiedAt"],
+    accountNotificationVerifications: [
+      "accountId",
+      "email",
       "codeHash",
       "codeSalt",
       "expiresAt",

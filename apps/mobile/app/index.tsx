@@ -30,6 +30,7 @@ import {
   type DirectoryConsentReceipt,
   type EmailVerificationStatus,
   type Message,
+  type NotificationEmailStatus,
   type ReportRecord,
   type ReportReason,
   type ResearchConsentReceipt,
@@ -64,12 +65,14 @@ function sessionClientLabel(client: AccountSession["client"]) {
 
 function securityNotice(status: SecurityNotificationStatus) {
   return status === "sent"
-    ? " A separate security notice was sent to your confirmed email."
-    : status === "failed"
-      ? " The change succeeded, but the security email could not be delivered."
-      : status === "unverified"
-        ? " The change succeeded, but this inbox is not confirmed, so no security email was sent."
-        : " Security-email delivery is not configured on this server.";
+    ? " A separate security notice was sent to every confirmed notification email."
+    : status === "partial"
+      ? " The change succeeded, but the security notice reached only some confirmed notification emails."
+      : status === "failed"
+        ? " The change succeeded, but the security email could not be delivered."
+        : status === "unverified"
+          ? " The change succeeded, but this inbox is not confirmed, so no security email was sent."
+          : " Security-email delivery is not configured on this server.";
 }
 
 export default function App() {
@@ -139,6 +142,8 @@ export default function App() {
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
+  const [notificationEmail, setNotificationEmail] =
+    useState<NotificationEmailStatus | null>(null);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
@@ -162,6 +167,11 @@ export default function App() {
   const [verificationError, setVerificationError] = useState<string | null>(
     null,
   );
+  const [backupEmail, setBackupEmail] = useState("");
+  const [backupPassword, setBackupPassword] = useState("");
+  const [backupCode, setBackupCode] = useState("");
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
   const [introductionReportOpen, setIntroductionReportOpen] = useState(false);
   const [connectionReportOpen, setConnectionReportOpen] = useState(false);
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
@@ -238,6 +248,7 @@ export default function App() {
         nextAccountSessions,
         nextDirectoryConsent,
         nextEmailVerification,
+        nextNotificationEmail,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -255,6 +266,9 @@ export default function App() {
         api.directoryConsent(),
         accessMode === "account"
           ? api.emailVerification()
+          : Promise.resolve(null),
+        accessMode === "account"
+          ? api.notificationEmail()
           : Promise.resolve(null),
       ]);
       setProfile(nextProfile);
@@ -274,6 +288,7 @@ export default function App() {
       setAccountSessions(nextAccountSessions.items);
       setDirectoryConsent(nextDirectoryConsent.receipt);
       setEmailVerification(nextEmailVerification);
+      setNotificationEmail(nextNotificationEmail);
     } catch {
       setError(
         "Cannot reach the local API. Check EXPO_PUBLIC_OPENMATCH_API_URL and retry.",
@@ -1501,6 +1516,200 @@ export default function App() {
                       service, so the address is not confirmed. A real-person
                       deployment must configure encrypted SMTP delivery before
                       relying on it.
+                    </Text>
+                  )}
+                </View>
+              )}
+              {accessMode === "account" && notificationEmail && (
+                <View style={styles.scoreCard}>
+                  <Text style={styles.name}>Backup security email</Text>
+                  <Text style={styles.scoreNote}>
+                    Add one independently confirmed inbox for sparse account
+                    security notices. It cannot sign in, recover the account,
+                    affect matching, or prove identity. Your current passphrase
+                    is required to add, replace, or remove it.
+                  </Text>
+                  {notificationEmail.email ? (
+                    <>
+                      <Text selectable style={styles.setting}>
+                        {notificationEmail.email}
+                      </Text>
+                      <Text style={styles.mathNote}>
+                        Confirmed on{" "}
+                        {new Date(
+                          notificationEmail.verifiedAt!,
+                        ).toLocaleString()}
+                      </Text>
+                      <Text style={styles.setting}>Current passphrase</Text>
+                      <TextInput
+                        accessibilityLabel="Passphrase to remove backup email"
+                        autoCapitalize="none"
+                        autoComplete="current-password"
+                        secureTextEntry
+                        value={backupPassword}
+                        maxLength={128}
+                        onChangeText={setBackupPassword}
+                        style={styles.textField}
+                      />
+                      <Action
+                        label="Remove backup email"
+                        secondary
+                        disabled={!backupPassword}
+                        onPress={() =>
+                          Alert.alert(
+                            "Remove backup security email?",
+                            "Future security notices will use only the primary confirmed inbox.",
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              {
+                                text: "Remove",
+                                style: "destructive",
+                                onPress: () => {
+                                  setBackupError(null);
+                                  setBackupNotice(null);
+                                  void api
+                                    .removeNotificationEmail(backupPassword)
+                                    .then((result) => {
+                                      setNotificationEmail(result);
+                                      setBackupPassword("");
+                                      setBackupNotice(
+                                        "Backup security email removed." +
+                                          securityNotice(
+                                            result.securityNotification,
+                                          ),
+                                      );
+                                    })
+                                    .catch((error) =>
+                                      setBackupError(
+                                        error instanceof ApiError &&
+                                          error.code ===
+                                            "invalid_current_password"
+                                          ? "The current passphrase was not accepted."
+                                          : "The backup security email could not be removed.",
+                                      ),
+                                    );
+                                },
+                              },
+                            ],
+                          )
+                        }
+                      />
+                    </>
+                  ) : notificationEmail.pendingEmail ? (
+                    <>
+                      <Text style={styles.scoreNote}>
+                        Enter the eight-digit code sent to{" "}
+                        {notificationEmail.pendingEmail}.
+                      </Text>
+                      <Text style={styles.setting}>Confirmation code</Text>
+                      <TextInput
+                        accessibilityLabel="Backup email confirmation code"
+                        autoComplete="one-time-code"
+                        keyboardType="number-pad"
+                        maxLength={8}
+                        value={backupCode}
+                        onChangeText={(value) =>
+                          setBackupCode(value.replace(/\D/g, "").slice(0, 8))
+                        }
+                        style={styles.textField}
+                      />
+                      <Action
+                        label="Confirm backup email"
+                        secondary
+                        disabled={backupCode.length !== 8}
+                        onPress={() => {
+                          setBackupError(null);
+                          setBackupNotice(null);
+                          void api
+                            .confirmNotificationEmail(backupCode)
+                            .then((result) => {
+                              setNotificationEmail(result);
+                              setBackupCode("");
+                              setBackupNotice(
+                                "Backup security email confirmed." +
+                                  securityNotice(result.securityNotification),
+                              );
+                            })
+                            .catch((error) =>
+                              setBackupError(
+                                error instanceof ApiError &&
+                                  error.code === "invalid_verification_code"
+                                  ? "The code was not accepted or has expired."
+                                  : "The backup security email could not be confirmed.",
+                              ),
+                            );
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.setting}>Backup email</Text>
+                      <TextInput
+                        accessibilityLabel="Backup security email"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        keyboardType="email-address"
+                        value={backupEmail}
+                        onChangeText={setBackupEmail}
+                        style={styles.textField}
+                      />
+                      <Text style={styles.setting}>Current passphrase</Text>
+                      <TextInput
+                        accessibilityLabel="Passphrase to add backup email"
+                        autoCapitalize="none"
+                        autoComplete="current-password"
+                        secureTextEntry
+                        value={backupPassword}
+                        maxLength={128}
+                        onChangeText={setBackupPassword}
+                        style={styles.textField}
+                      />
+                      <Action
+                        label="Send confirmation code"
+                        secondary
+                        disabled={!backupEmail || !backupPassword}
+                        onPress={() => {
+                          setBackupError(null);
+                          setBackupNotice(null);
+                          void api
+                            .requestNotificationEmail(
+                              backupEmail,
+                              backupPassword,
+                            )
+                            .then(async () => {
+                              setBackupEmail("");
+                              setBackupPassword("");
+                              setNotificationEmail(
+                                await api.notificationEmail(),
+                              );
+                              setBackupNotice("A confirmation code was sent.");
+                            })
+                            .catch((error) =>
+                              setBackupError(
+                                error instanceof ApiError &&
+                                  error.code === "invalid_current_password"
+                                  ? "The current passphrase was not accepted."
+                                  : error instanceof ApiError &&
+                                      error.code === "primary_email_unverified"
+                                    ? "Confirm the primary account email first."
+                                    : "The confirmation code could not be sent.",
+                              ),
+                            );
+                        }}
+                      />
+                    </>
+                  )}
+                  {backupNotice && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      {backupNotice}
+                    </Text>
+                  )}
+                  {backupError && (
+                    <Text accessibilityRole="alert" style={styles.errorText}>
+                      {backupError}
                     </Text>
                   )}
                 </View>

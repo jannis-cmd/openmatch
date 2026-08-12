@@ -13,6 +13,7 @@ import {
   type DirectoryConsentReceipt,
   type EmailVerificationStatus,
   type Message,
+  type NotificationEmailStatus,
   type ReportRecord,
   type ReportReason,
   type ResearchConsentReceipt,
@@ -191,6 +192,8 @@ function AppExperience({
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
+  const [notificationEmail, setNotificationEmail] =
+    useState<NotificationEmailStatus | null>(null);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
@@ -223,6 +226,7 @@ function AppExperience({
         nextAccountSessions,
         nextDirectoryConsent,
         nextEmailVerification,
+        nextNotificationEmail,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -239,6 +243,7 @@ function AppExperience({
         api.sessions(),
         api.directoryConsent(),
         authToken ? api.emailVerification() : Promise.resolve(null),
+        authToken ? api.notificationEmail() : Promise.resolve(null),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -256,6 +261,7 @@ function AppExperience({
       setAccountSessions(nextAccountSessions.items);
       setDirectoryConsent(nextDirectoryConsent.receipt);
       setEmailVerification(nextEmailVerification);
+      setNotificationEmail(nextNotificationEmail);
     } catch {
       setError(
         "The local API is unavailable. Start it with pnpm dev, then retry.",
@@ -845,6 +851,38 @@ function AppExperience({
                   }}
                   sessions={authToken ? accountSessions : []}
                   emailVerification={emailVerification}
+                  notificationEmail={notificationEmail}
+                  requestNotificationEmail={
+                    authToken
+                      ? async (email, currentPassword) => {
+                          await api.requestNotificationEmail(
+                            email,
+                            currentPassword,
+                          );
+                          setNotificationEmail(await api.notificationEmail());
+                        }
+                      : undefined
+                  }
+                  confirmNotificationEmail={
+                    authToken
+                      ? async (code) => {
+                          const result =
+                            await api.confirmNotificationEmail(code);
+                          setNotificationEmail(result);
+                          return result.securityNotification;
+                        }
+                      : undefined
+                  }
+                  removeNotificationEmail={
+                    authToken
+                      ? async (currentPassword) => {
+                          const result =
+                            await api.removeNotificationEmail(currentPassword);
+                          setNotificationEmail(result);
+                          return result.securityNotification;
+                        }
+                      : undefined
+                  }
                   requestEmailVerification={
                     authToken
                       ? async () => {
@@ -956,12 +994,14 @@ function Mark() {
 
 function securityNotice(status: SecurityNotificationStatus) {
   return status === "sent"
-    ? " A separate security notice was sent to your confirmed email."
-    : status === "failed"
-      ? " The change succeeded, but the security email could not be delivered."
-      : status === "unverified"
-        ? " The change succeeded, but this inbox is not confirmed, so no security email was sent."
-        : " Security-email delivery is not configured on this server.";
+    ? " A separate security notice was sent to every confirmed notification email."
+    : status === "partial"
+      ? " The change succeeded, but the security notice reached only some confirmed notification emails."
+      : status === "failed"
+        ? " The change succeeded, but the security email could not be delivered."
+        : status === "unverified"
+          ? " The change succeeded, but this inbox is not confirmed, so no security email was sent."
+          : " Security-email delivery is not configured on this server.";
 }
 
 function LandingPage({
@@ -2115,6 +2155,10 @@ function ProfileView({
   setDirectoryConsent,
   sessions,
   emailVerification,
+  notificationEmail,
+  requestNotificationEmail,
+  confirmNotificationEmail,
+  removeNotificationEmail,
   requestEmailVerification,
   confirmEmail,
   changePassword,
@@ -2135,6 +2179,17 @@ function ProfileView({
   setDirectoryConsent: (participating: boolean) => Promise<void>;
   sessions: AccountSession[];
   emailVerification: EmailVerificationStatus | null;
+  notificationEmail: NotificationEmailStatus | null;
+  requestNotificationEmail?: (
+    email: string,
+    currentPassword: string,
+  ) => Promise<void>;
+  confirmNotificationEmail?: (
+    code: string,
+  ) => Promise<SecurityNotificationStatus>;
+  removeNotificationEmail?: (
+    currentPassword: string,
+  ) => Promise<SecurityNotificationStatus>;
   requestEmailVerification?: () => Promise<void>;
   confirmEmail?: (code: string) => Promise<void>;
   changePassword?: (
@@ -2170,6 +2225,11 @@ function ProfileView({
   const [verificationError, setVerificationError] = useState<string | null>(
     null,
   );
+  const [backupEmail, setBackupEmail] = useState("");
+  const [backupPassword, setBackupPassword] = useState("");
+  const [backupCode, setBackupCode] = useState("");
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
   const [draft, setDraft] = useState(profile);
   useEffect(() => setDraft(profile), [profile]);
   const draftValid =
@@ -2418,6 +2478,171 @@ function ProfileView({
           )}
         </section>
       )}
+      {notificationEmail &&
+        requestNotificationEmail &&
+        confirmNotificationEmail &&
+        removeNotificationEmail && (
+          <section className="settings-card">
+            <h2>Backup security email</h2>
+            <p>
+              Add one independently confirmed inbox for the same sparse account
+              security notices. It cannot sign in, recover the account, affect
+              matching, or prove identity. OpenMatch still needs your current
+              passphrase before adding, replacing, or removing it.
+            </p>
+            {notificationEmail.email ? (
+              <>
+                <p>
+                  <strong>{notificationEmail.email}</strong> · Confirmed on{" "}
+                  {new Date(notificationEmail.verifiedAt!).toLocaleString()}
+                </p>
+                <form
+                  className="profile-fields"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    setBackupError(null);
+                    setBackupNotice(null);
+                    if (!window.confirm("Remove the backup security email?"))
+                      return;
+                    try {
+                      const notification =
+                        await removeNotificationEmail(backupPassword);
+                      setBackupPassword("");
+                      setBackupNotice(
+                        "Backup security email removed." +
+                          securityNotice(notification),
+                      );
+                    } catch (error) {
+                      setBackupError(
+                        error instanceof ApiError &&
+                          error.code === "invalid_current_password"
+                          ? "The current passphrase was not accepted."
+                          : "The backup security email could not be removed.",
+                      );
+                    }
+                  }}
+                >
+                  <label>
+                    Current passphrase
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={backupPassword}
+                      maxLength={128}
+                      onChange={(event) =>
+                        setBackupPassword(event.target.value)
+                      }
+                    />
+                  </label>
+                  <button type="submit" disabled={!backupPassword}>
+                    Remove backup email
+                  </button>
+                </form>
+              </>
+            ) : notificationEmail.pendingEmail ? (
+              <form
+                className="profile-fields"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  setBackupError(null);
+                  setBackupNotice(null);
+                  try {
+                    const notification =
+                      await confirmNotificationEmail(backupCode);
+                    setBackupCode("");
+                    setBackupNotice(
+                      "Backup security email confirmed." +
+                        securityNotice(notification),
+                    );
+                  } catch (error) {
+                    setBackupError(
+                      error instanceof ApiError &&
+                        error.code === "invalid_verification_code"
+                        ? "The code was not accepted or has expired."
+                        : "The backup security email could not be confirmed.",
+                    );
+                  }
+                }}
+              >
+                <p>
+                  Enter the eight-digit code sent to{" "}
+                  <strong>{notificationEmail.pendingEmail}</strong>.
+                </p>
+                <label>
+                  Confirmation code
+                  <input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{8}"
+                    maxLength={8}
+                    value={backupCode}
+                    onChange={(event) =>
+                      setBackupCode(
+                        event.target.value.replace(/\D/g, "").slice(0, 8),
+                      )
+                    }
+                  />
+                </label>
+                <button type="submit" disabled={backupCode.length !== 8}>
+                  Confirm backup email
+                </button>
+              </form>
+            ) : (
+              <form
+                className="profile-fields"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  setBackupError(null);
+                  setBackupNotice(null);
+                  try {
+                    await requestNotificationEmail(backupEmail, backupPassword);
+                    setBackupEmail("");
+                    setBackupPassword("");
+                    setBackupNotice("A confirmation code was sent.");
+                  } catch (error) {
+                    setBackupError(
+                      error instanceof ApiError &&
+                        error.code === "invalid_current_password"
+                        ? "The current passphrase was not accepted."
+                        : error instanceof ApiError &&
+                            error.code === "primary_email_unverified"
+                          ? "Confirm the primary account email first."
+                          : "The confirmation code could not be sent.",
+                    );
+                  }
+                }}
+              >
+                <label>
+                  Backup email
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={backupEmail}
+                    onChange={(event) => setBackupEmail(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Current passphrase
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={backupPassword}
+                    maxLength={128}
+                    onChange={(event) => setBackupPassword(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={!backupEmail || !backupPassword}
+                >
+                  Send confirmation code
+                </button>
+              </form>
+            )}
+            {backupNotice && <p role="status">{backupNotice}</p>}
+            {backupError && <p role="alert">{backupError}</p>}
+          </section>
+        )}
       {deleteAccount && (
         <section className="settings-card">
           <h2>Account matching</h2>
