@@ -43,6 +43,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let connectionActive = false;
   let meetingPreference = "not_asked";
   let preferenceObservationCount = 0;
+  let deliveryRetrying = false;
   let demoSessionRequests = 0;
   let accountRequests = 0;
   let restoredBearerUsed = false;
@@ -204,6 +205,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/account/status")
       return response({ status: accountStatus });
+    if (path === "/v1/account/delivery-status")
+      return response({
+        state: deliveryRetrying ? "retrying" : "clear",
+        pendingCount: deliveryRetrying ? 1 : 0,
+        oldestCreatedAt: deliveryRetrying ? "2026-08-12T12:00:00.000Z" : null,
+        retryAttempts: deliveryRetrying ? 2 : 0,
+        lastAttemptAt: deliveryRetrying ? "2026-08-12T12:01:00.000Z" : null,
+        automaticDiscard: false,
+      });
     if (path === "/v1/delivery" && init.method === "PATCH") {
       batchSize = body.batchSize;
       return response({ batchSize });
@@ -477,8 +487,20 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     reason: "scam",
     details: "Suspicious profile context",
   });
+  deliveryRetrying = true;
   await fireEvent.press(screen.getByText("Interested"));
   await waitFor(() => expect(connectionActive).toBe(true));
+  await waitFor(() =>
+    expect(screen.getByText("Delivery is retrying")).toBeTruthy(),
+  );
+  expect(
+    screen.getByText(/Do not assume the other person received it yet/),
+  ).toBeTruthy();
+  deliveryRetrying = false;
+  await fireEvent.press(screen.getByText("Check again"));
+  await waitFor(() =>
+    expect(screen.queryByText("Delivery is retrying")).toBeNull(),
+  );
   await fireEvent.press(screen.getByText("Connections"));
   expect(screen.getByLabelText("Choose a connection")).toBeTruthy();
   await fireEvent.press(screen.getByText("Noah"));

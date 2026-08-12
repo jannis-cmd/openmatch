@@ -504,10 +504,36 @@ export function createApp(
         if (tokenHash && expiresAt) demoSessions.delete(tokenHash);
         return send(response, 401, { error: "session_required" });
       }
-      if (accountSession && accounts) accounts.flushDeliveryEvents();
       const store = accountSession?.store ?? demoStore;
       const operationClientKey =
         accountSession?.accountId ?? tokenHash ?? "missing-session";
+      if (
+        request.method === "GET" &&
+        url.pathname === "/v1/account/delivery-status"
+      ) {
+        if (accountSession && accounts)
+          try {
+            accounts.flushDeliveryEvents();
+          } catch {
+            // Status remains readable after a failed retry. Any newer
+            // cross-account mutation still enters the ordered journal and
+            // fails explicitly until the oldest event can be delivered.
+          }
+        return send(
+          response,
+          200,
+          accountSession && accounts
+            ? accounts.deliveryStatus(accountSession.accountId)
+            : {
+                state: "clear",
+                pendingCount: 0,
+                oldestCreatedAt: null,
+                retryAttempts: 0,
+                lastAttemptAt: null,
+                automaticDiscard: false,
+              },
+        );
+      }
       const consumeOperation = (
         operation: OperationName,
         operationResponse: ServerResponse,
@@ -1533,6 +1559,10 @@ export function createApp(
       }
       return send(response, 404, { error: "not_found" });
     } catch (error) {
+      if (error instanceof AccountError) {
+        if (error.status === 503) response.setHeader("retry-after", "5");
+        return send(response, error.status, { error: error.code });
+      }
       return send(response, 400, {
         error: "bad_request",
         message: error instanceof Error ? error.message : "Unknown error",

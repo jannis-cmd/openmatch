@@ -46,6 +46,14 @@ export type ReportRecord = {
 };
 export type AccountStatus = "active" | "paused" | "hidden";
 export type DeliverySettings = { batchSize: 1 | 2 | 3 | 4 | 5 };
+export type AccountDeliveryStatus = {
+  state: "clear" | "retrying";
+  pendingCount: number;
+  oldestCreatedAt: string | null;
+  retryAttempts: number;
+  lastAttemptAt: string | null;
+  automaticDiscard: false;
+};
 export type IntroductionBatch = {
   items: Introduction[];
   finite: true;
@@ -412,6 +420,8 @@ export function createApiClient(
         json("PATCH", { status }),
       ),
     deliverySettings: () => request<DeliverySettings>("/v1/delivery"),
+    accountDeliveryStatus: () =>
+      request<AccountDeliveryStatus>("/v1/account/delivery-status"),
     updateDeliverySettings: (batchSize: DeliverySettings["batchSize"]) =>
       request<DeliverySettings>("/v1/delivery", json("PATCH", { batchSize })),
     completeOnboarding: () =>

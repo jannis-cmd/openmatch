@@ -157,7 +157,10 @@ export class Accounts {
         second_account_id TEXT,
         first_action_json TEXT NOT NULL,
         second_action_json TEXT,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        last_attempt_at TEXT,
+        last_error_code TEXT
       );
     `);
     const accountColumns = this.db
@@ -176,6 +179,21 @@ export class Accounts {
       this.db.exec(
         "ALTER TABLE account_sessions ADD COLUMN client TEXT NOT NULL DEFAULT 'unknown'",
       );
+    const deliveryColumns = this.db
+      .prepare("PRAGMA table_info(account_delivery_events)")
+      .all() as Array<{ name: string }>;
+    if (!deliveryColumns.some(({ name }) => name === "attempt_count"))
+      this.db.exec(
+        "ALTER TABLE account_delivery_events ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0",
+      );
+    if (!deliveryColumns.some(({ name }) => name === "last_attempt_at"))
+      this.db.exec(
+        "ALTER TABLE account_delivery_events ADD COLUMN last_attempt_at TEXT",
+      );
+    if (!deliveryColumns.some(({ name }) => name === "last_error_code"))
+      this.db.exec(
+        "ALTER TABLE account_delivery_events ADD COLUMN last_error_code TEXT",
+      );
     const sessionsWithoutId = this.db
       .prepare(
         "SELECT token_hash AS tokenHash FROM account_sessions WHERE id IS NULL",
@@ -189,7 +207,12 @@ export class Accounts {
     this.db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS account_sessions_id ON account_sessions(id)",
     );
-    this.flushDeliveryEvents();
+    try {
+      this.flushDeliveryEvents();
+    } catch {
+      // The durable row remains available for ordered retry and status. A
+      // transient target-store failure must not prevent the API from starting.
+    }
   }
 
   private enqueueDelivery(
@@ -213,11 +236,15 @@ export class Accounts {
         secondAction ? JSON.stringify(secondAction) : null,
         new Date().toISOString(),
       );
-    this.flushDeliveryEvents();
+    try {
+      this.flushDeliveryEvents();
+    } catch {
+      throw new AccountError("account_delivery_incomplete", 503);
+    }
     const pending = this.db
       .prepare("SELECT 1 FROM account_delivery_events WHERE id=?")
       .get(eventId);
-    if (pending) throw new Error("account_delivery_incomplete");
+    if (pending) throw new AccountError("account_delivery_incomplete", 503);
     return eventId;
   }
 
@@ -236,27 +263,42 @@ export class Accounts {
       secondActionJson: string | null;
     }>;
     for (const event of pending) {
-      const firstStore = this.accountStore(event.firstAccountId);
-      if (firstStore) {
-        this.beforeDelivery?.(event.id, event.firstAccountId, 1);
-        firstStore.applyAccountEvent(
-          event.id,
-          JSON.parse(event.firstActionJson) as AccountDeliveryAction,
-        );
-      }
-      if (event.secondAccountId && event.secondActionJson) {
-        const secondStore = this.accountStore(event.secondAccountId);
-        if (secondStore) {
-          this.beforeDelivery?.(event.id, event.secondAccountId, 2);
-          secondStore.applyAccountEvent(
+      const attemptedAt = new Date().toISOString();
+      this.db
+        .prepare(
+          "UPDATE account_delivery_events SET attempt_count=attempt_count+1,last_attempt_at=?,last_error_code=NULL WHERE id=?",
+        )
+        .run(attemptedAt, event.id);
+      try {
+        const firstStore = this.accountStore(event.firstAccountId);
+        if (firstStore) {
+          this.beforeDelivery?.(event.id, event.firstAccountId, 1);
+          firstStore.applyAccountEvent(
             event.id,
-            JSON.parse(event.secondActionJson) as AccountDeliveryAction,
+            JSON.parse(event.firstActionJson) as AccountDeliveryAction,
           );
         }
+        if (event.secondAccountId && event.secondActionJson) {
+          const secondStore = this.accountStore(event.secondAccountId);
+          if (secondStore) {
+            this.beforeDelivery?.(event.id, event.secondAccountId, 2);
+            secondStore.applyAccountEvent(
+              event.id,
+              JSON.parse(event.secondActionJson) as AccountDeliveryAction,
+            );
+          }
+        }
+        this.db
+          .prepare("DELETE FROM account_delivery_events WHERE id=?")
+          .run(event.id);
+      } catch (error) {
+        this.db
+          .prepare(
+            "UPDATE account_delivery_events SET last_error_code='target_write_failed' WHERE id=?",
+          )
+          .run(event.id);
+        throw error;
       }
-      this.db
-        .prepare("DELETE FROM account_delivery_events WHERE id=?")
-        .run(event.id);
     }
   }
 
@@ -266,6 +308,30 @@ export class Accounts {
         .prepare("SELECT COUNT(*) AS count FROM account_delivery_events")
         .get() as { count: number }
     ).count;
+  }
+
+  deliveryStatus(accountId: string) {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS pendingCount,MIN(created_at) AS oldestCreatedAt,
+                MAX(attempt_count) AS retryAttempts,MAX(last_attempt_at) AS lastAttemptAt
+         FROM account_delivery_events
+         WHERE first_account_id=? OR second_account_id=?`,
+      )
+      .get(accountId, accountId) as {
+      pendingCount: number;
+      oldestCreatedAt: string | null;
+      retryAttempts: number | null;
+      lastAttemptAt: string | null;
+    };
+    return {
+      state: row.pendingCount ? ("retrying" as const) : ("clear" as const),
+      pendingCount: row.pendingCount,
+      oldestCreatedAt: row.oldestCreatedAt,
+      retryAttempts: row.retryAttempts ?? 0,
+      lastAttemptAt: row.lastAttemptAt,
+      automaticDiscard: false as const,
+    };
   }
 
   deliverPairEvent(
@@ -420,6 +486,11 @@ export class Accounts {
     store.reset();
     store.close();
     this.stores.delete(accountId);
+    this.db
+      .prepare(
+        "DELETE FROM account_delivery_events WHERE first_account_id=? OR second_account_id=?",
+      )
+      .run(accountId, accountId);
     const deleted =
       this.db.prepare("DELETE FROM accounts WHERE id=?").run(accountId)
         .changes > 0;

@@ -11,7 +11,7 @@ import {
   type Profile,
 } from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
-import { Accounts } from "../src/accounts.ts";
+import { AccountError, Accounts } from "../src/accounts.ts";
 import { smtpEmailVerificationSender } from "../src/email-verification.ts";
 import { Store } from "../src/store.ts";
 
@@ -164,11 +164,23 @@ test("replays interrupted cross-account delivery exactly once after restart", ()
             createdAt,
           },
         ),
-      /simulated_process_interruption/,
+      (error: unknown) => {
+        assert.ok(error instanceof AccountError);
+        assert.equal(error.code, "account_delivery_incomplete");
+        assert.equal(error.status, 503);
+        return true;
+      },
     );
     assert.equal(first.store.messages(connectionId).length, 1);
     assert.equal(second.store.messages(connectionId).length, 0);
     assert.equal(accounts.pendingDeliveryCount(), 1);
+    const pendingStatus = accounts.deliveryStatus(first.accountId);
+    assert.equal(pendingStatus.state, "retrying");
+    assert.equal(pendingStatus.pendingCount, 1);
+    assert.equal(pendingStatus.retryAttempts, 1);
+    assert.ok(pendingStatus.oldestCreatedAt);
+    assert.ok(pendingStatus.lastAttemptAt);
+    assert.equal(pendingStatus.automaticDiscard, false);
     const firstAccountId = first.accountId;
     const secondAccountId = second.accountId;
     accounts.close();
@@ -180,6 +192,14 @@ test("replays interrupted cross-account delivery exactly once after restart", ()
     assert.equal(restoredFirst.messages(connectionId).length, 1);
     assert.equal(restoredSecond.messages(connectionId).length, 1);
     assert.equal(accounts.pendingDeliveryCount(), 0);
+    assert.deepEqual(accounts.deliveryStatus(firstAccountId), {
+      state: "clear",
+      pendingCount: 0,
+      oldestCreatedAt: null,
+      retryAttempts: 0,
+      lastAttemptAt: null,
+      automaticDiscard: false,
+    });
     accounts.flushDeliveryEvents();
     assert.equal(restoredFirst.messages(connectionId).length, 1);
     assert.equal(restoredSecond.messages(connectionId).length, 1);
@@ -1428,6 +1448,9 @@ test("the public data inventory covers every current storage and export field", 
       "firstActionJson",
       "secondActionJson",
       "createdAt",
+      "attemptCount",
+      "lastAttemptAt",
+      "lastErrorCode",
     ],
     processedAccountEvents: ["eventId", "processedAt"],
     accountRecoveryCodes: ["codeHash", "accountId", "createdAt"],
@@ -1679,6 +1702,17 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.deepEqual(await (await request("/v1/account/status")).json(), {
       status: "active",
     });
+    assert.deepEqual(
+      await (await request("/v1/account/delivery-status")).json(),
+      {
+        state: "clear",
+        pendingCount: 0,
+        oldestCreatedAt: null,
+        retryAttempts: 0,
+        lastAttemptAt: null,
+        automaticDiscard: false,
+      },
+    );
     assert.deepEqual(await (await request("/v1/delivery")).json(), {
       batchSize: 5,
     });

@@ -25,6 +25,7 @@ import {
   ApiError,
   createApiClient,
   type AccountSession,
+  type AccountDeliveryStatus,
   type AccountStatus,
   type Connection,
   type DeletionReceipt,
@@ -170,6 +171,8 @@ export default function App() {
   const [preferenceObservationCount, setPreferenceObservationCount] =
     useState(0);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
+  const [accountDeliveryStatus, setAccountDeliveryStatus] =
+    useState<AccountDeliveryStatus | null>(null);
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
@@ -285,6 +288,7 @@ export default function App() {
         nextDirectoryConsent,
         nextEmailVerification,
         nextNotificationEmail,
+        nextAccountDeliveryStatus,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -306,6 +310,7 @@ export default function App() {
         accessMode === "account"
           ? api.notificationEmail()
           : Promise.resolve(null),
+        api.accountDeliveryStatus(),
       ]);
       setProfile(nextProfile);
       setBio(nextProfile.bio);
@@ -326,6 +331,7 @@ export default function App() {
       setDirectoryConsent(nextDirectoryConsent.receipt);
       setEmailVerification(nextEmailVerification);
       setNotificationEmail(nextNotificationEmail);
+      setAccountDeliveryStatus(nextAccountDeliveryStatus);
     } catch {
       setError(
         "OpenMatch could not reach its configured service. Check your connection and retry.",
@@ -690,6 +696,23 @@ export default function App() {
       </View>
       <ScrollView contentContainerStyle={styles.page}>
         <>
+          {accountDeliveryStatus?.state === "retrying" && (
+            <View style={styles.statusBanner} accessibilityLiveRegion="polite">
+              <View style={styles.statusCopy}>
+                <Text style={styles.statusTitle}>Delivery is retrying</Text>
+                <Text style={styles.mathNote}>
+                  {accountDeliveryStatus.pendingCount} account change
+                  {accountDeliveryStatus.pendingCount === 1
+                    ? " is"
+                    : "s are"}{" "}
+                  still queued. OpenMatch keeps it in order and does not discard
+                  it automatically. Do not assume the other person received it
+                  yet.
+                </Text>
+              </View>
+              <Action label="Check again" onPress={() => void load()} />
+            </View>
+          )}
           {accountStatus !== "active" && (
             <View style={styles.statusBanner} accessibilityLiveRegion="polite">
               <View style={styles.statusCopy}>
