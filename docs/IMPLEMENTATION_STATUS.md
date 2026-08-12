@@ -9,6 +9,7 @@ This repository is a verified pre-alpha development foundation, not a deployable
 | Web, iOS, and Android clients | Next.js production build plus Expo iOS and Android exports |
 | One durable product flow | Onboarding → finite introductions → decision → mutual connection → text message → safety action |
 | User-controlled public profile | Name, adult age, approximate city/region, optional free-text pronouns, relationship intention, and biography are editable during setup and later on web and mobile |
+| Public meeting readiness | “Prefer to chat first” or “Ready to meet in person” is editable and visible on all clients, migrates existing profiles to the cautious default, and is explicitly excluded from matching |
 | User-controlled mutual boundaries | Age range, accepted relationship intentions, smoking, children, and distance boundaries are editable independently from ordering priorities on web and mobile |
 | Explicit prototype consent | Server-enforced adult confirmation and local data-use acknowledgement produce a timestamped, versioned receipt that is exported and cleared on deletion |
 | Separate research consent | Optional research enrollment defaults to no receipt, can be opted into and withdrawn independently on web/mobile, never changes matching, and is versioned/exported/deleted |

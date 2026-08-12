@@ -256,6 +256,10 @@ export default function App() {
               value={profile.intent}
               onChange={(intent) => setProfile({ ...profile, intent })}
             />
+            <ReadinessSelector
+              value={profile.readiness}
+              onChange={(readiness) => setProfile({ ...profile, readiness })}
+            />
             <Text style={styles.setting}>About you</Text>
             <TextInput
               accessibilityLabel="About you"
@@ -323,6 +327,7 @@ export default function App() {
                     city: profile.city.trim(),
                     pronouns: profile.pronouns.trim(),
                     intent: profile.intent,
+                    readiness: profile.readiness,
                     bio: profile.bio.trim(),
                   })
                   .then(() => api.updatePreferences(preferences))
@@ -409,6 +414,7 @@ export default function App() {
                       {current.profile.pronouns} · {current.profile.city}
                     </Text>
                     <Text style={styles.intent}>{current.profile.intent}</Text>
+                    <Text style={styles.meta}>{current.profile.readiness}</Text>
                     <Text style={styles.bio}>{current.profile.bio}</Text>
                     <View style={styles.prompt}>
                       <Text style={styles.promptLabel}>
@@ -879,6 +885,12 @@ export default function App() {
                       value={profile.intent}
                       onChange={(intent) => setProfile({ ...profile, intent })}
                     />
+                    <ReadinessSelector
+                      value={profile.readiness}
+                      onChange={(readiness) =>
+                        setProfile({ ...profile, readiness })
+                      }
+                    />
                     <Text style={styles.setting}>Biography</Text>
                     <TextInput
                       accessibilityLabel="Profile bio"
@@ -896,6 +908,7 @@ export default function App() {
                       {profile.city}
                     </Text>
                     <Text style={styles.intent}>{profile.intent}</Text>
+                    <Text style={styles.meta}>{profile.readiness}</Text>
                     <Text style={styles.bio}>{bio}</Text>
                   </>
                 )}
@@ -930,6 +943,7 @@ export default function App() {
                           city: profile.city.trim(),
                           pronouns: profile.pronouns.trim(),
                           intent: profile.intent,
+                          readiness: profile.readiness,
                           bio: bio.trim(),
                         })
                         .then(setProfile)
@@ -1704,6 +1718,28 @@ function IntentSelector({
           <Text style={styles.radioLabel}>{option}</Text>
         </Pressable>
       ))}
+    </View>
+  );
+}
+
+function ReadinessSelector({
+  value,
+  onChange,
+}: {
+  value: Profile["readiness"];
+  onChange: (value: Profile["readiness"]) => void;
+}) {
+  return (
+    <View>
+      <Text style={styles.setting}>Meeting readiness</Text>
+      <ChoiceRows
+        value={value}
+        options={[
+          ["Prefer to chat first", "Prefer to chat first"],
+          ["Ready to meet in person", "Ready to meet in person"],
+        ]}
+        onChange={onChange}
+      />
     </View>
   );
 }

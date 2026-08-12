@@ -28,6 +28,7 @@
         "distanceKm",
         "pronouns",
         "intent",
+        "readiness",
         "bio",
         "prompt",
         "promptAnswer",

@@ -13,6 +13,7 @@ import {
   suggestPreferenceWeights,
   validatePreferences,
   validateProfile,
+  type Profile,
 } from "../src/index.ts";
 
 test("a failed boundary makes a pair ineligible", () => {
@@ -231,6 +232,14 @@ test("invalid public profile fields are rejected", () => {
     /details/,
   );
   assert.throws(() => validateProfile({ ...demoUser, bio: "" }), /biography/);
+  assert.throws(
+    () =>
+      validateProfile({
+        ...demoUser,
+        readiness: "Maybe" as Profile["readiness"],
+      }),
+    /readiness/,
+  );
 });
 
 test("the public priority scale has four understandable levels", () => {
@@ -245,6 +254,30 @@ test("conversation starters only reuse visible human-written profile text", () =
     conversationStarter(demoCandidates[0].profile),
     `You mentioned “${demoCandidates[0].profile.promptAnswer}” — I’d enjoy hearing more about that.`,
   );
+});
+
+test("public meeting readiness is disclosure, never a matching input", () => {
+  const candidate = structuredClone(demoCandidates[0]);
+  const before = createIntroductions(
+    demoUser,
+    [candidate],
+    defaultPreferences,
+  )[0];
+  candidate.profile.readiness =
+    candidate.profile.readiness === "Ready to meet in person"
+      ? "Prefer to chat first"
+      : "Ready to meet in person";
+  const after = createIntroductions(
+    demoUser,
+    [candidate],
+    defaultPreferences,
+  )[0];
+  assert.equal(before.explanation.finalScore, after.explanation.finalScore);
+  assert.deepEqual(
+    before.explanation.factorsForA,
+    after.explanation.factorsForA,
+  );
+  assert.notEqual(before.profile.readiness, after.profile.readiness);
 });
 
 test("generated adversarial cases preserve matching invariants", () => {

@@ -159,6 +159,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(
     screen.getByText(/I understand this local prototype stores what I enter/),
   );
+  await fireEvent.press(screen.getByText("Ready to meet in person"));
   await fireEvent.press(screen.getByText("See my introductions"));
   await waitFor(() =>
     expect(screen.getByText("Your introductions")).toBeTruthy(),
@@ -186,6 +187,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   });
   expect(profile.name).toBe("Taylor");
   expect(profile.city).toBe("Winterthur");
+  expect(profile.readiness).toBe("Ready to meet in person");
   expect(onboardingComplete).toBe(true);
   expect(consentAccepted).toBe(true);
   await fireEvent.press(screen.getByText("Preferences"));

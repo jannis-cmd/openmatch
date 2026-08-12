@@ -76,6 +76,12 @@ export class Store {
     insert.run("delivery_settings", JSON.stringify({ batchSize: 5 }));
     insert.run("consent_receipt", JSON.stringify(null));
     insert.run("research_consent_receipt", JSON.stringify(null));
+    const profile = this.getState<Record<string, unknown>>("profile");
+    if (!("readiness" in profile))
+      this.setState("profile", {
+        ...profile,
+        readiness: "Prefer to chat first",
+      });
   }
 
   private getState<T>(key: string): T {

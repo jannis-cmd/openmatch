@@ -52,6 +52,9 @@ test("first run through a persistent connection and safety action", async ({
     .getByRole("combobox", { name: "Relationship intention" })
     .selectOption({ label: "Long-term relationship" });
   await page
+    .getByRole("combobox", { name: "Meeting readiness" })
+    .selectOption({ label: "Ready to meet in person" });
+  await page
     .getByRole("checkbox", {
       name: "I confirm that I am at least 18 years old.",
     })
@@ -67,6 +70,7 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "3 remaining" }),
   ).toBeVisible();
   await expect(page.getByText("Within 5 km")).toBeVisible();
+  await expect(page.getByText("Ready to meet in person")).toBeVisible();
   await page.getByRole("button", { name: "Save for later" }).click();
   await expect(
     page.getByRole("heading", { name: "2 remaining" }),

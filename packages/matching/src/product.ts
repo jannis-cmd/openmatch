@@ -26,6 +26,7 @@ export type Profile = {
   distanceKm: number;
   pronouns: string;
   intent: RelationshipIntent;
+  readiness: "Ready to meet in person" | "Prefer to chat first";
   bio: string;
   prompt: string;
   promptAnswer: string;
@@ -112,6 +113,7 @@ export const demoUser: Profile = {
   distanceKm: 0,
   pronouns: "they/them",
   intent: "Long-term relationship",
+  readiness: "Prefer to chat first",
   bio: "Curious, grounded, and happiest near water or a good table.",
   prompt: "A good Sunday looks like",
   promptAnswer: "A long walk, cooking for friends, and nowhere urgent to be.",
@@ -142,6 +144,12 @@ export function validateProfile(value: Profile): Profile {
     ].includes(value.intent)
   )
     throw new RangeError("public profile details are invalid");
+  if (
+    !["Ready to meet in person", "Prefer to chat first"].includes(
+      value.readiness,
+    )
+  )
+    throw new RangeError("profile readiness is invalid");
   if (
     typeof value.bio !== "string" ||
     value.bio.trim().length < 1 ||
@@ -219,6 +227,7 @@ export const demoCandidates: Candidate[] = [
       distanceKm: 4,
       pronouns: "she/her",
       intent: "Long-term relationship",
+      readiness: "Ready to meet in person",
       bio: "Architect, amateur ceramicist, and reliable maker of breakfast.",
       prompt: "Something I care about",
       promptAnswer: "Building a life that has room for people, not only work.",
@@ -248,6 +257,7 @@ export const demoCandidates: Candidate[] = [
       distanceKm: 24,
       pronouns: "he/him",
       intent: "Long-term relationship",
+      readiness: "Prefer to chat first",
       bio: "Teacher, climber, slow reader. I prefer a few close people to a crowded room.",
       prompt: "I feel most myself when",
       promptAnswer: "I’m outside long enough to forget what time it is.",
@@ -273,6 +283,7 @@ export const demoCandidates: Candidate[] = [
       distanceKm: 22,
       pronouns: "she/her",
       intent: "Long-term, open to short",
+      readiness: "Ready to meet in person",
       bio: "Museum person, public-transport optimist, and enthusiastic host.",
       prompt: "A small thing that matters",
       promptAnswer: "Remembering what someone takes in their coffee.",
@@ -302,6 +313,7 @@ export const demoCandidates: Candidate[] = [
       distanceKm: 52,
       pronouns: "they/them",
       intent: "Long-term relationship",
+      readiness: "Prefer to chat first",
       bio: "Sound designer. Quiet until there is a subject worth getting animated about.",
       prompt: "My ideal first meeting",
       promptAnswer:

@@ -254,6 +254,7 @@ function AppExperience({ exit }: { exit: () => void }) {
                     city: profile.city.trim(),
                     pronouns: profile.pronouns.trim(),
                     intent: profile.intent,
+                    readiness: profile.readiness,
                     bio: profile.bio.trim(),
                   });
                   await api.updatePreferences(preferences);
@@ -348,6 +349,9 @@ function AppExperience({ exit }: { exit: () => void }) {
                             </p>
                           </div>
                           <p className="intent">{current.profile.intent}</p>
+                          <p className="readiness">
+                            {current.profile.readiness}
+                          </p>
                           <p className="bio">{current.profile.bio}</p>
                           <div className="prompt">
                             <span>{current.profile.prompt}</span>
@@ -1035,6 +1039,21 @@ function OnboardingView({
           </select>
         </label>
         <label>
+          Meeting readiness
+          <select
+            value={profile.readiness}
+            onChange={(event) =>
+              onProfile({
+                ...profile,
+                readiness: event.target.value as Profile["readiness"],
+              })
+            }
+          >
+            <option>Prefer to chat first</option>
+            <option>Ready to meet in person</option>
+          </select>
+        </label>
+        <label>
           About you
           <textarea
             value={profile.bio}
@@ -1485,6 +1504,7 @@ function ProfileView({
                   city: draft.city.trim(),
                   pronouns: draft.pronouns.trim(),
                   intent: draft.intent,
+                  readiness: draft.readiness,
                   bio: draft.bio.trim(),
                 });
               }
@@ -1555,6 +1575,21 @@ function ProfileView({
               </select>
             </label>
             <label>
+              Meeting readiness
+              <select
+                value={draft.readiness}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    readiness: event.target.value as Profile["readiness"],
+                  })
+                }
+              >
+                <option>Prefer to chat first</option>
+                <option>Ready to meet in person</option>
+              </select>
+            </label>
+            <label>
               Biography
               <textarea
                 value={draft.bio}
@@ -1571,6 +1606,7 @@ function ProfileView({
               {profile.pronouns || "Pronouns not shown"} · {profile.city} ·{" "}
               {profile.intent}
             </p>
+            <p className="readiness">{profile.readiness}</p>
             <p className="large-copy">{profile.bio}</p>
           </>
         )}
