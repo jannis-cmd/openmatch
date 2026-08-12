@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { validateReleaseApiUrl } from "./verify-eas-environment.mjs";
@@ -19,4 +20,15 @@ test("rejects URL components beyond the origin", () => {
 
 test("accepts a plain HTTPS origin", () => {
   assert.equal(validateReleaseApiUrl(" https://api.example.com/ "), null);
+});
+
+test("builds shared workspace packages before EAS bundles the app", async () => {
+  const packageJson = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8"),
+  );
+
+  assert.equal(
+    packageJson.scripts["eas-build-post-install"],
+    "pnpm --dir ../.. build:packages",
+  );
 });
