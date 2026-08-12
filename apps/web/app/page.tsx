@@ -309,6 +309,31 @@ function AppExperience({
     void load();
   }, [load]);
   useEffect(() => {
+    if (
+      accountDeliveryStatus?.state !== "retrying" &&
+      securityNotificationDelivery?.state !== "retrying"
+    )
+      return;
+    const timer = window.setInterval(() => {
+      if (accountDeliveryStatus?.state === "retrying")
+        void api
+          .accountDeliveryStatus()
+          .then(setAccountDeliveryStatus)
+          .catch(() => undefined);
+      if (authToken && securityNotificationDelivery?.state === "retrying")
+        void api
+          .securityNotificationStatus()
+          .then(setSecurityNotificationDelivery)
+          .catch(() => undefined);
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [
+    accountDeliveryStatus?.state,
+    api,
+    authToken,
+    securityNotificationDelivery?.state,
+  ]);
+  useEffect(() => {
     let active = true;
     setMessages([]);
     setDraft("");
