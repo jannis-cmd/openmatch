@@ -27,6 +27,13 @@ device must be a member of the `cheetah-vernier` tailnet. This Mac has no
 Android SDK, emulator, or connected Android device, so on-device installation
 and APK signature inspection remain separate validation steps.
 
+Build 10 shows durable pending-delivery state on load, manual refresh, and
+foreground return. The subsequent source commit `a485751` additionally shows
+the safely-queued warning immediately from a failed mutation response. Expo
+rejected Android build 11 before compilation because the account's included
+Android build quota is exhausted until September 1, 2026; the live web client
+and latest iOS Simulator archive already include the refinement.
+
 ### Android Play App Bundle — build 10
 
 - Purpose: Google Play internal testing or later store submission
@@ -51,21 +58,21 @@ data-safety declarations, tester setup, and submission have not been performed.
 ### iOS Simulator archive — build 1
 
 - Purpose: unsigned native compilation and testing in iOS Simulator
-- EAS build: `f2a39c03-0575-4b4b-9193-551133b051f1`
-- Source commit: `b9c4039ee5a08560f151775c962ed4d56b388ab2`
+- EAS build: `f10dbdcd-6d41-4338-9a8a-0b175ade0994`
+- Source commit: `a48575199f1dfa0e21301c013122d57dd1964845`
 - Bundle identifier: `org.openmatch.app`
 - Version: `0.1.0` (`CFBundleVersion` 1)
-- Artifact: <https://expo.dev/artifacts/eas/gstgb3tBW-Xy1v_BB76_ufVdjhKdiIgjCNyiiqY2AVY.tar.gz>
-- Size: 22,365,285 bytes
-- SHA-256: `46c160115ac537352d3d560c03d2d80cb140cf8022ce45e2a565c5f244801ec5`
+- Artifact: <https://expo.dev/artifacts/eas/9L0V8WoFPy2D3kbEZGrs6O5hYIKi6tLWBRivGL9FEpU.tar.gz>
+- Size: 22,365,824 bytes
+- SHA-256: `43294085031b745b618a1ee841b99fbbf694392eefdbb6d122a72e6d9f92c542`
 - Verification: EAS finished successfully; gzip integrity passed; archive
   contains `OpenMatch.app`; `Info.plist` contains the expected identifier and
   version; the executable is a universal Simulator Mach-O for `arm64` and
   `x86_64`; the configured tailnet API and privacy/support web origins are
   present; the message request identifier and append-only safety-report update
   paths, reciprocal gender-discovery configuration, and the separate
-  learning-example deletion control and explicit pending cross-account
-  delivery warning are embedded; and
+  learning-example deletion control, explicit pending cross-account delivery
+  warning, and immediate safely-queued mutation response are embedded; and
   `ITSAppUsesNonExemptEncryption` is false
 
 This archive cannot run on an iPhone and is not TestFlight-signed. The Mac does
