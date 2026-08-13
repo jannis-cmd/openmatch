@@ -51,6 +51,12 @@ export function assessLocalRelease(platform, options = {}) {
       ),
       requiredCommand(
         run,
+        "xcodebuild",
+        ["-checkFirstLaunchStatus"],
+        "Xcode first-launch components are incomplete; the account owner must run sudo xcodebuild -runFirstLaunch.",
+      ),
+      requiredCommand(
+        run,
         "pod",
         ["--version"],
         "CocoaPods is required for a local iOS EAS build.",

@@ -22,6 +22,7 @@ test("accepts a complete iOS local release toolchain", () => {
   assert.deepEqual(calls, [
     ["xcodebuild", "-version"],
     ["xcodebuild", "-license", "check"],
+    ["xcodebuild", "-checkFirstLaunchStatus"],
     ["pod", "--version"],
     ["fastlane", "--version"],
   ]);
@@ -32,9 +33,10 @@ test("reports every iOS prerequisite without leaking command output", () => {
     env: releaseEnv,
     run: () => ({ ok: false, detail: "private machine detail" }),
   });
-  assert.equal(errors.length, 4);
+  assert.equal(errors.length, 5);
   assert.equal(errors.join(" ").includes("private machine detail"), false);
   assert.match(errors.join(" "), /Xcode license/);
+  assert.match(errors.join(" "), /first-launch/);
   assert.match(errors.join(" "), /CocoaPods/);
   assert.match(errors.join(" "), /Fastlane/);
 });

@@ -204,7 +204,14 @@ Then verify the license and Xcode selection without changing either:
 ```bash
 xcode-select -p
 xcodebuild -license check
+xcodebuild -checkFirstLaunchStatus
 xcodebuild -version
+```
+
+If the first-launch check fails, complete Xcode's privileged component setup:
+
+```bash
+sudo xcodebuild -runFirstLaunch
 ```
 
 After loading the two public HTTPS origins and source revision into the current

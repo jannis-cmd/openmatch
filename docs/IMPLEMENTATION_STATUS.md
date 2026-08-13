@@ -93,8 +93,9 @@ not accept it for them.
 
 An executable local-release preflight checks both public HTTPS origins, the
 full embedded source revision, and platform tools before a build begins. The
-iOS path checks Xcode selection, owner license acceptance, CocoaPods, and
-Fastlane; the Android path checks Java, SDK command-line tools, and the SDK root.
+iOS path checks Xcode selection, owner license acceptance, privileged
+first-launch component setup, CocoaPods, and Fastlane; the Android path checks
+Java, SDK command-line tools, and the SDK root.
 It reports all detected blockers together without echoing command output or
 starting a build.
 
