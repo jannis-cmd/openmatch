@@ -62,7 +62,7 @@ The system must distinguish:
 - Email/passkey sign-in; phone number optional and never public.
 - Age gate and region eligibility.
 - Short, versioned consent screens for service processing, research participation, and optional verification—never bundled.
-- Export, pause, hide, and delete controls available from Profile without contacting support.
+- Export, pause, hide, and delete controls available from Profile without contacting support. Export, reset, and permanent account deletion are mutually serialized; a rejected request stays in context and explicitly says that no download or deletion completed, while the UI changes only after the corresponding server result or deletion receipt.
 - The executable prototype implements JSON export, deletion/reset, pause, and hide across web, iOS, and Android. Profile visibility and account-matching participation change only after server confirmation. While either privacy mutation is running, competing controls are disabled; failure leaves the prior confirmed state visibly active and provides a retryable, action-specific error. These controls still require threat-model and assistive-technology review before any pilot.
 - Research consent defaults off and can be withdrawn prospectively at any time. Opt-in and withdrawal preserve the last server-confirmed receipt while saving, disable repeat submission, and expose a local retry error after failure rather than implying that consent changed.
 - The executable passphrase prototype accepts 15–128 characters without composition or periodic-change rules, allows password-manager autofill/paste, verifies the current passphrase before a change, and atomically replaces all sessions. Passkeys and verified recovery remain the production direction.

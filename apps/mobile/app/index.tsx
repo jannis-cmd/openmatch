@@ -221,6 +221,10 @@ export default function App() {
   const [researchConsentError, setResearchConsentError] = useState<
     string | null
   >(null);
+  const [dataAction, setDataAction] = useState<
+    "export" | "reset" | "delete-account" | null
+  >(null);
+  const [dataActionError, setDataActionError] = useState<string | null>(null);
   const [accountDeliveryStatus, setAccountDeliveryStatus] =
     useState<AccountDeliveryStatus | null>(null);
   const [securityNotificationDelivery, setSecurityNotificationDelivery] =
@@ -376,6 +380,8 @@ export default function App() {
     setConnectionPreferenceError(null);
     setResearchConsentSaving(false);
     setResearchConsentError(null);
+    setDataAction(null);
+    setDataActionError(null);
   }, [accessMode]);
   useEffect(() => {
     let active = true;
@@ -2951,8 +2957,11 @@ export default function App() {
                 <Action
                   label="Export my data"
                   secondary
+                  disabled={dataAction !== null}
                   onPress={() => {
                     setExportNotice(null);
+                    setDataAction("export");
+                    setDataActionError(null);
                     void api
                       .exportData()
                       .then(shareDataExport)
@@ -2962,14 +2971,15 @@ export default function App() {
                         ),
                       )
                       .catch((exportError: unknown) =>
-                        setError(
+                        setDataActionError(
                           exportError instanceof Error &&
                             exportError.message ===
                               "data_export_sharing_unavailable"
                             ? "This device cannot open a file share sheet. No export file was created."
                             : "Data export could not be created. No temporary copy was kept.",
                         ),
-                      );
+                      )
+                      .finally(() => setDataAction(null));
                   }}
                 />
                 {exportNotice && (
@@ -2982,6 +2992,8 @@ export default function App() {
                 )}
                 <Pressable
                   accessibilityRole="button"
+                  accessibilityState={{ disabled: dataAction !== null }}
+                  disabled={dataAction !== null}
                   onPress={() =>
                     Alert.alert(
                       "Delete local data?",
@@ -2991,11 +3003,22 @@ export default function App() {
                         {
                           text: "Delete",
                           style: "destructive",
-                          onPress: () =>
-                            void api.deleteAccountData().then((receipt) => {
-                              setDeletionReceipt(receipt);
-                              return load();
-                            }),
+                          onPress: () => {
+                            setDataAction("reset");
+                            setDataActionError(null);
+                            void api
+                              .deleteAccountData()
+                              .then((receipt) => {
+                                setDeletionReceipt(receipt);
+                                return load();
+                              })
+                              .catch(() =>
+                                setDataActionError(
+                                  "Local data was not deleted. The confirmed data remains available; retry when ready.",
+                                ),
+                              )
+                              .finally(() => setDataAction(null));
+                          },
                         },
                       ],
                     )
@@ -3026,6 +3049,8 @@ export default function App() {
                 {accessMode === "account" && (
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityState={{ disabled: dataAction !== null }}
+                    disabled={dataAction !== null}
                     onPress={() =>
                       Alert.alert(
                         "Delete account permanently?",
@@ -3035,17 +3060,28 @@ export default function App() {
                           {
                             text: "Delete account",
                             style: "destructive",
-                            onPress: () =>
-                              void api.deleteAccount().then(async () => {
-                                await clearSessionToken().catch(
-                                  () => undefined,
-                                );
-                                await clearPendingMessageAttempts().catch(
-                                  () => undefined,
-                                );
-                                setAuthToken(null);
-                                setAccessMode("signed-out");
-                              }),
+                            onPress: () => {
+                              setDataAction("delete-account");
+                              setDataActionError(null);
+                              void api
+                                .deleteAccount()
+                                .then(async () => {
+                                  await clearSessionToken().catch(
+                                    () => undefined,
+                                  );
+                                  await clearPendingMessageAttempts().catch(
+                                    () => undefined,
+                                  );
+                                  setAuthToken(null);
+                                  setAccessMode("signed-out");
+                                })
+                                .catch(() =>
+                                  setDataActionError(
+                                    "The account was not deleted. You remain signed in and can retry when ready.",
+                                  ),
+                                )
+                                .finally(() => setDataAction(null));
+                            },
                           },
                         ],
                       )
@@ -3055,6 +3091,23 @@ export default function App() {
                       Delete account permanently
                     </Text>
                   </Pressable>
+                )}
+                {dataAction && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.mathNote}
+                  >
+                    {dataAction === "export"
+                      ? "Creating data export…"
+                      : dataAction === "reset"
+                        ? "Deleting local data…"
+                        : "Deleting account…"}
+                  </Text>
+                )}
+                {dataActionError && (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {dataActionError}
+                  </Text>
                 )}
               </View>
             </>

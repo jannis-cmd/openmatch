@@ -69,6 +69,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let failNextVisibilitySave = false;
   let failNextDirectorySave = false;
   let failNextResearchConsentSave = false;
+  let failNextLocalDataDeletion = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -184,6 +185,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       return response(null, 204);
     }
     if (path === "/v1/me" && init.method === "DELETE") {
+      if (failNextLocalDataDeletion) {
+        failNextLocalDataDeletion = false;
+        return response({ error: "simulated_local_deletion_failure" }, 503);
+      }
       onboardingComplete = false;
       consentAccepted = false;
       researchParticipating = null;
@@ -873,10 +878,22 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   ).toBeTruthy();
   await fireEvent.press(screen.getByText("Profile"));
   const alertSpy = jest.spyOn(Alert, "alert");
+  failNextLocalDataDeletion = true;
   await fireEvent.press(screen.getByText("Delete local data"));
-  const destructiveAction = alertSpy.mock.calls.at(-1)?.[2]?.[1];
+  let destructiveAction = alertSpy.mock.calls.at(-1)?.[2]?.[1];
   expect(destructiveAction?.text).toBe("Delete");
-  destructiveAction?.onPress?.();
+  await act(async () => destructiveAction?.onPress?.());
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Local data was not deleted. The confirmed data remains available; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(onboardingComplete).toBe(true);
+  await fireEvent.press(screen.getByText("Delete local data"));
+  destructiveAction = alertSpy.mock.calls.at(-1)?.[2]?.[1];
+  await act(async () => destructiveAction?.onPress?.());
   await waitFor(() =>
     expect(screen.getByText("Local data deletion completed")).toBeTruthy(),
   );

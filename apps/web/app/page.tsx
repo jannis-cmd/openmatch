@@ -3004,6 +3004,10 @@ function ProfileView({
   const [researchConsentError, setResearchConsentError] = useState<
     string | null
   >(null);
+  const [dataAction, setDataAction] = useState<
+    "export" | "reset" | "delete-account" | null
+  >(null);
+  const [dataActionError, setDataActionError] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -4004,16 +4008,75 @@ function ProfileView({
             <p role="status">Saving profile visibility…</p>
           )}
           {visibilityActionError && <p role="alert">{visibilityActionError}</p>}
-          <button onClick={() => void exportData()}>Export my data</button>
-          <button className="danger" onClick={() => void deleteData()}>
+          <button
+            disabled={dataAction !== null}
+            onClick={async () => {
+              setDataAction("export");
+              setDataActionError(null);
+              try {
+                await exportData();
+              } catch {
+                setDataActionError(
+                  "Data export could not be created. No download was started; retry when ready.",
+                );
+              } finally {
+                setDataAction(null);
+              }
+            }}
+          >
+            Export my data
+          </button>
+          <button
+            className="danger"
+            disabled={dataAction !== null}
+            onClick={async () => {
+              setDataAction("reset");
+              setDataActionError(null);
+              try {
+                await deleteData();
+              } catch {
+                setDataActionError(
+                  "Local data was not deleted. The confirmed data remains available; retry when ready.",
+                );
+              } finally {
+                setDataAction(null);
+              }
+            }}
+          >
             Delete local data
           </button>
           {deleteAccount && (
-            <button className="danger" onClick={() => void deleteAccount()}>
+            <button
+              className="danger"
+              disabled={dataAction !== null}
+              onClick={async () => {
+                setDataAction("delete-account");
+                setDataActionError(null);
+                try {
+                  await deleteAccount();
+                } catch {
+                  setDataActionError(
+                    "The account was not deleted. You remain signed in and can retry when ready.",
+                  );
+                } finally {
+                  setDataAction(null);
+                }
+              }}
+            >
               Delete account permanently
             </button>
           )}
         </div>
+        {dataAction && (
+          <p role="status">
+            {dataAction === "export"
+              ? "Creating data export…"
+              : dataAction === "reset"
+                ? "Deleting local data…"
+                : "Deleting account…"}
+          </p>
+        )}
+        {dataActionError && <p role="alert">{dataActionError}</p>}
       </section>
     </div>
   );

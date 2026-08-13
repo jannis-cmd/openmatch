@@ -869,7 +869,7 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("textbox", { name: "Display name" }).fill("Taylor Two");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(
-    page.getByRole("heading", { name: "Taylor Two, 31" }),
+    page.getByRole("heading", { name: "Taylor Two, 31", level: 1 }),
   ).toBeVisible();
   await page.route(
     "**/v1/account/status",
@@ -954,6 +954,24 @@ test("first run through a persistent connection and safety action", async ({
   expect((await downloadPromise).suggestedFilename()).toBe(
     "openmatch-data.json",
   );
+  await page.route(
+    "**/v1/me",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_local_deletion_failure" }),
+      }),
+    { times: 1 },
+  );
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete local data" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Local data was not deleted" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Taylor Two, 31", level: 1 }),
+  ).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete local data" }).click();
   await expect(
