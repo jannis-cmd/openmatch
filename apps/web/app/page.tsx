@@ -1128,25 +1128,31 @@ function AppExperience({
                             }
                           }}
                           report={async (reason, reportDetails) => {
+                            const reportedProfileId = current.profile.id;
+                            const result = await api.report(
+                              reportedProfileId,
+                              reason,
+                              reportDetails,
+                            );
+                            setNotice(
+                              `Report received. This profile is concealed from future introductions. Reference status: ${result.status}.`,
+                            );
+                            setIntroductions((items) =>
+                              items.filter(
+                                (item) => item.profile.id !== reportedProfileId,
+                              ),
+                            );
+                            setSavedIntroductions((items) =>
+                              items.filter(
+                                (item) => item.profile.id !== reportedProfileId,
+                              ),
+                            );
                             try {
-                              const result = await api.report(
-                                current.profile.id,
-                                reason,
-                                reportDetails,
-                              );
-                              setNotice(
-                                `Report received. This profile is concealed from future introductions. Reference status: ${result.status}.`,
-                              );
                               setReports((await api.reports()).items);
-                              await load();
-                            } catch (error) {
-                              setError(
-                                operationLimitMessage(
-                                  error,
-                                  "The report could not be sent. Please retry.",
-                                ),
+                            } catch {
+                              setNotice(
+                                `Report received with status ${result.status}, but report history could not refresh. Check again shortly.`,
                               );
-                              throw error;
                             }
                           }}
                         />
@@ -1366,24 +1372,31 @@ function AppExperience({
                   }}
                   report={async (reason, reportDetails) => {
                     if (selectedConnection) {
+                      const reportedProfileId = selectedConnection.profileId;
+                      const result = await api.report(
+                        reportedProfileId,
+                        reason,
+                        reportDetails,
+                      );
+                      setNotice(
+                        `Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: ${result.status}.`,
+                      );
+                      setIntroductions((items) =>
+                        items.filter(
+                          (item) => item.profile.id !== reportedProfileId,
+                        ),
+                      );
+                      setSavedIntroductions((items) =>
+                        items.filter(
+                          (item) => item.profile.id !== reportedProfileId,
+                        ),
+                      );
                       try {
-                        const result = await api.report(
-                          selectedConnection.profileId,
-                          reason,
-                          reportDetails,
-                        );
-                        setNotice(
-                          `Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: ${result.status}.`,
-                        );
                         setReports((await api.reports()).items);
-                      } catch (error) {
-                        setError(
-                          operationLimitMessage(
-                            error,
-                            "The report could not be sent. Please retry.",
-                          ),
+                      } catch {
+                        setNotice(
+                          `Report received with status ${result.status}, but report history could not refresh. Check again shortly.`,
                         );
-                        throw error;
                       }
                     }
                   }}
@@ -4213,6 +4226,7 @@ function CandidateSafety({
   const [reason, setReason] = useState<ReportReason>("harassment");
   const [reportDetails, setReportDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   return (
     <div className="candidate-safety">
@@ -4252,12 +4266,18 @@ function CandidateSafety({
               disabled={submitting}
               onClick={async () => {
                 setSubmitting(true);
+                setReportError(null);
                 try {
                   await report(reason, reportDetails.trim());
                   setReportDetails("");
                   setOpen(false);
-                } catch {
-                  // The parent keeps the form open and presents the error.
+                } catch (error) {
+                  setReportError(
+                    operationLimitMessage(
+                      error,
+                      "The report was not sent. Your reason and details remain here; retry when ready.",
+                    ),
+                  );
                 } finally {
                   setSubmitting(false);
                 }
@@ -4269,6 +4289,7 @@ function CandidateSafety({
               Block {name}
             </button>
           </div>
+          {reportError && <p role="alert">{reportError}</p>}
         </div>
       )}
     </div>
@@ -4311,6 +4332,8 @@ function ConnectionsView({
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>("harassment");
   const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [preferenceAction, setPreferenceAction] = useState<
     "mute" | "meeting" | null
   >(null);
@@ -4318,6 +4341,8 @@ function ConnectionsView({
   useEffect(() => {
     setPreferenceAction(null);
     setPreferenceError(null);
+    setReportSubmitting(false);
+    setReportError(null);
   }, [connection?.id]);
   if (!connection)
     return (
@@ -4525,20 +4550,31 @@ function ConnectionsView({
             />
             <div>
               <button
+                disabled={reportSubmitting}
                 onClick={async () => {
+                  setReportSubmitting(true);
+                  setReportError(null);
                   try {
                     await report(reportReason, reportDetails.trim());
                     setReportDetails("");
                     setReportOpen(false);
-                  } catch {
-                    // The parent keeps the form open and presents the error.
+                  } catch (error) {
+                    setReportError(
+                      operationLimitMessage(
+                        error,
+                        "The report was not sent. Your reason and details remain here; retry when ready.",
+                      ),
+                    );
+                  } finally {
+                    setReportSubmitting(false);
                   }
                 }}
               >
-                Submit report
+                {reportSubmitting ? "Sending…" : "Submit report"}
               </button>
               <button onClick={() => setReportOpen(false)}>Cancel</button>
             </div>
+            {reportError && <p role="alert">{reportError}</p>}
           </div>
         )}
         <div className="messages">

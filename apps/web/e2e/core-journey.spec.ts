@@ -714,6 +714,23 @@ test("first run through a persistent connection and safety action", async ({
   await page
     .getByLabel("Details optional")
     .fill("Conversation context for the report");
+  await page.route(
+    "**/v1/reports",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_report_write_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Submit report" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "The report was not sent" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Details optional")).toHaveValue(
+    "Conversation context for the report",
+  );
   await page.getByRole("button", { name: "Submit report" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Report received" }),

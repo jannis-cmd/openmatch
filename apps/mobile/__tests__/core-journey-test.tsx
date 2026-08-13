@@ -72,6 +72,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let failNextLocalDataDeletion = false;
   let failNextSavedIntroductionWrite = false;
   let failNextDecisionWrite = false;
+  let failNextReportWrite = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -496,6 +497,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         ],
       });
     if (path === "/v1/reports" && init.method === "POST") {
+      if (failNextReportWrite) {
+        failNextReportWrite = false;
+        return response({ error: "simulated_report_write_failure" }, 503);
+      }
       reportPayload = body;
       reportRecords.unshift({
         id: reportRecords.length + 1,
@@ -615,12 +620,21 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByLabelText("Report details optional"),
     "Suspicious profile context",
   );
+  failNextReportWrite = true;
   await fireEvent.press(screen.getByText("Submit report"));
-  await waitFor(() => expect(screen.getByText(/Report received/)).toBeTruthy());
-  expect(reportPayload).toMatchObject({
-    reason: "scam",
-    details: "Suspicious profile context",
-  });
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "The report was not sent. Your reason and details remain here; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(screen.getByLabelText("Report details optional")).toHaveProp(
+    "value",
+    "Suspicious profile context",
+  );
+  expect(reportPayload).toBeNull();
+  await fireEvent.press(screen.getByText("Cancel"));
   deliveryRetrying = true;
   failNextDecisionWrite = true;
   await fireEvent.press(screen.getByText("Interested"));
@@ -664,6 +678,18 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.getByLabelText("Message Mara")).toBeTruthy(),
   );
+  await fireEvent.press(screen.getByText("Report"));
+  await fireEvent.press(screen.getByText("Scam"));
+  await fireEvent.changeText(
+    screen.getByLabelText("Report details optional"),
+    "Suspicious profile context",
+  );
+  await fireEvent.press(screen.getByText("Submit report"));
+  await waitFor(() => expect(screen.getByText(/Report received/)).toBeTruthy());
+  expect(reportPayload).toMatchObject({
+    reason: "scam",
+    details: "Suspicious profile context",
+  });
   await fireEvent.press(screen.getByText("Noah"));
   await waitFor(() =>
     expect(screen.getByLabelText("Message Noah")).toHaveProp(

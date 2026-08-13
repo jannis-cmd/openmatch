@@ -133,10 +133,10 @@ Each open connection owns a separate composer draft and retry identity. Switchin
 
 ### 4.6 Safety
 
-Submitting a report immediately conceals that profile from the reporter's future discovery surfaces. It does not silently erase an existing conversation, so the reporter can preserve context and separately choose unmatch or block; this local concealment is not a moderation finding or a claim that staff reviewed the report.
+Submitting a report immediately conceals that profile from the reporter's future discovery surfaces. It does not silently erase an existing conversation, so the reporter can preserve context and separately choose unmatch or block; this local concealment is not a moderation finding or a claim that staff reviewed the report. The form preserves reason and written context after a rejected submission and exposes a local retry error. After a receipt, concealment and success copy are immediate; report-history refresh is secondary and cannot recast a received report as failed.
 
 - Block/report from every profile and conversation.
-- Evidence-preserving report flow, severity triage, published response targets, status tracking, human appeal, and anti-retaliation controls.
+- A production service requires an evidence-preserving report flow, severity triage, published response targets, status tracking, human appeal, and anti-retaliation controls. The executable prototype currently provides append-only user corrections/context/withdrawal requests and an honest unstaffed `received` status, not triage, response targets, moderation findings, or appeals.
 - Rate limits, device/account abuse signals, duplicate-account checks, and optional privacy-preserving liveness/photo verification.
 - Every verification badge states exactly what was checked and what it cannot establish. Photo/liveness verification must never imply background safety or good intent.
 - Scam defenses include risky-link and payment-request friction, contextual education, fast escalation, evidence preservation, trained human support, and a non-blaming recovery path. Automated suspicion never silently lowers dating visibility.

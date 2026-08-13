@@ -1450,24 +1450,31 @@ export default function App() {
                     name={current.profile.name}
                     cancel={() => setIntroductionReportOpen(false)}
                     submit={async (reason, details) => {
+                      const reportedProfileId = current.profile.id;
+                      const result = await api.report(
+                        reportedProfileId,
+                        reason,
+                        details,
+                      );
+                      setSafetyNotice(
+                        `Report received. This profile is concealed from future introductions. Reference status: ${result.status}.`,
+                      );
+                      setIntroductions((items) =>
+                        items.filter(
+                          (item) => item.profile.id !== reportedProfileId,
+                        ),
+                      );
+                      setSavedIntroductions((items) =>
+                        items.filter(
+                          (item) => item.profile.id !== reportedProfileId,
+                        ),
+                      );
+                      setIntroductionReportOpen(false);
                       try {
-                        const result = await api.report(
-                          current.profile.id,
-                          reason,
-                          details,
-                        );
-                        setSafetyNotice(
-                          `Report received. This profile is concealed from future introductions. Reference status: ${result.status}.`,
-                        );
                         setReports((await api.reports()).items);
-                        setIntroductionReportOpen(false);
-                        await load();
-                      } catch (error) {
+                      } catch {
                         setSafetyNotice(
-                          operationLimitMessage(
-                            error,
-                            "Report could not be sent. Retry.",
-                          ),
+                          `Report received with status ${result.status}, but report history could not refresh. Check again shortly.`,
                         );
                       }
                     }}
@@ -1973,23 +1980,31 @@ export default function App() {
                       name={connection.profile?.name ?? "this person"}
                       cancel={() => setConnectionReportOpen(false)}
                       submit={async (reason, details) => {
+                        const reportedProfileId = connection.profileId;
+                        const result = await api.report(
+                          reportedProfileId,
+                          reason,
+                          details,
+                        );
+                        setSafetyNotice(
+                          `Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: ${result.status}.`,
+                        );
+                        setIntroductions((items) =>
+                          items.filter(
+                            (item) => item.profile.id !== reportedProfileId,
+                          ),
+                        );
+                        setSavedIntroductions((items) =>
+                          items.filter(
+                            (item) => item.profile.id !== reportedProfileId,
+                          ),
+                        );
+                        setConnectionReportOpen(false);
                         try {
-                          const result = await api.report(
-                            connection.profileId,
-                            reason,
-                            details,
-                          );
-                          setSafetyNotice(
-                            `Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: ${result.status}.`,
-                          );
                           setReports((await api.reports()).items);
-                          setConnectionReportOpen(false);
-                        } catch (error) {
+                        } catch {
                           setSafetyNotice(
-                            operationLimitMessage(
-                              error,
-                              "Report could not be sent. Retry.",
-                            ),
+                            `Report received with status ${result.status}, but report history could not refresh. Check again shortly.`,
                           );
                         }
                       }}
@@ -4220,6 +4235,7 @@ function MobileReportForm({
   const [reason, setReason] = useState<ReportReason>("harassment");
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   return (
     <View style={styles.reportForm}>
       <Text style={styles.name}>Report {name}</Text>
@@ -4255,12 +4271,25 @@ function MobileReportForm({
           disabled={submitting}
           onPress={() => {
             setSubmitting(true);
-            void submit(reason, details.trim()).finally(() =>
-              setSubmitting(false),
-            );
+            setReportError(null);
+            void submit(reason, details.trim())
+              .catch((error) =>
+                setReportError(
+                  operationLimitMessage(
+                    error,
+                    "The report was not sent. Your reason and details remain here; retry when ready.",
+                  ),
+                ),
+              )
+              .finally(() => setSubmitting(false));
           }}
         />
       </View>
+      {reportError && (
+        <Text accessibilityRole="alert" style={styles.errorText}>
+          {reportError}
+        </Text>
+      )}
     </View>
   );
 }
