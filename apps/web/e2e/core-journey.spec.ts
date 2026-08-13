@@ -294,6 +294,19 @@ test("first run through a persistent connection and safety action", async ({
     .selectOption({ label: "Ready to meet in person" });
   await page.getByLabel("Your answer").fill("Building a welcoming table.");
   await page.getByLabel(/Values 1–5/).fill("Care, Curiosity");
+  const publicPreview = page.getByLabel("Live public preview");
+  await expect(
+    publicPreview.getByRole("heading", { name: "Taylor, 31" }),
+  ).toBeVisible();
+  await expect(
+    publicPreview.getByText("Building a welcoming table."),
+  ).toBeVisible();
+  await expect(publicPreview.getByText("Doesn’t smoke")).toBeVisible();
+  await expect(publicPreview.getByText("Open about children")).toBeVisible();
+  await expect(publicPreview.getByText("Early schedule")).toBeVisible();
+  await expect(
+    publicPreview.getByText(/Not shown: your discovery routing groups/),
+  ).toBeVisible();
   const genderPreferences = page.getByRole("group", {
     name: "People you are open to meeting",
   });
@@ -321,6 +334,9 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "3 remaining" }),
   ).toBeVisible();
+  await expect(page.getByText("Doesn’t smoke").first()).toBeVisible();
+  await expect(page.getByText(/children/).first()).toBeVisible();
+  await expect(page.getByText(/schedule/).first()).toBeVisible();
   for (const peer of [maraAccount, noahAccount]) {
     const peerIntroductions = (await (
       await request.get(apiBase + "/v1/introductions", {

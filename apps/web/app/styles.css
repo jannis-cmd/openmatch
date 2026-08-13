@@ -216,6 +216,46 @@ textarea {
   border-radius: 99px;
   font-size: 13px;
 }
+.public-lifestyle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 18px;
+  color: #4f554d;
+  font-size: 14px;
+}
+.public-lifestyle span::before {
+  content: "✓";
+  margin-right: 6px;
+  color: #47624f;
+}
+.public-profile-preview {
+  margin-top: 28px;
+  padding: 24px;
+  border: 1px solid #d9ddd5;
+  border-radius: 20px;
+  background: #fafbf8;
+}
+.public-profile-preview h3 {
+  margin: 6px 0 10px;
+  font-size: 25px;
+}
+.preview-label {
+  margin: 0;
+  color: #4f6556;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.preview-private-note {
+  margin: 20px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid #e1e4de;
+  color: #5a6058;
+  font-size: 13px;
+  line-height: 1.55;
+}
 .match-panel {
   padding: 30px;
   position: sticky;

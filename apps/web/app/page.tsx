@@ -827,6 +827,7 @@ function AppExperience({
                               <span key={value}>{value}</span>
                             ))}
                           </div>
+                          <PublicLifestyle profile={current.profile} />
                         </div>
                       </article>
                       <aside className="match-panel">
@@ -2228,6 +2229,7 @@ function OnboardingView({
           />
         </label>
         <MatchingProfileFields value={profile} onChange={onProfile} />
+        <PublicProfilePreview profile={profile} title="Live public preview" />
       </section>
       <section className="settings-card">
         <h2>Mutual eligibility</h2>
@@ -2733,6 +2735,90 @@ function sessionClientLabel(client: AccountSession["client"]) {
   return "Earlier OpenMatch client";
 }
 
+type VisibleProfile = Pick<
+  Profile,
+  | "name"
+  | "age"
+  | "city"
+  | "pronouns"
+  | "gender"
+  | "intent"
+  | "readiness"
+  | "bio"
+  | "prompt"
+  | "promptAnswer"
+  | "values"
+  | "lifestyle"
+>;
+
+const smokingDisclosure = (value: Profile["lifestyle"]["smoking"]) =>
+  value === "no" ? "Doesn’t smoke" : "Smokes sometimes";
+const childrenDisclosure = (value: Profile["lifestyle"]["children"]) =>
+  value === "want"
+    ? "Wants children"
+    : value === "open"
+      ? "Open about children"
+      : "Doesn’t want children";
+const scheduleDisclosure = (value: Profile["lifestyle"]["schedule"]) =>
+  value === "early"
+    ? "Early schedule"
+    : value === "late"
+      ? "Late schedule"
+      : "Flexible schedule";
+
+function PublicLifestyle({ profile }: { profile: VisibleProfile }) {
+  return (
+    <div className="public-lifestyle" aria-label="Public lifestyle details">
+      <span>{smokingDisclosure(profile.lifestyle.smoking)}</span>
+      <span>{childrenDisclosure(profile.lifestyle.children)}</span>
+      <span>{scheduleDisclosure(profile.lifestyle.schedule)}</span>
+    </div>
+  );
+}
+
+function PublicProfilePreview({
+  profile,
+  title,
+}: {
+  profile: VisibleProfile;
+  title: string;
+}) {
+  return (
+    <div className="public-profile-preview" aria-label={title}>
+      <p className="preview-label">{title}</p>
+      <h3>
+        {profile.name || "Display name"}, {profile.age}
+      </h3>
+      <p className="profile-meta">
+        {profile.pronouns || "Pronouns not shown"} ·{" "}
+        {profile.gender || "Gender description not set"} ·{" "}
+        {profile.city || "Approximate region not set"}
+      </p>
+      <p className="intent">{profile.intent}</p>
+      <p className="readiness">{profile.readiness}</p>
+      <p className="large-copy">
+        {profile.bio || "Your biography will appear here."}
+      </p>
+      <div className="prompt">
+        <span>{profile.prompt || "Your prompt"}</span>
+        <p>{profile.promptAnswer || "Your answer will appear here."}</p>
+      </div>
+      <div className="chips">
+        {profile.values.length ? (
+          profile.values.map((value) => <span key={value}>{value}</span>)
+        ) : (
+          <span>No public values selected</span>
+        )}
+      </div>
+      <PublicLifestyle profile={profile} />
+      <p className="preview-private-note">
+        Not shown: your discovery routing groups, people sought, boundaries,
+        priorities, one-sided decisions, and private factor trace.
+      </p>
+    </div>
+  );
+}
+
 function ProfileView({
   profile,
   saveProfile,
@@ -2977,26 +3063,14 @@ function ProfileView({
               />
             </label>
             <MatchingProfileFields value={draft} onChange={setDraft} />
+            <PublicProfilePreview
+              profile={draft}
+              title="Unsaved public preview"
+            />
           </div>
         ) : (
-          <>
-            <p className="profile-meta">
-              {profile.pronouns || "Pronouns not shown"} · {profile.gender} ·{" "}
-              {profile.city} · {profile.intent}
-            </p>
-            <p className="readiness">{profile.readiness}</p>
-            <p className="large-copy">{profile.bio}</p>
-          </>
+          <PublicProfilePreview profile={profile} title="Public preview" />
         )}
-        <div className="prompt">
-          <span>{profile.prompt}</span>
-          <p>{profile.promptAnswer}</p>
-        </div>
-        <div className="chips">
-          {profile.values.map((value) => (
-            <span key={value}>{value}</span>
-          ))}
-        </div>
       </section>
       {emailVerification && confirmEmail && (
         <section className="settings-card">

@@ -484,6 +484,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByLabelText("Profile values separated by commas"),
     "Care, Curiosity",
   );
+  expect(screen.getByLabelText("Live public preview")).toBeTruthy();
+  expect(screen.getByText("Taylor, 31")).toBeTruthy();
+  expect(screen.getByText("Building a welcoming table.")).toBeTruthy();
+  expect(screen.getByText("✓ Doesn’t smoke")).toBeTruthy();
+  expect(screen.getByText("✓ Open about children")).toBeTruthy();
+  expect(screen.getByText("✓ Early schedule")).toBeTruthy();
+  expect(
+    screen.getByText(/Not shown: your discovery routing groups/),
+  ).toBeTruthy();
   expect(screen.getByLabelText("Lower proximity priority")).toBeTruthy();
   expect(screen.getByLabelText("Raise proximity priority")).toBeTruthy();
   await fireEvent.press(
@@ -503,6 +512,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(profile.gender).toBe("Woman");
   expect(profile.genderGroups).toEqual(["women"]);
   expect(screen.getByText("Mara, 30")).toBeTruthy();
+  expect(screen.getAllByText("✓ Doesn’t smoke")).not.toHaveLength(0);
+  expect(screen.getAllByText(/children/)).not.toHaveLength(0);
+  expect(screen.getAllByText(/schedule/)).not.toHaveLength(0);
   expect(screen.getByText("Public lottery slot")).toBeTruthy();
   await fireEvent.press(screen.getByText("See the full calculation"));
   expect(screen.getByText(/Selection exploration/)).toBeTruthy();

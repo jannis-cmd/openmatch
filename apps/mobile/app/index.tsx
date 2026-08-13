@@ -784,6 +784,10 @@ export default function App() {
               style={styles.bioInput}
             />
             <MatchingProfileFields value={profile} onChange={setProfile} />
+            <PublicProfilePreview
+              profile={profile}
+              title="Live public preview"
+            />
           </View>
           <PreferencesScreen value={preferences} onChange={setPreferences} />
           <View style={styles.scoreCard}>
@@ -1056,6 +1060,7 @@ export default function App() {
                         </Text>
                       ))}
                     </View>
+                    <PublicLifestyle profile={current.profile} />
                   </View>
                 </View>
                 <View style={styles.scoreCard}>
@@ -1794,31 +1799,17 @@ export default function App() {
                       value={profile}
                       onChange={setProfile}
                     />
+                    <PublicProfilePreview
+                      profile={{ ...profile, bio }}
+                      title="Unsaved public preview"
+                    />
                   </>
                 ) : (
-                  <>
-                    <Text style={styles.meta}>
-                      {profile.pronouns || "Pronouns not shown"} ·{" "}
-                      {profile.gender} · {profile.city}
-                    </Text>
-                    <Text style={styles.intent}>{profile.intent}</Text>
-                    <Text style={styles.meta}>{profile.readiness}</Text>
-                    <Text style={styles.bio}>{bio}</Text>
-                  </>
+                  <PublicProfilePreview
+                    profile={{ ...profile, bio }}
+                    title="Public preview"
+                  />
                 )}
-                <View style={styles.prompt}>
-                  <Text style={styles.promptLabel}>{profile.prompt}</Text>
-                  <Text style={styles.promptAnswer}>
-                    {profile.promptAnswer}
-                  </Text>
-                </View>
-                <View style={styles.chips}>
-                  {profile.values.map((value) => (
-                    <Text style={styles.chip} key={value}>
-                      {value}
-                    </Text>
-                  ))}
-                </View>
                 <Action
                   label={editingProfile ? "Done" : "Edit profile"}
                   secondary
@@ -3739,6 +3730,107 @@ function MobileReportForm({
   );
 }
 
+type VisibleProfile = Pick<
+  Profile,
+  | "name"
+  | "age"
+  | "city"
+  | "pronouns"
+  | "gender"
+  | "intent"
+  | "readiness"
+  | "bio"
+  | "prompt"
+  | "promptAnswer"
+  | "values"
+  | "lifestyle"
+>;
+
+const smokingDisclosure = (value: Profile["lifestyle"]["smoking"]) =>
+  value === "no" ? "Doesn’t smoke" : "Smokes sometimes";
+const childrenDisclosure = (value: Profile["lifestyle"]["children"]) =>
+  value === "want"
+    ? "Wants children"
+    : value === "open"
+      ? "Open about children"
+      : "Doesn’t want children";
+const scheduleDisclosure = (value: Profile["lifestyle"]["schedule"]) =>
+  value === "early"
+    ? "Early schedule"
+    : value === "late"
+      ? "Late schedule"
+      : "Flexible schedule";
+
+function PublicLifestyle({ profile }: { profile: VisibleProfile }) {
+  return (
+    <View
+      style={styles.publicLifestyle}
+      accessibilityLabel="Public lifestyle details"
+    >
+      <Text style={styles.publicLifestyleItem}>
+        ✓ {smokingDisclosure(profile.lifestyle.smoking)}
+      </Text>
+      <Text style={styles.publicLifestyleItem}>
+        ✓ {childrenDisclosure(profile.lifestyle.children)}
+      </Text>
+      <Text style={styles.publicLifestyleItem}>
+        ✓ {scheduleDisclosure(profile.lifestyle.schedule)}
+      </Text>
+    </View>
+  );
+}
+
+function PublicProfilePreview({
+  profile,
+  title,
+}: {
+  profile: VisibleProfile;
+  title: string;
+}) {
+  return (
+    <View style={styles.publicProfilePreview} accessibilityLabel={title}>
+      <Text style={styles.previewLabel}>{title}</Text>
+      <Text style={styles.name}>
+        {profile.name || "Display name"}, {profile.age}
+      </Text>
+      <Text style={styles.meta}>
+        {profile.pronouns || "Pronouns not shown"} ·{" "}
+        {profile.gender || "Gender description not set"} ·{" "}
+        {profile.city || "Approximate region not set"}
+      </Text>
+      <Text style={styles.intent}>{profile.intent}</Text>
+      <Text style={styles.meta}>{profile.readiness}</Text>
+      <Text style={styles.bio}>
+        {profile.bio || "Your biography will appear here."}
+      </Text>
+      <View style={styles.prompt}>
+        <Text style={styles.promptLabel}>
+          {profile.prompt || "Your prompt"}
+        </Text>
+        <Text style={styles.promptAnswer}>
+          {profile.promptAnswer || "Your answer will appear here."}
+        </Text>
+      </View>
+      <View style={styles.chips}>
+        {profile.values.length ? (
+          profile.values.map((value) => (
+            <Text style={styles.chip} key={value}>
+              {value}
+            </Text>
+          ))
+        ) : (
+          <Text style={styles.chip}>No public values selected</Text>
+        )}
+      </View>
+      <PublicLifestyle profile={profile} />
+      <Text style={styles.previewPrivateNote}>
+        Not shown: your discovery routing groups, people sought, boundaries,
+        priorities, one-sided decisions, and private factor trace.
+      </Text>
+    </View>
+  );
+}
+
 function MatchingProfileFields({
   value,
   onChange,
@@ -4125,6 +4217,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 20,
+  },
+  publicLifestyle: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 18,
+  },
+  publicLifestyleItem: { color: "#4F554D", fontSize: 13, lineHeight: 20 },
+  publicProfilePreview: {
+    backgroundColor: "#FAFBF8",
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#D9DDD5",
+    marginTop: 24,
+  },
+  previewLabel: {
+    color: "#4F6556",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  previewPrivateNote: {
+    color: "#5A6058",
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 18,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderColor: "#E1E4DE",
   },
   scoreCard: {
     backgroundColor: "#FFF",
