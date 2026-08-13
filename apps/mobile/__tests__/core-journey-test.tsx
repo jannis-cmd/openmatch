@@ -662,6 +662,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   expect(accountStatus).toBe("paused");
   await fireEvent.press(screen.getByText("Method"));
+  expect(screen.getByText("Preferences")).toHaveProp(
+    "maxFontSizeMultiplier",
+    2,
+  );
   expect(screen.getByText("Reciprocal score calculator")).toBeTruthy();
   expect(
     screen.getByText("Deployed code: unpinned development build"),

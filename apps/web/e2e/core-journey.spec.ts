@@ -65,6 +65,29 @@ test("public privacy and support pages describe the real prototype", async ({
   await expect(
     page.getByRole("link", { name: /Product boundaries/ }),
   ).toHaveAttribute("href", /PRODUCT_BOUNDARIES\.json/);
+  await page.keyboard.press("Tab");
+  const firstFocus = page.getByRole("link", { name: "OpenMatch home" });
+  await expect(firstFocus).toBeFocused();
+  expect(
+    await firstFocus.evaluate(
+      (element) => getComputedStyle(element).outlineStyle,
+    ),
+  ).not.toBe("none");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(
+    await firstFocus.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).transitionDuration),
+    ),
+  ).toBeLessThanOrEqual(0.00001);
+  await page.setViewportSize({ width: 320, height: 568 });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    )
+    .toBe(true);
+  await expectAccessible(page);
   await page.goto("/privacy");
   await expect(
     page.getByRole("heading", {

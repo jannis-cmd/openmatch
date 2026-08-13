@@ -2972,7 +2972,10 @@ export default function App() {
             onPress={() => setTab(item)}
             key={item}
           >
-            <Text style={[styles.tabText, tab === item && styles.tabActive]}>
+            <Text
+              maxFontSizeMultiplier={2}
+              style={[styles.tabText, tab === item && styles.tabActive]}
+            >
               {item}
             </Text>
           </Pressable>
@@ -3943,7 +3946,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   header: {
-    height: 58,
+    minHeight: 58,
+    paddingVertical: 10,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -4133,12 +4137,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 68,
+    minHeight: 68,
     backgroundColor: "#FAFAF7",
     borderTopWidth: 1,
     borderColor: "#DDD",
     flexDirection: "row",
-    paddingBottom: 8,
+    paddingVertical: 8,
   },
   tab: { flex: 1, alignItems: "center", justifyContent: "center" },
   tabText: { fontSize: 9.5, color: "#777B73" },

@@ -265,6 +265,13 @@ Expand one locality at a time only when safety operations and pool composition p
 - Reproducible transparency report generated from privacy-reviewed aggregate queries.
 - Independent security assessment completed before open registration.
 
+The executable accessibility baseline also requires visible keyboard focus,
+reflow without horizontal scrolling at 320 CSS pixels, reduced-motion
+preference support, scalable native text without a fixed-height tab-bar clip,
+and programmatic announcement of important status/error changes. Automated
+checks cannot substitute for VoiceOver, TalkBack, switch-control, keyboard-only,
+and maximum text-size testing on physical release devices.
+
 ## 10. Open questions
 
 ### Mission and governance
