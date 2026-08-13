@@ -12,6 +12,7 @@ import {
   ApiError,
   createApiClient,
   directoryParticipationIsActive,
+  securityNotificationDeliveryFallback,
   type AccountStatus,
   type AccountDeliveryStatus,
   type AccountSession,
@@ -247,6 +248,10 @@ function AppExperience({
     useState<AccountDeliveryStatus | null>(null);
   const [securityNotificationDelivery, setSecurityNotificationDelivery] =
     useState<SecurityNotificationDeliveryStatus | null>(null);
+  const [
+    securityNotificationRetryRunning,
+    setSecurityNotificationRetryRunning,
+  ] = useState(false);
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
@@ -419,19 +424,31 @@ function AppExperience({
       securityNotificationDelivery?.state !== "retrying"
     )
       return;
-    const timer = window.setInterval(() => {
-      if (accountDeliveryStatus?.state === "retrying")
-        void api
-          .accountDeliveryStatus()
-          .then(setAccountDeliveryStatus)
-          .catch(() => undefined);
-      if (authToken && securityNotificationDelivery?.state === "retrying")
-        void api
-          .securityNotificationStatus()
-          .then(setSecurityNotificationDelivery)
-          .catch(() => undefined);
-    }, 5_000);
-    return () => window.clearInterval(timer);
+    let requestRunning = false;
+    const synchronize = async () => {
+      if (requestRunning || document.visibilityState === "hidden") return;
+      requestRunning = true;
+      try {
+        if (accountDeliveryStatus?.state === "retrying")
+          setAccountDeliveryStatus(await api.accountDeliveryStatus());
+        if (authToken && securityNotificationDelivery?.state === "retrying")
+          setSecurityNotificationDelivery(
+            await api.securityNotificationStatus(),
+          );
+      } catch {
+        // Keep the durable warning visible and retry only while the page is
+        // active. The manual controls remain available.
+      } finally {
+        requestRunning = false;
+      }
+    };
+    const handleVisibility = () => void synchronize();
+    const timer = window.setInterval(() => void synchronize(), 5_000);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.clearInterval(timer);
+    };
   }, [
     accountDeliveryStatus?.state,
     api,
@@ -504,11 +521,14 @@ function AppExperience({
   const synchronizeSecurityNotification = async (
     status: SecurityNotificationStatus,
   ) => {
+    const fallback = securityNotificationDeliveryFallback(status);
+    if (fallback) setSecurityNotificationDelivery(fallback);
     try {
       setSecurityNotificationDelivery(await api.securityNotificationStatus());
     } catch {
       // The operation response still states whether the immediate attempt
-      // succeeded. A later load can recover durable queue status.
+      // succeeded. Keep a conservative retry warning visible until a later
+      // status request can recover the exact durable queue state.
     }
     return status;
   };
@@ -620,13 +640,25 @@ function AppExperience({
                 never silently discarded.
               </span>
               <button
+                disabled={securityNotificationRetryRunning}
                 onClick={async () => {
-                  setSecurityNotificationDelivery(
-                    await api.retrySecurityNotifications(),
-                  );
+                  setSecurityNotificationRetryRunning(true);
+                  try {
+                    setSecurityNotificationDelivery(
+                      await api.retrySecurityNotifications(),
+                    );
+                  } catch {
+                    setError(
+                      "The security email is still queued, but this retry could not complete. Try again shortly.",
+                    );
+                  } finally {
+                    setSecurityNotificationRetryRunning(false);
+                  }
                 }}
               >
-                Retry security email
+                {securityNotificationRetryRunning
+                  ? "Retrying security email…"
+                  : "Retry security email"}
               </button>
             </div>
           )}

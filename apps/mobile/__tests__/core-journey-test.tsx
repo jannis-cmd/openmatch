@@ -52,6 +52,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let preferenceObservationCount = 0;
   let deliveryRetrying = false;
   let securityNotificationRetrying = false;
+  let failNextSecurityNotificationStatus = false;
   let demoSessionRequests = 0;
   let accountRequests = 0;
   let restoredBearerUsed = false;
@@ -106,6 +107,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     if (path === "/v1/account/recovery-codes" && init.method === "POST") {
       recoveryCodesGenerated = true;
       securityNotificationRetrying = true;
+      failNextSecurityNotificationStatus = true;
       return response(
         {
           codes: Array.from(
@@ -228,6 +230,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       });
     if (path === "/v1/account/security-notification-status") {
       if (init.method === "POST") securityNotificationRetrying = false;
+      if (init.method !== "POST" && failNextSecurityNotificationStatus) {
+        failNextSecurityNotificationStatus = false;
+        return response({ error: "simulated_status_outage" }, 503);
+      }
       return response({
         state: securityNotificationRetrying ? "retrying" : "clear",
         pendingCount: securityNotificationRetrying ? 1 : 0,

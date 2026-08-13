@@ -32,6 +32,7 @@ import {
   ApiError,
   createApiClient,
   directoryParticipationIsActive,
+  securityNotificationDeliveryFallback,
   type AccountSession,
   type AccountDeliveryStatus,
   type AccountStatus,
@@ -196,6 +197,10 @@ export default function App() {
     useState<AccountDeliveryStatus | null>(null);
   const [securityNotificationDelivery, setSecurityNotificationDelivery] =
     useState<SecurityNotificationDeliveryStatus | null>(null);
+  const [
+    securityNotificationRetryRunning,
+    setSecurityNotificationRetryRunning,
+  ] = useState(false);
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
@@ -480,22 +485,35 @@ export default function App() {
       securityNotificationDelivery?.state !== "retrying"
     )
       return;
-    const timer = setInterval(() => {
-      if (accountDeliveryStatus?.state === "retrying")
-        void api
-          .accountDeliveryStatus()
-          .then(setAccountDeliveryStatus)
-          .catch(() => undefined);
-      if (
-        accessMode === "account" &&
-        securityNotificationDelivery?.state === "retrying"
-      )
-        void api
-          .securityNotificationStatus()
-          .then(setSecurityNotificationDelivery)
-          .catch(() => undefined);
-    }, 5_000);
-    return () => clearInterval(timer);
+    let requestRunning = false;
+    const synchronize = async () => {
+      if (requestRunning || AppState.currentState !== "active") return;
+      requestRunning = true;
+      try {
+        if (accountDeliveryStatus?.state === "retrying")
+          setAccountDeliveryStatus(await api.accountDeliveryStatus());
+        if (
+          accessMode === "account" &&
+          securityNotificationDelivery?.state === "retrying"
+        )
+          setSecurityNotificationDelivery(
+            await api.securityNotificationStatus(),
+          );
+      } catch {
+        // Keep the warning visible; the active-app timer and manual control can
+        // retry without waking a backgrounded app.
+      } finally {
+        requestRunning = false;
+      }
+    };
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void synchronize();
+    });
+    const timer = setInterval(() => void synchronize(), 5_000);
+    return () => {
+      subscription.remove();
+      clearInterval(timer);
+    };
   }, [
     accessMode,
     accountDeliveryStatus?.state,
@@ -573,6 +591,8 @@ export default function App() {
     return false;
   };
   const recordSecurityNotification = (status: SecurityNotificationStatus) => {
+    const fallback = securityNotificationDeliveryFallback(status);
+    if (fallback) setSecurityNotificationDelivery(fallback);
     void api
       .securityNotificationStatus()
       .then(setSecurityNotificationDelivery)
@@ -935,13 +955,22 @@ export default function App() {
                 </Text>
               </View>
               <Action
-                label="Retry email"
-                onPress={() =>
+                label={
+                  securityNotificationRetryRunning ? "Retrying…" : "Retry email"
+                }
+                disabled={securityNotificationRetryRunning}
+                onPress={() => {
+                  setSecurityNotificationRetryRunning(true);
                   void api
                     .retrySecurityNotifications()
                     .then(setSecurityNotificationDelivery)
-                    .catch(() => setError("Security email retry failed."))
-                }
+                    .catch(() =>
+                      setError(
+                        "The security email is still queued, but this retry could not complete. Try again shortly.",
+                      ),
+                    )
+                    .finally(() => setSecurityNotificationRetryRunning(false));
+                }}
               />
             </View>
           )}

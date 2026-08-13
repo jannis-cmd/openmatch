@@ -4,7 +4,22 @@ import {
   ApiError,
   createApiClient,
   directoryParticipationIsActive,
+  securityNotificationDeliveryFallback,
 } from "../src/index.ts";
+
+test("failed security-email operations fail closed while exact status is unavailable", () => {
+  for (const status of ["failed", "partial"] as const)
+    assert.deepEqual(securityNotificationDeliveryFallback(status), {
+      state: "retrying",
+      pendingCount: 1,
+      oldestCreatedAt: null,
+      retryAttempts: 0,
+      lastAttemptAt: null,
+      automaticDiscard: false,
+    });
+  for (const status of ["sent", "not_configured", "unverified"] as const)
+    assert.equal(securityNotificationDeliveryFallback(status), null);
+});
 
 test("directory availability requires an explicit unexpired window", () => {
   const now = Date.parse("2026-08-13T12:00:00.000Z");

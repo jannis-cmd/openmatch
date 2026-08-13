@@ -60,6 +60,19 @@ export type AccountDeliveryStatus = {
   automaticDiscard: false;
 };
 export type SecurityNotificationDeliveryStatus = AccountDeliveryStatus;
+export const securityNotificationDeliveryFallback = (
+  status: SecurityNotificationStatus,
+): SecurityNotificationDeliveryStatus | null =>
+  status === "failed" || status === "partial"
+    ? {
+        state: "retrying",
+        pendingCount: 1,
+        oldestCreatedAt: null,
+        retryAttempts: 0,
+        lastAttemptAt: null,
+        automaticDiscard: false,
+      }
+    : null;
 export type IntroductionBatch = {
   items: Introduction[];
   finite: true;
