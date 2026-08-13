@@ -329,6 +329,29 @@ test("first run through a persistent connection and safety action", async ({
       name: /I separately choose to join account matching/,
     })
     .check();
+  let failOnboardingCompletion = true;
+  await page.route("**/v1/onboarding/complete", async (route) => {
+    if (failOnboardingCompletion) {
+      failOnboardingCompletion = false;
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "temporary_failure" }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await page.getByRole("button", { name: "See my introductions" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Your entries remain here" }),
+  ).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Name" })).toHaveValue(
+    "Taylor",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Set your boundaries." }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "See my introductions" }).click();
 
   await expect(

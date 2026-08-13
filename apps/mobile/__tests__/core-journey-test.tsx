@@ -38,6 +38,7 @@ const response = (body: unknown, status = 200) =>
 
 test("first run uses explicit accessible controls and opens introductions", async () => {
   let onboardingComplete = false;
+  let failNextOnboardingCompletion = false;
   let profile = structuredClone(demoUser);
   let preferences = structuredClone(defaultPreferences);
   let accountStatus = "active";
@@ -528,6 +529,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/reports") return response({ items: reportRecords });
     if (path === "/v1/onboarding/complete") {
+      if (failNextOnboardingCompletion) {
+        failNextOnboardingCompletion = false;
+        return response({ error: "temporary_failure" }, 503);
+      }
       onboardingComplete = true;
       return response({ complete: true });
     }
@@ -577,6 +582,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByText(/I understand this prototype stores what I enter/),
   );
   await fireEvent.press(screen.getByText("Ready to meet in person"));
+  failNextOnboardingCompletion = true;
+  await fireEvent.press(screen.getByText("See my introductions"));
+  expect(
+    await screen.findByText(
+      /Setup was not completed\. Your entries remain here/,
+    ),
+  ).toBeTruthy();
+  expect(screen.getByDisplayValue("Taylor")).toBeTruthy();
+  expect(onboardingComplete).toBe(false);
   await fireEvent.press(screen.getByText("See my introductions"));
   await waitFor(() =>
     expect(screen.getByText("Your introductions")).toBeTruthy(),

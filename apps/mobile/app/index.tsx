@@ -201,6 +201,8 @@ export default function App() {
     useState<DirectoryConsentReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
+  const [onboardingSaving, setOnboardingSaving] = useState(false);
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<WeightSuggestion[]>([]);
   const [preferenceObservationCount, setPreferenceObservationCount] =
@@ -662,6 +664,57 @@ export default function App() {
       setPreferencesSaving(false);
     }
   };
+  const completeSetup = async () => {
+    if (onboardingSaving) return;
+    setOnboardingSaving(true);
+    setOnboardingError(null);
+    try {
+      const savedProfile = await api.updateProfile({
+        name: profile.name.trim(),
+        age: profile.age,
+        city: profile.city.trim(),
+        pronouns: profile.pronouns.trim(),
+        gender: profile.gender.trim(),
+        genderGroups: profile.genderGroups,
+        intent: profile.intent,
+        readiness: profile.readiness,
+        bio: profile.bio.trim(),
+        prompt: profile.prompt.trim(),
+        promptAnswer: profile.promptAnswer.trim(),
+        values: profile.values,
+        lifestyle: profile.lifestyle,
+      });
+      const savedPreferences = await api.updatePreferences(preferences);
+      await api.acceptPrototypeConsent();
+      if (accessMode === "account" && directoryAccepted)
+        setDirectoryConsent(await api.updateDirectoryConsent(true));
+      await api.completeOnboarding();
+      setDeletionReceipt(null);
+      setProfile(savedProfile);
+      setPreferences(savedPreferences);
+      setOnboarded(true);
+      try {
+        const [nextIntroductions, nextSuggestions] = await Promise.all([
+          api.introductions(),
+          api.preferenceSuggestions(),
+        ]);
+        setIntroductions(nextIntroductions.items);
+        setNextBatchAt(nextIntroductions.nextBatchAt);
+        setSuggestions(nextSuggestions.items);
+        setPreferenceObservationCount(nextSuggestions.observationCount);
+      } catch {
+        setSafetyNotice(
+          "Setup was saved, but introductions could not refresh. Check again shortly.",
+        );
+      }
+    } catch {
+      setOnboardingError(
+        "Setup was not completed. Your entries remain here. Some confirmed steps may already be saved; retrying safely completes the same setup.",
+      );
+    } finally {
+      setOnboardingSaving(false);
+    }
+  };
   const handleDeliveryFailure = async (error: unknown, fallback: string) => {
     if (
       error instanceof ApiError &&
@@ -1022,8 +1075,11 @@ export default function App() {
               contact uploads, or hidden tracking.
             </Text>
             <Action
-              label="See my introductions"
+              label={
+                onboardingSaving ? "Saving setup…" : "See my introductions"
+              }
               disabled={
+                onboardingSaving ||
                 !profile.name.trim() ||
                 !profile.city.trim() ||
                 !profile.bio.trim() ||
@@ -1036,36 +1092,13 @@ export default function App() {
                 !adultConfirmed ||
                 !dataUseAccepted
               }
-              onPress={() =>
-                void api
-                  .updateProfile({
-                    name: profile.name.trim(),
-                    age: profile.age,
-                    city: profile.city.trim(),
-                    pronouns: profile.pronouns.trim(),
-                    gender: profile.gender.trim(),
-                    genderGroups: profile.genderGroups,
-                    intent: profile.intent,
-                    readiness: profile.readiness,
-                    bio: profile.bio.trim(),
-                    prompt: profile.prompt.trim(),
-                    promptAnswer: profile.promptAnswer.trim(),
-                    values: profile.values,
-                    lifestyle: profile.lifestyle,
-                  })
-                  .then(() => api.updatePreferences(preferences))
-                  .then(() => api.acceptPrototypeConsent())
-                  .then(() =>
-                    accessMode === "account" && directoryAccepted
-                      ? api.updateDirectoryConsent(true)
-                      : undefined,
-                  )
-                  .then(() => api.completeOnboarding())
-                  .then(() => setDeletionReceipt(null))
-                  .then(load)
-                  .catch(() => setError("Setup could not be saved."))
-              }
+              onPress={() => void completeSetup()}
             />
+            {onboardingError && (
+              <Text style={styles.errorText} accessibilityRole="alert">
+                {onboardingError}
+              </Text>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>

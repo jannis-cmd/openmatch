@@ -796,33 +796,46 @@ function AppExperience({
                 onProfile={setProfile}
                 onPreferences={setPreferences}
                 complete={async (joinDirectory) => {
-                  try {
-                    const saved = await api.updateProfile({
-                      name: profile.name.trim(),
-                      age: profile.age,
-                      city: profile.city.trim(),
-                      pronouns: profile.pronouns.trim(),
-                      gender: profile.gender.trim(),
-                      genderGroups: profile.genderGroups,
-                      intent: profile.intent,
-                      readiness: profile.readiness,
-                      bio: profile.bio.trim(),
-                      prompt: profile.prompt.trim(),
-                      promptAnswer: profile.promptAnswer.trim(),
-                      values: profile.values,
-                      lifestyle: profile.lifestyle,
-                    });
+                  const saved = await api.updateProfile({
+                    name: profile.name.trim(),
+                    age: profile.age,
+                    city: profile.city.trim(),
+                    pronouns: profile.pronouns.trim(),
+                    gender: profile.gender.trim(),
+                    genderGroups: profile.genderGroups,
+                    intent: profile.intent,
+                    readiness: profile.readiness,
+                    bio: profile.bio.trim(),
+                    prompt: profile.prompt.trim(),
+                    promptAnswer: profile.promptAnswer.trim(),
+                    values: profile.values,
+                    lifestyle: profile.lifestyle,
+                  });
+                  const savedPreferences =
                     await api.updatePreferences(preferences);
-                    await api.acceptPrototypeConsent();
-                    if (authToken && joinDirectory)
-                      await api.updateDirectoryConsent(true);
-                    await api.completeOnboarding();
-                    setDeletionReceipt(null);
-                    setProfile(saved);
-                    await load();
+                  await api.acceptPrototypeConsent();
+                  if (authToken && joinDirectory)
+                    setDirectoryConsent(await api.updateDirectoryConsent(true));
+                  await api.completeOnboarding();
+                  setDeletionReceipt(null);
+                  setProfile(saved);
+                  setPreferences(savedPreferences);
+                  setOnboarded(true);
+                  try {
+                    const [nextIntroductions, nextSuggestions] =
+                      await Promise.all([
+                        api.introductions(),
+                        api.preferenceSuggestions(),
+                      ]);
+                    setIntroductions(nextIntroductions.items);
+                    setNextBatchAt(nextIntroductions.nextBatchAt);
+                    setSuggestions(nextSuggestions.items);
+                    setPreferenceObservationCount(
+                      nextSuggestions.observationCount,
+                    );
                   } catch {
-                    setError(
-                      "Setup could not be saved. Check the fields and retry.",
+                    setNotice(
+                      "Setup was saved, but introductions could not refresh. Check again shortly.",
                     );
                   }
                 }}
@@ -2306,6 +2319,8 @@ function OnboardingView({
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const [directoryAccepted, setDirectoryAccepted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const valid =
     profile.name.trim().length > 0 &&
     profile.city.trim().length > 0 &&
@@ -2549,11 +2564,26 @@ function OnboardingView({
         </div>
         <button
           className="interest"
-          disabled={!valid}
-          onClick={() => void complete(directoryAccepted)}
+          disabled={!valid || submitting}
+          onClick={() => {
+            setSubmitting(true);
+            setSubmitError(null);
+            void complete(directoryAccepted)
+              .catch(() =>
+                setSubmitError(
+                  "Setup was not completed. Your entries remain here. Some confirmed steps may already be saved; retrying safely completes the same setup.",
+                ),
+              )
+              .finally(() => setSubmitting(false));
+          }}
         >
-          See my introductions
+          {submitting ? "Saving setup…" : "See my introductions"}
         </button>
+        {submitError && (
+          <p className="field-error" role="alert">
+            {submitError}
+          </p>
+        )}
       </section>
     </div>
   );
