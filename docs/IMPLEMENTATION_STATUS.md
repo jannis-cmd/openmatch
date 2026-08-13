@@ -91,6 +91,13 @@ does not yet have Java or the Android SDK. The account owner must review and
 accept Google's SDK agreement while installing that toolchain; automation does
 not accept it for them.
 
+An executable local-release preflight checks both public HTTPS origins, the
+full embedded source revision, and platform tools before a build begins. The
+iOS path checks Xcode selection, owner license acceptance, CocoaPods, and
+Fastlane; the Android path checks Java, SDK command-line tools, and the SDK root.
+It reports all detected blockers together without echoing command output or
+starting a build.
+
 ## Deliberately not claimed
 
 Before any real-user pilot, the project still requires a deployed HTTPS service, verified production authentication and authorization, a transactional multi-user datastore and migrations, privacy-reviewed coarse location, identity/inclusion research, photo storage and processing, staffed moderation and appeals, rate limiting beyond the local boundary, encryption and secret management, notification design, deletion/backup drills, device-level assistive-technology testing, security review, legal/DPIA review, and a geographically viable safety program.

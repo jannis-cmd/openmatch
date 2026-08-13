@@ -145,6 +145,16 @@ sdkmanager --version
 adb version
 ```
 
+After loading the public HTTPS origins, source revision, and `ANDROID_HOME` (or
+`ANDROID_SDK_ROOT`) into the current shell, run:
+
+```bash
+pnpm release:preflight:android
+```
+
+The preflight checks both configuration and tool availability without invoking
+Gradle, downloading credentials, accepting licenses, or consuming build quota.
+
 With the production HTTPS environment available locally, build an installable
 owner-test APK without consuming hosted quota:
 
@@ -195,6 +205,14 @@ Then verify the license and Xcode selection without changing either:
 xcode-select -p
 xcodebuild -license check
 xcodebuild -version
+```
+
+After loading the two public HTTPS origins and source revision into the current
+shell, run the repository preflight. It reports all missing local prerequisites
+in one pass and never prints command output that could contain machine details:
+
+```bash
+pnpm release:preflight:ios
 ```
 
 From a clean, pushed source revision, fetch the public production environment,

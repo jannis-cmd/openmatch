@@ -8,6 +8,8 @@
     "ios": "expo start --ios",
     "android": "expo start --android",
     "build": "expo export --platform ios && expo export --platform android",
+    "release:preflight:ios": "node ./scripts/verify-local-release.mjs ios",
+    "release:preflight:android": "node ./scripts/verify-local-release.mjs android",
     "eas-build-pre-install": "node ./scripts/verify-eas-environment.mjs",
     "eas-build-post-install": "pnpm --dir ../.. build:packages",
     "typecheck": "tsc --noEmit",
