@@ -544,6 +544,21 @@ test("first run through a persistent connection and safety action", async ({
     await expect(page.getByText(/public seed \d{4}-\d{2}-\d{2}/)).toBeVisible();
   await expectAccessible(page);
 
+  await page.route(
+    "**/v1/introductions/*/decision",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_decision_write_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Interested" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Your decision was not saved" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
   await page.getByRole("button", { name: "Interested" }).click();
   await page.getByRole("button", { name: /Connections · 1/ }).click();
   await expect(

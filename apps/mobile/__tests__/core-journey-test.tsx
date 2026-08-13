@@ -71,6 +71,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let failNextResearchConsentSave = false;
   let failNextLocalDataDeletion = false;
   let failNextSavedIntroductionWrite = false;
+  let failNextDecisionWrite = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -397,6 +398,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         explorationSlots: 1,
       });
     if (path === "/v1/introductions/mara/decision" && init.method === "POST") {
+      if (failNextDecisionWrite) {
+        failNextDecisionWrite = false;
+        return response({ error: "simulated_decision_write_failure" }, 503);
+      }
       connectionActive = body.decision === "interested";
       preferenceObservationCount = 1;
       if (deliveryRetrying)
@@ -617,6 +622,17 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     details: "Suspicious profile context",
   });
   deliveryRetrying = true;
+  failNextDecisionWrite = true;
+  await fireEvent.press(screen.getByText("Interested"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Your decision was not saved. The introduction remains unresolved; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(connectionActive).toBe(false);
+  expect(screen.getByText("Mara, 30")).toBeTruthy();
   await fireEvent.press(screen.getByText("Interested"));
   await waitFor(() => expect(connectionActive).toBe(true));
   await waitFor(() =>

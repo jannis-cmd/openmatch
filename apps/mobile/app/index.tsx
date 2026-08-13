@@ -177,6 +177,8 @@ export default function App() {
   const [showSaved, setShowSaved] = useState(false);
   const [savedAction, setSavedAction] = useState(false);
   const [savedActionError, setSavedActionError] = useState<string | null>(null);
+  const [decisionAction, setDecisionAction] = useState(false);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
   const [showMath, setShowMath] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<
@@ -386,6 +388,8 @@ export default function App() {
     setDataActionError(null);
     setSavedAction(false);
     setSavedActionError(null);
+    setDecisionAction(false);
+    setDecisionError(null);
   }, [accessMode]);
   useEffect(() => {
     let active = true;
@@ -700,13 +704,74 @@ export default function App() {
   };
   const decide = async (value: "interested" | "passed") => {
     if (!current) return;
+    const decidedIntroduction = current;
+    setDecisionAction(true);
+    setDecisionError(null);
     try {
-      await api.decide(current.profile.id, value);
+      await api.decide(decidedIntroduction.profile.id, value);
+      if (showSaved)
+        setSavedIntroductions((items) =>
+          items.filter(
+            (item) => item.profile.id !== decidedIntroduction.profile.id,
+          ),
+        );
+      else
+        setIntroductions((items) =>
+          items.filter(
+            (item) => item.profile.id !== decidedIntroduction.profile.id,
+          ),
+        );
       setShowMath(false);
       setShowSaved(false);
-      await load();
+      try {
+        const [nextConnections, nextSuggestions] = await Promise.all([
+          api.connections(),
+          api.preferenceSuggestions(),
+        ]);
+        setConnections(nextConnections.items);
+        setSuggestions(nextSuggestions.items);
+        setPreferenceObservationCount(nextSuggestions.observationCount);
+      } catch {
+        setSafetyNotice(
+          "Your decision was saved, but connections or learning suggestions could not refresh. Check again shortly.",
+        );
+      }
     } catch (error) {
-      await handleDeliveryFailure(error, "Your decision could not be saved.");
+      if (
+        error instanceof ApiError &&
+        error.code === "account_delivery_incomplete"
+      ) {
+        await handleDeliveryFailure(error, "Your decision could not be saved.");
+        try {
+          const [
+            nextIntroductions,
+            nextSavedIntroductions,
+            nextConnections,
+            nextSuggestions,
+          ] = await Promise.all([
+            api.introductions(),
+            api.savedIntroductions(),
+            api.connections(),
+            api.preferenceSuggestions(),
+          ]);
+          setIntroductions(nextIntroductions.items);
+          setSavedIntroductions(nextSavedIntroductions.items);
+          setConnections(nextConnections.items);
+          setSuggestions(nextSuggestions.items);
+          setPreferenceObservationCount(nextSuggestions.observationCount);
+        } catch {
+          // Preserve the queued-delivery warning until later reconciliation.
+        }
+      } else {
+        setDecisionError(
+          operationLimitMessage(
+            error,
+            "Your decision was not saved. The introduction remains unresolved; retry when ready.",
+          ),
+        );
+      }
+    } finally {
+      setDecisionAction(false);
     }
   };
 
@@ -1244,7 +1309,7 @@ export default function App() {
                   <Action
                     label={showSaved ? "Return to batch" : "Save for later"}
                     secondary
-                    disabled={savedAction}
+                    disabled={savedAction || decisionAction}
                     onPress={() => {
                       setSavedAction(true);
                       setSavedActionError(null);
@@ -1301,12 +1366,12 @@ export default function App() {
                   <Action
                     label="Pass"
                     secondary
-                    disabled={savedAction}
+                    disabled={savedAction || decisionAction}
                     onPress={() => void decide("passed")}
                   />
                   <Action
                     label="Interested"
-                    disabled={savedAction}
+                    disabled={savedAction || decisionAction}
                     onPress={() => void decide("interested")}
                   />
                 </View>
@@ -1318,9 +1383,22 @@ export default function App() {
                     Saving choice…
                   </Text>
                 )}
+                {decisionAction && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.mathNote}
+                  >
+                    Saving decision…
+                  </Text>
+                )}
                 {savedActionError && (
                   <Text accessibilityRole="alert" style={styles.errorText}>
                     {savedActionError}
+                  </Text>
+                )}
+                {decisionError && (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {decisionError}
                   </Text>
                 )}
                 <Text style={styles.private}>

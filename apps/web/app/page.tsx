@@ -227,6 +227,8 @@ function AppExperience({
   const [showSaved, setShowSaved] = useState(false);
   const [savedAction, setSavedAction] = useState(false);
   const [savedActionError, setSavedActionError] = useState<string | null>(null);
+  const [decisionAction, setDecisionAction] = useState(false);
+  const [decisionError, setDecisionError] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<
@@ -577,16 +579,78 @@ function AppExperience({
 
   const decide = async (decision: "interested" | "passed") => {
     if (!current) return;
+    const decidedIntroduction = current;
+    setDecisionAction(true);
+    setDecisionError(null);
     try {
-      await api.decide(current.profile.id, decision);
+      await api.decide(decidedIntroduction.profile.id, decision);
+      if (showSaved)
+        setSavedIntroductions((items) =>
+          items.filter(
+            (item) => item.profile.id !== decidedIntroduction.profile.id,
+          ),
+        );
+      else
+        setIntroductions((items) =>
+          items.filter(
+            (item) => item.profile.id !== decidedIntroduction.profile.id,
+          ),
+        );
       setDetails(false);
       setShowSaved(false);
-      await load();
+      try {
+        const [nextConnections, nextSuggestions] = await Promise.all([
+          api.connections(),
+          api.preferenceSuggestions(),
+        ]);
+        setConnections(nextConnections.items);
+        setSuggestions(nextSuggestions.items);
+        setPreferenceObservationCount(nextSuggestions.observationCount);
+      } catch {
+        setNotice(
+          "Your decision was saved, but connections or learning suggestions could not refresh. Check again shortly.",
+        );
+      }
     } catch (error) {
-      await handleDeliveryFailure(
-        error,
-        "Your decision could not be saved. Please retry.",
-      );
+      if (
+        error instanceof ApiError &&
+        error.code === "account_delivery_incomplete"
+      ) {
+        await handleDeliveryFailure(
+          error,
+          "Your decision could not be saved. Please retry.",
+        );
+        try {
+          const [
+            nextIntroductions,
+            nextSavedIntroductions,
+            nextConnections,
+            nextSuggestions,
+          ] = await Promise.all([
+            api.introductions(),
+            api.savedIntroductions(),
+            api.connections(),
+            api.preferenceSuggestions(),
+          ]);
+          setIntroductions(nextIntroductions.items);
+          setSavedIntroductions(nextSavedIntroductions.items);
+          setConnections(nextConnections.items);
+          setSuggestions(nextSuggestions.items);
+          setPreferenceObservationCount(nextSuggestions.observationCount);
+        } catch {
+          // Keep the explicit queued-delivery warning until polling or retry
+          // can reconcile the confirmed local decision.
+        }
+      } else {
+        setDecisionError(
+          operationLimitMessage(
+            error,
+            "Your decision was not saved. The introduction remains unresolved; retry when ready.",
+          ),
+        );
+      }
+    } finally {
+      setDecisionAction(false);
     }
   };
 
@@ -964,7 +1028,7 @@ function AppExperience({
                         <div className="decision-row">
                           <button
                             className="pass"
-                            disabled={savedAction}
+                            disabled={savedAction || decisionAction}
                             onClick={async () => {
                               setSavedAction(true);
                               setSavedActionError(null);
@@ -1024,23 +1088,27 @@ function AppExperience({
                           </button>
                           <button
                             className="pass"
-                            disabled={savedAction}
+                            disabled={savedAction || decisionAction}
                             onClick={() => decide("passed")}
                           >
                             Pass
                           </button>
                           <button
                             className="interest"
-                            disabled={savedAction}
+                            disabled={savedAction || decisionAction}
                             onClick={() => decide("interested")}
                           >
                             Interested
                           </button>
                         </div>
                         {savedAction && <p role="status">Saving choice…</p>}
+                        {decisionAction && (
+                          <p role="status">Saving decision…</p>
+                        )}
                         {savedActionError && (
                           <p role="alert">{savedActionError}</p>
                         )}
+                        {decisionError && <p role="alert">{decisionError}</p>}
                         <p className="private-note">
                           Your decision is private unless interest is mutual.
                         </p>
