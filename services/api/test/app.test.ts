@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
+  ALGORITHM_VERSION,
   POLITE_CLOSE_MESSAGE,
   nextWeeklyBatchAt,
   publicWeeklySeed,
@@ -1733,7 +1734,7 @@ test("the public data inventory covers every current storage and export field", 
     blocks: ["profileId", "createdAt"],
     reports: ["id", "profileId", "reason", "details", "status", "createdAt"],
     reportUpdates: ["id", "reportId", "kind", "details", "createdAt"],
-    exportMetadata: ["exportedAt"],
+    exportMetadata: ["schemaVersion", "algorithmVersion", "exportedAt"],
   };
   assert.deepEqual(
     inventory.collections.map(({ id }) => id).sort(),
@@ -2316,6 +2317,9 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     };
     assert.equal(after.items.length, 0);
     const dataExport = (await (await request("/v1/me/export")).json()) as {
+      schemaVersion: string;
+      algorithmVersion: string;
+      exportedAt: string;
       profile: { id: string };
       reports: unknown[];
       reportUpdates: unknown[];
@@ -2338,6 +2342,9 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       };
       savedIntroductions: Array<{ profileId: string }>;
     };
+    assert.equal(dataExport.schemaVersion, "1.0.0");
+    assert.equal(dataExport.algorithmVersion, ALGORITHM_VERSION);
+    assert.equal(Number.isNaN(Date.parse(dataExport.exportedAt)), false);
     assert.equal(dataExport.profile.id, "me");
     assert.equal(dataExport.reports.length, 2);
     assert.equal(dataExport.reportUpdates.length, 1);

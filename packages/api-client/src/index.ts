@@ -7,6 +7,11 @@ import type {
 } from "@openmatch/matching";
 
 export type Decision = "interested" | "passed";
+export type DataExport = Record<string, unknown> & {
+  schemaVersion: "1.0.0";
+  algorithmVersion: string;
+  exportedAt: string;
+};
 export type MeetingPreference = "not_asked" | "not_yet" | "open_to_plan";
 export type Connection = {
   id: string;
@@ -395,7 +400,7 @@ export function createApiClient(
     profile: () => request<Profile>("/v1/me"),
     updateProfile: (patch: Partial<Profile>) =>
       request<Profile>("/v1/me", json("PATCH", patch)),
-    exportData: () => request<Record<string, unknown>>("/v1/me/export"),
+    exportData: () => request<DataExport>("/v1/me/export"),
     deleteAccountData: () => request<DeletionReceipt>("/v1/me", json("DELETE")),
     deleteAccount: () =>
       request<AccountDeletionReceipt>("/v1/account", json("DELETE")),

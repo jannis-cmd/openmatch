@@ -15,7 +15,8 @@
           "configureAndroidBackup": false,
           "faceIDPermission": false
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "ios": {
       "bundleIdentifier": "org.openmatch.app",

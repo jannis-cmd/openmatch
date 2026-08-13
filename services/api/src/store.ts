@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import {
+  ALGORITHM_VERSION,
   defaultPreferences,
   demoUser,
   suggestPreferenceWeights,
@@ -679,6 +680,8 @@ export class Store {
 
   exportData() {
     return {
+      schemaVersion: "1.0.0",
+      algorithmVersion: ALGORITHM_VERSION,
       exportedAt: new Date().toISOString(),
       profile: this.profile(),
       preferences: this.preferences(),

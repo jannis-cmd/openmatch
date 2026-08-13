@@ -333,10 +333,11 @@
     {
       "id": "exportMetadata",
       "storage": "generated only; not persisted",
-      "purpose": "Timestamp the person's JSON export.",
+      "purpose": "Make the person's JSON export self-describing with its export schema, matching-method version, and creation time.",
       "retention": "Not retained by the service.",
       "access": ["person"],
-      "fields": ["exportedAt"]
+      "fields": ["schemaVersion", "algorithmVersion", "exportedAt"],
+      "disclosure": "The service generates this metadata inside the requested export and does not persist another copy. On mobile, OpenMatch writes the export to its private cache only long enough to open the system share sheet, then attempts deletion even if sharing fails. A copy saved or sent through another app is controlled by that destination."
     }
   ]
 }

@@ -92,9 +92,15 @@ export default function PrivacyPage() {
           directory consent, clear the private demo dataset, or delete an
           account from Profile. Local deletion is synchronous and removes the
           account credentials and isolated application store. The prototype
-          currently has no application-managed backups; infrastructure and
-          third-party records require a reviewed retention and deletion policy
-          before public launch.
+          labels each export with its schema, matching-method version, and
+          creation time. On iOS and Android, OpenMatch creates the JSON file in
+          its private cache for the system share sheet and attempts to delete
+          that temporary copy whether sharing succeeds or fails. A destination
+          app controls any copy you choose to save or send. This does not
+          require photo, media-library, or external-storage access. The
+          prototype currently has no application-managed backups; infrastructure
+          and third-party records require a reviewed retention and deletion
+          policy before public launch.
         </p>
 
         <h2>Security and current limits</h2>

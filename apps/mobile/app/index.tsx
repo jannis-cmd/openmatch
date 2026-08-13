@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Crypto from "expo-crypto";
 import { resolveApiConfiguration } from "../lib/api-configuration";
 import { resolveWebConfiguration } from "../lib/web-configuration";
+import { shareDataExport } from "../lib/share-data-export";
 import {
   clearSessionToken,
   persistSessionToken,
@@ -194,6 +195,7 @@ export default function App() {
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [conversationDrafts, setConversationDrafts] = useState<
     Record<string, string>
   >({});
@@ -2633,20 +2635,35 @@ export default function App() {
                 <Action
                   label="Export my data"
                   secondary
-                  onPress={() =>
+                  onPress={() => {
+                    setExportNotice(null);
                     void api
                       .exportData()
-                      .then((data) =>
-                        Share.share({
-                          title: "OpenMatch data export",
-                          message: JSON.stringify(data, null, 2),
-                        }),
+                      .then(shareDataExport)
+                      .then(() =>
+                        setExportNotice(
+                          "Export share sheet closed. OpenMatch removed its temporary copy.",
+                        ),
                       )
-                      .catch(() =>
-                        setError("Data export could not be created."),
-                      )
-                  }
+                      .catch((exportError: unknown) =>
+                        setError(
+                          exportError instanceof Error &&
+                            exportError.message ===
+                              "data_export_sharing_unavailable"
+                            ? "This device cannot open a file share sheet. No export file was created."
+                            : "Data export could not be created. No temporary copy was kept.",
+                        ),
+                      );
+                  }}
                 />
+                {exportNotice && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.scoreNote}
+                  >
+                    {exportNotice}
+                  </Text>
+                )}
                 <Pressable
                   accessibilityRole="button"
                   onPress={() =>
