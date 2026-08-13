@@ -63,6 +63,7 @@ test("makes release artifact formats and clean-source provenance explicit", () =
   assert.equal(easJson.build.preview.distribution, "internal");
   assert.equal(easJson.build.preview.android.buildType, "apk");
   assert.equal(easJson.build.production.android.buildType, "app-bundle");
+  assert.equal(easJson.submit.production.ios.ascAppId, "6801267398");
 });
 
 test("ships a full store icon and a transparent adaptive foreground", async () => {

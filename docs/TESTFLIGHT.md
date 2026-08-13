@@ -18,13 +18,16 @@ contains no endpoint. EAS injects the selected HTTPS origin at build time.
   provisioning profile for `org.openmatch.app`, both expiring 13 August 2027.
 - A least-privilege `APP_MANAGER` App Store Connect API key is assigned to the
   project for EAS Submit. No signing private key or API key is committed here.
-- Full Xcode 26.6 is installed on the build Mac. The account owner must still
-  review and accept Apple's Xcode license; OpenMatch automation must not accept
-  a legal agreement on their behalf.
-- After that acceptance, a local EAS production build can create the next
-  signed archive without consuming hosted EAS build quota. CocoaPods and any
-  other local prerequisites reported by the preflight remain machine setup,
-  not repository secrets.
+- App Store Connect app ID: `6801267398`. The initial record is named
+  `OpenMatch (857aa4)` because the plain App Store Connect name was unavailable;
+  this listing name can be revised independently of the installed app name.
+- Full Xcode 26.6, its owner-accepted license and first-launch components,
+  CocoaPods, and Fastlane are ready on the build Mac.
+- Local EAS produced signed IPA build 6 from commit `d6272cf` without consuming
+  hosted build quota. It was queued with EAS Submit for upload to App Store
+  Connect and internal TestFlight processing under submission
+  `d1e64e78-b1d2-4d63-b65e-755fb7aa9aba`.
+- The internal TestFlight group is `Team (Expo)` and includes the owner account.
 - The tailnet beta exposes a prototype privacy notice at
   `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/privacy` and support
   information at `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/support`.
@@ -176,7 +179,9 @@ artifact.
 
 ## TestFlight production build
 
-Configure and verify the production EAS environment, then build and submit:
+Configure and verify the production EAS environment, then build and submit.
+The production submit profile already pins App Store Connect app ID
+`6801267398`:
 
 ```bash
 cd apps/mobile
@@ -192,8 +197,9 @@ deployed service, not only this prototype repository.
 ## Quota-free local iOS build
 
 Local EAS builds use the same managed Expo project and signing configuration but
-compile on this Mac rather than consuming hosted build capacity. First, the
-account owner reviews and accepts the installed Xcode license in Terminal:
+compile on this Mac rather than consuming hosted build capacity. On a new build
+Mac, the account owner must first review and accept the Xcode license in
+Terminal:
 
 ```bash
 sudo xcodebuild -license
@@ -276,9 +282,8 @@ eas build --profile ios-simulator --platform ios
 
 This artifact can be installed only into an iOS Simulator. It proves native
 compilation and supports simulator testing, but it cannot run on an iPhone and
-does not replace TestFlight signing. Full Xcode is now installed locally; its
-license must be accepted by the account owner before Simulator compilation or
-installation can run.
+does not replace TestFlight signing. The current build Mac is fully prepared;
+these instructions remain for reproducibility on another machine.
 
 ## Store information still requiring an owner decision
 

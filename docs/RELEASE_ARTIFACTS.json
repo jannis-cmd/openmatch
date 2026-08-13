@@ -1,6 +1,23 @@
 {
   "schemaVersion": "1.0.0",
   "reviewedAt": "2026-08-13",
+  "verifiedLocalArtifacts": [
+    {
+      "id": "ios-ipa-build-6",
+      "platform": "ios",
+      "kind": "ipa",
+      "version": "0.1.0",
+      "buildNumber": "6",
+      "sourceCommit": "d6272cfd989d8d5497844dcce11d714fd2b5abb3",
+      "status": "queued-for-app-store-connect-upload",
+      "publiclyDownloadable": false,
+      "sizeBytes": 16036226,
+      "sha256": "665066d8f43129cb16b9963dfe0eb8a2c044ed10581728ed4f57b586d8f89fe1",
+      "bundleIdentifier": "org.openmatch.app",
+      "ascAppId": "6801267398",
+      "submissionId": "d1e64e78-b1d2-4d63-b65e-755fb7aa9aba"
+    }
+  ],
   "artifacts": [
     {
       "id": "android-apk-build-10",
@@ -57,6 +74,6 @@
   ],
   "buildAvailability": {
     "android": "A newer hosted build is blocked by the included EAS Android quota until September 1, 2026. The project now pins preview to APK, production to AAB, and requires a clean commit. A quota-free local build remains gated by owner acceptance of Google's SDK license plus installation of Java and the Android SDK.",
-    "ios": "Apple Developer membership and App Store signing/submission credentials are active. Full Xcode 26.6 is installed on the build Mac. A physical-device or TestFlight archive can use a quota-free local EAS build after the account owner reviews and accepts Apple's Xcode license; the hosted EAS build quota remains unavailable."
+    "ios": "Signed iOS IPA build 6 was produced locally from commit d6272cf, verified, and queued with EAS Submit for upload to App Store Connect. The build used active Apple distribution credentials and did not consume hosted EAS build quota. It is not a public App Store release."
   }
 }

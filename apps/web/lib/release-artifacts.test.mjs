@@ -59,10 +59,24 @@ test("publishes complete immutable provenance for every mobile artifact", async 
   }
 });
 
-test("states both current native build blockers without implying store availability", () => {
+test("records the current signed iOS artifact without implying public availability", async () => {
+  const git = await workingGit();
+  assert.equal(release.verifiedLocalArtifacts.length, 1);
+  const ios = release.verifiedLocalArtifacts[0];
+  assert.equal(ios.id, "ios-ipa-build-6");
+  assert.equal(ios.status, "queued-for-app-store-connect-upload");
+  assert.equal(ios.publiclyDownloadable, false);
+  assert.equal(ios.ascAppId, "6801267398");
+  assert.match(ios.sourceCommit, /^[0-9a-f]{40}$/);
+  assert.match(ios.sha256, /^[0-9a-f]{64}$/);
+  await run(git, ["merge-base", "--is-ancestor", ios.sourceCommit, "HEAD"], {
+    cwd: new URL("../../..", import.meta.url),
+  });
   assert.match(release.buildAvailability.android, /quota.*September 1, 2026/i);
-  assert.match(release.buildAvailability.ios, /membership.*active/i);
-  assert.match(release.buildAvailability.ios, /Xcode 26\.6.*installed/i);
-  assert.match(release.buildAvailability.ios, /local EAS build/i);
-  assert.match(release.buildAvailability.ios, /license/i);
+  assert.match(release.buildAvailability.ios, /Signed iOS IPA build 6/i);
+  assert.match(release.buildAvailability.ios, /App Store Connect/i);
+  assert.match(
+    release.buildAvailability.ios,
+    /not a public App Store release/i,
+  );
 });

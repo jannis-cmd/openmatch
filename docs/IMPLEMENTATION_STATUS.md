@@ -76,13 +76,13 @@ pnpm build
 cd apps/mobile && pnpm dlx expo-doctor
 ```
 
-Apple membership and signing credentials are active, and full Xcode 26.6 is
-installed on the build Mac. The next signed iOS archive can use local EAS and
-therefore does not depend on hosted-build quota. Local compilation is currently
-gated only by the account owner's review and acceptance of Apple's Xcode
-license, followed by any CocoaPods/toolchain prerequisites reported by the
-local builder. Automation does not accept legal agreements on the owner's
-behalf.
+Apple membership, signing credentials, Xcode, CocoaPods, and Fastlane are
+active on the build Mac. A quota-free local EAS build produced signed iOS IPA
+build 6 from commit `d6272cf`; its signature, provisioning, embedded source
+revision, transport policy, privacy manifests, and SHA-256 digest were checked
+before it was queued with EAS Submit for upload to App Store Connect and
+internal TestFlight processing. This is an owner-testing artifact, not a public
+App Store release.
 
 Android release profiles now explicitly produce an installable APK for preview
 and an AAB for production, and EAS refuses release work from an uncommitted

@@ -1966,19 +1966,18 @@ function LandingPage({
           </article>
           <article>
             <span className="download-platform">iPhone and iPad</span>
-            <h3>TestFlight build pending</h3>
+            <h3>TestFlight build 6 queued</h3>
             <p>
-              Native iOS compilation is verified from commit{" "}
-              <a
-                href={`https://github.com/jannis-cmd/openmatch/commit/${currentIosSimulator.sourceCommit}`}
-              >
-                {currentIosSimulator.sourceCommit.slice(0, 7)}
+              A signed iPhone and iPad archive was built and verified from
+              commit{" "}
+              <a href="https://github.com/jannis-cmd/openmatch/commit/d6272cfd989d8d5497844dcce11d714fd2b5abb3">
+                d6272cf
               </a>
-              . This unsigned archive runs only in an iOS Simulator—not on an
-              iPhone. Apple membership, distribution signing, provisioning, and
-              least-privilege App Store submission credentials are ready. The
-              signed archive can be built locally without hosted EAS quota once
-              the account owner accepts the installed Xcode license.
+              . Build 6 is queued with EAS Submit for upload to App Store
+              Connect and internal TestFlight processing. Apple controls later
+              processing and tester availability; this is not a public App Store
+              release. The older unsigned archive below remains available for
+              Mac Simulator testing.
             </p>
             <a
               className="primary-action download-action"
@@ -1987,7 +1986,7 @@ function LandingPage({
               Download iOS Simulator archive
             </a>
             <span className="pending-action" role="status">
-              Signing ready · local Xcode license pending
+              Signed and verified · upload queued
             </span>
             <p className="help">{releaseArtifacts.buildAvailability.ios}</p>
           </article>

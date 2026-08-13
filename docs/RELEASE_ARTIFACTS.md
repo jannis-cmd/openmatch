@@ -9,6 +9,30 @@ claim of production readiness. The same facts are published in
 
 ## OpenMatch 0.1.0
 
+### Signed iOS IPA — build 6
+
+- Purpose: internal TestFlight owner testing
+- Source commit: `d6272cfd989d8d5497844dcce11d714fd2b5abb3`
+- Bundle identifier: `org.openmatch.app`
+- Version: `0.1.0` (`CFBundleVersion` 6)
+- App Store Connect app ID: `6801267398`
+- EAS submission: `d1e64e78-b1d2-4d63-b65e-755fb7aa9aba`
+- Size: 16,036,226 bytes
+- SHA-256: `665066d8f43129cb16b9963dfe0eb8a2c044ed10581728ed4f57b586d8f89fe1`
+- Availability: retained on the owner build Mac and queued with EAS Submit for
+  App Store Connect upload; it is not a public direct download
+- Verification: the archive exported successfully with active App Store
+  distribution signing and provisioning; deep strict code-signature checks
+  passed; the application is an `arm64` device binary; the embedded Expo
+  configuration contains the exact source revision and both intended HTTPS
+  origins; App Transport Security has no arbitrary-load or local-network
+  exception; `ITSAppUsesNonExemptEncryption=false`; and privacy manifests are
+  present in the app and relevant dependencies.
+
+Apple still controls upload processing and TestFlight availability. This
+record proves what was built and queued; it does not claim App Store review,
+public release, production-service readiness, or scientific effectiveness.
+
 ### Current iOS Simulator archive — build ff567a6f
 
 - Purpose: unsigned native compilation and Simulator testing while a signed
@@ -29,11 +53,9 @@ claim of production readiness. The same facts are published in
   email-change and cancellation paths.
 
 This archive cannot run on an iPhone and is not TestFlight-signed. It requires
-Xcode's iOS Simulator on a Mac. Apple membership, the distribution certificate,
-provisioning profile, and least-privilege App Store Connect submission key are
-now configured. Full Xcode 26.6 is installed, so a physical-device/TestFlight
-archive can be compiled with local EAS without consuming hosted build quota
-after the account owner reviews and accepts Apple's Xcode license.
+Xcode's iOS Simulator on a Mac. It is retained as an older independently
+inspectable compilation artifact; signed device build 6 now supersedes it for
+TestFlight owner testing.
 
 ### Android direct-install APK — build 10
 
@@ -110,15 +132,14 @@ data-safety declarations, tester setup, and submission have not been performed.
   warning, and immediate safely-queued mutation response are embedded; and
   `ITSAppUsesNonExemptEncryption` is false
 
-This archive cannot run on an iPhone and is not TestFlight-signed. Full Xcode is
-now installed on the Mac, and Apple Developer membership plus App Store Connect
-signing are active. The account owner's acceptance of Apple's Xcode license is
-the remaining prerequisite before local native compilation can begin.
+This archive cannot run on an iPhone and is not TestFlight-signed. It is an
+older source snapshot retained for provenance; current signed device build 6
+was compiled and queued for App Store Connect upload separately.
 
 ## Common limits
 
-All three artifacts connect to the private Mac-hosted tailnet API. They are not
-current binaries or public production releases. Future EAS builds resolve the
+All artifacts connect to the private Mac-hosted tailnet API. They are not
+public production releases. EAS builds resolve the
 official `EAS_BUILD_GIT_COMMIT_HASH` into the app manifest and expose that full
 revision from the in-app Method screen; the pre-install verifier rejects a
 missing or malformed revision. SMTP, production monitoring, redundant hosting,
