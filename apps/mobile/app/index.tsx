@@ -2570,6 +2570,45 @@ export default function App() {
                             .finally(() => setEmailChangeSaving(false));
                         }}
                       />
+                      <Action
+                        label="Cancel pending email change"
+                        secondary
+                        disabled={emailChangeSaving}
+                        onPress={() =>
+                          Alert.alert(
+                            "Cancel email change?",
+                            "The current sign-in email will stay unchanged. Both confirmation codes will stop working.",
+                            [
+                              { text: "Keep pending", style: "cancel" },
+                              {
+                                text: "Cancel change",
+                                style: "destructive",
+                                onPress: () => {
+                                  setEmailChangeSaving(true);
+                                  setEmailChangeError(null);
+                                  setEmailChangeNotice(null);
+                                  void api
+                                    .cancelEmailChange()
+                                    .then(async () => {
+                                      setCurrentEmailCode("");
+                                      setNewEmailCode("");
+                                      setEmailChange(await api.emailChange());
+                                      setEmailChangeNotice(
+                                        "Pending email change cancelled. The current sign-in email is unchanged.",
+                                      );
+                                    })
+                                    .catch(() =>
+                                      setEmailChangeError(
+                                        "The pending email change could not be cancelled.",
+                                      ),
+                                    )
+                                    .finally(() => setEmailChangeSaving(false));
+                                },
+                              },
+                            ],
+                          )
+                        }
+                      />
                     </>
                   ) : (
                     <>

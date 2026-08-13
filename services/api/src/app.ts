@@ -889,6 +889,18 @@ export function createApp(
         }
       }
       if (
+        request.method === "DELETE" &&
+        url.pathname === "/v1/account/email-change"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        return accounts.cancelEmailChange(accountSession.accountId)
+          ? send(response, 204, null)
+          : send(response, 404, { error: "email_change_not_found" });
+      }
+      if (
         request.method === "GET" &&
         url.pathname === "/v1/account/notification-email"
       ) {

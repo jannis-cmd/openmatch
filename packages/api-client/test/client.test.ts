@@ -146,6 +146,7 @@ test("creates an authenticated account, reuses its token, and signs out", async 
     "https://api.example.test",
     (async (url, init) => {
       requests.push({ url: String(url), init });
+      if (init?.method === "DELETE") return new Response(null, { status: 204 });
       if (String(url).endsWith("/v1/accounts"))
         return new Response(
           JSON.stringify({
@@ -409,6 +410,7 @@ test("changes a primary email only through the dual-code flow", async () => {
     "https://api.example.test",
     (async (url, init) => {
       requests.push({ url: String(url), init });
+      if (init?.method === "DELETE") return new Response(null, { status: 204 });
       if (String(url).endsWith("/request"))
         return new Response(
           JSON.stringify({
@@ -453,6 +455,8 @@ test("changes a primary email only through the dual-code flow", async () => {
     currentCode: "11111111",
     newCode: "22222222",
   });
+  await client.cancelEmailChange();
+  assert.equal(requests[3]?.init?.method, "DELETE");
 });
 
 test("turns API failures into inspectable errors", async () => {

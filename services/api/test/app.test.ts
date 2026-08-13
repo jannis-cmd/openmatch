@@ -903,6 +903,64 @@ test("changing a primary email requires both inboxes and revokes other sessions"
       ).response.status,
       200,
     );
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-change/request", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            email: "cancelled@example.org",
+            currentPassword: "a primary email change passphrase",
+          }),
+        })
+      ).status,
+      202,
+    );
+    const cancelledCurrentCode = deliveries.at(-2)!.code;
+    const cancelledNewCode = deliveries.at(-1)!.code;
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-change", {
+          method: "DELETE",
+          headers,
+        })
+      ).status,
+      204,
+    );
+    assert.deepEqual(
+      await (
+        await fetch(base + "/v1/account/email-change", { headers })
+      ).json(),
+      {
+        email: "new@example.org",
+        verifiedAt: accounts.emailStatus(accountId).verifiedAt,
+        pendingEmail: null,
+        pendingExpiresAt: null,
+        deliveryConfigured: true,
+      },
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-change/confirm", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            currentCode: cancelledCurrentCode,
+            newCode: cancelledNewCode,
+          }),
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-change", {
+          method: "DELETE",
+          headers,
+        })
+      ).status,
+      404,
+    );
   } finally {
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),

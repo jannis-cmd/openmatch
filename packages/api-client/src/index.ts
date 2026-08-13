@@ -428,6 +428,8 @@ export function createApiClient(
         "/v1/account/email-change/confirm",
         json("POST", { currentCode, newCode }),
       ),
+    cancelEmailChange: () =>
+      request<void>("/v1/account/email-change", json("DELETE")),
     notificationEmail: () =>
       request<NotificationEmailStatus>("/v1/account/notification-email"),
     requestNotificationEmail: (email: string, currentPassword: string) =>

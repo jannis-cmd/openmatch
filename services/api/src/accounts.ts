@@ -1241,9 +1241,11 @@ export class Accounts {
   }
 
   cancelEmailChange(accountId: string) {
-    this.db
-      .prepare("DELETE FROM account_email_change_requests WHERE account_id=?")
-      .run(accountId);
+    return Boolean(
+      this.db
+        .prepare("DELETE FROM account_email_change_requests WHERE account_id=?")
+        .run(accountId).changes,
+    );
   }
 
   confirmEmailChange(

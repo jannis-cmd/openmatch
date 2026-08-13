@@ -66,6 +66,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let passwordChanged = false;
   let recoveryCodesGenerated = false;
   let emailVerified = false;
+  let emailChangePending = false;
   let failNextProfileSave = false;
   let failNextPreferencesSave = false;
   let failNextPreferencePreview = false;
@@ -153,12 +154,29 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         verifiedAt: emailVerified ? "2026-08-12T12:00:00.000Z" : null,
         deliveryConfigured: true,
       });
+    if (path === "/v1/account/email-change/request" && init.method === "POST") {
+      emailChangePending = true;
+      return response(
+        {
+          sent: true,
+          pendingEmail: "new-native@example.org",
+          expiresAt: "2026-08-13T12:00:00.000Z",
+        },
+        202,
+      );
+    }
+    if (path === "/v1/account/email-change" && init.method === "DELETE") {
+      emailChangePending = false;
+      return response(null, 204);
+    }
     if (path === "/v1/account/email-change")
       return response({
         email: "native@example.org",
         verifiedAt: emailVerified ? "2026-08-12T12:00:00.000Z" : null,
-        pendingEmail: null,
-        pendingExpiresAt: null,
+        pendingEmail: emailChangePending ? "new-native@example.org" : null,
+        pendingExpiresAt: emailChangePending
+          ? "2026-08-13T12:00:00.000Z"
+          : null,
         deliveryConfigured: true,
       });
     if (path === "/v1/account/notification-email")
@@ -1176,6 +1194,32 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByText(/Confirmed for account messages/)).toBeTruthy();
   expect(screen.getByText("Change sign-in email")).toBeTruthy();
   expect(screen.getByText("Send both confirmation codes")).toBeTruthy();
+  await fireEvent.changeText(
+    screen.getByLabelText("New sign-in email"),
+    "new-native@example.org",
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText("Passphrase to change sign-in email"),
+    "a native test passphrase",
+  );
+  await fireEvent.press(screen.getByText("Send both confirmation codes"));
+  await waitFor(() => expect(emailChangePending).toBe(true));
+  expect(screen.getByText("Pending: new-native@example.org")).toBeTruthy();
+  const cancelEmailSpy = jest.spyOn(Alert, "alert");
+  await fireEvent.press(screen.getByText("Cancel pending email change"));
+  const cancelEmailCall = cancelEmailSpy.mock.calls.find(
+    ([title]) => title === "Cancel email change?",
+  );
+  await act(async () => {
+    cancelEmailCall?.[2]?.[1].onPress?.();
+  });
+  await waitFor(() => expect(emailChangePending).toBe(false));
+  expect(
+    await screen.findByText(
+      "Pending email change cancelled. The current sign-in email is unchanged.",
+    ),
+  ).toBeTruthy();
+  cancelEmailSpy.mockRestore();
   failNextDirectorySave = true;
   await fireEvent.press(screen.getByText("Enable for 30 days"));
   await waitFor(() =>

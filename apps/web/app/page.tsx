@@ -1562,6 +1562,14 @@ function AppExperience({
                         }
                       : undefined
                   }
+                  cancelEmailChange={
+                    authToken
+                      ? async () => {
+                          await api.cancelEmailChange();
+                          setEmailChange(await api.emailChange());
+                        }
+                      : undefined
+                  }
                   changePassword={
                     authToken
                       ? async (currentPassword, newPassword) => {
@@ -3222,6 +3230,7 @@ function ProfileView({
   confirmEmail,
   requestEmailChange,
   confirmEmailChange,
+  cancelEmailChange,
   changePassword,
   generateRecoveryCodes,
   revokeSession,
@@ -3268,6 +3277,7 @@ function ProfileView({
     currentCode: string,
     newCode: string,
   ) => Promise<SecurityNotificationStatus>;
+  cancelEmailChange?: () => Promise<void>;
   changePassword?: (
     currentPassword: string,
     newPassword: string,
@@ -3621,163 +3631,193 @@ function ProfileView({
           )}
         </section>
       )}
-      {emailChange && requestEmailChange && confirmEmailChange && (
-        <section className="settings-card">
-          <h2>Change sign-in email</h2>
-          <p>
-            Because this account currently uses only a passphrase, OpenMatch
-            requires one code from the current inbox and one from the proposed
-            inbox. The address changes only after both are accepted. Every other
-            session is then signed out.
-          </p>
-          {!emailChange.deliveryConfigured ? (
+      {emailChange &&
+        requestEmailChange &&
+        confirmEmailChange &&
+        cancelEmailChange && (
+          <section className="settings-card">
+            <h2>Change sign-in email</h2>
             <p>
-              Email delivery is not configured, so sign-in email changes are
-              unavailable.
+              Because this account currently uses only a passphrase, OpenMatch
+              requires one code from the current inbox and one from the proposed
+              inbox. The address changes only after both are accepted. Every
+              other session is then signed out.
             </p>
-          ) : !emailChange.verifiedAt ? (
-            <p>Confirm the current primary inbox before changing it.</p>
-          ) : emailChange.pendingEmail ? (
-            <form
-              className="profile-fields"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                setEmailChangeSaving(true);
-                setEmailChangeError(null);
-                setEmailChangeNotice(null);
-                try {
-                  const notification = await confirmEmailChange(
-                    currentEmailCode,
-                    newEmailCode,
-                  );
-                  setCurrentEmailCode("");
-                  setNewEmailCode("");
-                  setChangedEmail("");
-                  setEmailChangePassword("");
-                  setEmailChangeNotice(
-                    `Sign-in email changed.${securityNotice(notification)}`,
-                  );
-                } catch (error) {
-                  setEmailChangeError(
-                    error instanceof ApiError &&
-                      error.code === "invalid_verification_code"
-                      ? "One or both codes were not accepted or have expired. Nothing changed."
-                      : "The sign-in email was not changed.",
-                  );
-                } finally {
-                  setEmailChangeSaving(false);
-                }
-              }}
-            >
+            {!emailChange.deliveryConfigured ? (
               <p>
-                Pending address: <strong>{emailChange.pendingEmail}</strong>
-                {emailChange.pendingExpiresAt
-                  ? ` · Codes expire ${new Date(emailChange.pendingExpiresAt).toLocaleString()}`
-                  : ""}
+                Email delivery is not configured, so sign-in email changes are
+                unavailable.
               </p>
-              <label>
-                Code sent to current inbox
-                <input
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]{8}"
-                  maxLength={8}
-                  value={currentEmailCode}
-                  onChange={(event) =>
-                    setCurrentEmailCode(
-                      event.target.value.replace(/\D/g, "").slice(0, 8),
-                    )
+            ) : !emailChange.verifiedAt ? (
+              <p>Confirm the current primary inbox before changing it.</p>
+            ) : emailChange.pendingEmail ? (
+              <>
+                <form
+                  className="profile-fields"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    setEmailChangeSaving(true);
+                    setEmailChangeError(null);
+                    setEmailChangeNotice(null);
+                    try {
+                      const notification = await confirmEmailChange(
+                        currentEmailCode,
+                        newEmailCode,
+                      );
+                      setCurrentEmailCode("");
+                      setNewEmailCode("");
+                      setChangedEmail("");
+                      setEmailChangePassword("");
+                      setEmailChangeNotice(
+                        `Sign-in email changed.${securityNotice(notification)}`,
+                      );
+                    } catch (error) {
+                      setEmailChangeError(
+                        error instanceof ApiError &&
+                          error.code === "invalid_verification_code"
+                          ? "One or both codes were not accepted or have expired. Nothing changed."
+                          : "The sign-in email was not changed.",
+                      );
+                    } finally {
+                      setEmailChangeSaving(false);
+                    }
+                  }}
+                >
+                  <p>
+                    Pending address: <strong>{emailChange.pendingEmail}</strong>
+                    {emailChange.pendingExpiresAt
+                      ? ` · Codes expire ${new Date(emailChange.pendingExpiresAt).toLocaleString()}`
+                      : ""}
+                  </p>
+                  <label>
+                    Code sent to current inbox
+                    <input
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]{8}"
+                      maxLength={8}
+                      value={currentEmailCode}
+                      onChange={(event) =>
+                        setCurrentEmailCode(
+                          event.target.value.replace(/\D/g, "").slice(0, 8),
+                        )
+                      }
+                    />
+                  </label>
+                  <label>
+                    Code sent to new inbox
+                    <input
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]{8}"
+                      maxLength={8}
+                      value={newEmailCode}
+                      onChange={(event) =>
+                        setNewEmailCode(
+                          event.target.value.replace(/\D/g, "").slice(0, 8),
+                        )
+                      }
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={
+                      emailChangeSaving ||
+                      currentEmailCode.length !== 8 ||
+                      newEmailCode.length !== 8
+                    }
+                  >
+                    Confirm both inboxes
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  disabled={emailChangeSaving}
+                  onClick={async () => {
+                    setEmailChangeSaving(true);
+                    setEmailChangeError(null);
+                    setEmailChangeNotice(null);
+                    try {
+                      await cancelEmailChange();
+                      setCurrentEmailCode("");
+                      setNewEmailCode("");
+                      setEmailChangeNotice(
+                        "Pending email change cancelled. The current sign-in email is unchanged.",
+                      );
+                    } catch {
+                      setEmailChangeError(
+                        "The pending email change could not be cancelled.",
+                      );
+                    } finally {
+                      setEmailChangeSaving(false);
+                    }
+                  }}
+                >
+                  Cancel pending email change
+                </button>
+              </>
+            ) : (
+              <form
+                className="profile-fields"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  setEmailChangeSaving(true);
+                  setEmailChangeError(null);
+                  setEmailChangeNotice(null);
+                  try {
+                    await requestEmailChange(changedEmail, emailChangePassword);
+                    setEmailChangeNotice(
+                      "Two codes were sent. The current sign-in email remains active until both are confirmed.",
+                    );
+                  } catch (error) {
+                    setEmailChangeError(
+                      error instanceof ApiError &&
+                        error.code === "invalid_current_password"
+                        ? "The current passphrase was not accepted."
+                        : error instanceof ApiError &&
+                            error.code === "email_change_unavailable"
+                          ? "That address cannot be used. Nothing changed."
+                          : "The email-change request was not started.",
+                    );
+                  } finally {
+                    setEmailChangeSaving(false);
                   }
-                />
-              </label>
-              <label>
-                Code sent to new inbox
-                <input
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]{8}"
-                  maxLength={8}
-                  value={newEmailCode}
-                  onChange={(event) =>
-                    setNewEmailCode(
-                      event.target.value.replace(/\D/g, "").slice(0, 8),
-                    )
-                  }
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={
-                  emailChangeSaving ||
-                  currentEmailCode.length !== 8 ||
-                  newEmailCode.length !== 8
-                }
+                }}
               >
-                Confirm both inboxes
-              </button>
-            </form>
-          ) : (
-            <form
-              className="profile-fields"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                setEmailChangeSaving(true);
-                setEmailChangeError(null);
-                setEmailChangeNotice(null);
-                try {
-                  await requestEmailChange(changedEmail, emailChangePassword);
-                  setEmailChangeNotice(
-                    "Two codes were sent. The current sign-in email remains active until both are confirmed.",
-                  );
-                } catch (error) {
-                  setEmailChangeError(
-                    error instanceof ApiError &&
-                      error.code === "invalid_current_password"
-                      ? "The current passphrase was not accepted."
-                      : error instanceof ApiError &&
-                          error.code === "email_change_unavailable"
-                        ? "That address cannot be used. Nothing changed."
-                        : "The email-change request was not started.",
-                  );
-                } finally {
-                  setEmailChangeSaving(false);
-                }
-              }}
-            >
-              <label>
-                New sign-in email
-                <input
-                  type="email"
-                  autoComplete="email"
-                  value={changedEmail}
-                  onChange={(event) => setChangedEmail(event.target.value)}
-                />
-              </label>
-              <label>
-                Current passphrase
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={emailChangePassword}
-                  onChange={(event) =>
-                    setEmailChangePassword(event.target.value)
+                <label>
+                  New sign-in email
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={changedEmail}
+                    onChange={(event) => setChangedEmail(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Current passphrase
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={emailChangePassword}
+                    onChange={(event) =>
+                      setEmailChangePassword(event.target.value)
+                    }
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={
+                    emailChangeSaving || !changedEmail || !emailChangePassword
                   }
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={
-                  emailChangeSaving || !changedEmail || !emailChangePassword
-                }
-              >
-                Send both confirmation codes
-              </button>
-            </form>
-          )}
-          {emailChangeNotice && <p role="status">{emailChangeNotice}</p>}
-          {emailChangeError && <p role="alert">{emailChangeError}</p>}
-        </section>
-      )}
+                >
+                  Send both confirmation codes
+                </button>
+              </form>
+            )}
+            {emailChangeNotice && <p role="status">{emailChangeNotice}</p>}
+            {emailChangeError && <p role="alert">{emailChangeError}</p>}
+          </section>
+        )}
       {notificationEmail &&
         requestNotificationEmail &&
         confirmNotificationEmail &&
