@@ -66,6 +66,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let emailVerified = false;
   let failNextProfileSave = false;
   let failNextPreferencesSave = false;
+  let failNextPreferencePreview = false;
   let failNextBatchSizeSave = false;
   let failNextVisibilitySave = false;
   let failNextDirectorySave = false;
@@ -226,6 +227,19 @@ test("first run uses explicit accessible controls and opens introductions", asyn
           weights: { ...preferences.weights, ...body.weights },
         }),
       );
+    }
+    if (path === "/v1/preferences/preview" && init.method === "POST") {
+      if (failNextPreferencePreview) {
+        failNextPreferencePreview = false;
+        return response({ error: "simulated_preview_failure" }, 503);
+      }
+      return response({
+        eligibleCount: 2,
+        evaluatedCount: 3,
+        scope: "current-unresolved-prototype-pool",
+        estimate: false,
+        preferencesSaved: false,
+      });
     }
     if (path === "/v1/preferences/suggestions" && init.method === "DELETE")
       return response({
@@ -814,6 +828,19 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     ),
   ).toBeTruthy();
   expect(screen.getByText("Clear learning examples")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Check current pool"));
+  expect(
+    await screen.findByText(
+      "2 of 3 current unresolved profiles are mutually eligible under these boundaries. Nothing was saved.",
+    ),
+  ).toBeTruthy();
+  failNextPreferencePreview = true;
+  await fireEvent.press(screen.getByText("Check current pool"));
+  expect(
+    await screen.findByText(
+      "The current pool could not be checked. No preferences were saved.",
+    ),
+  ).toBeTruthy();
   failNextBatchSizeSave = true;
   await fireEvent.press(screen.getByLabelText("1 introductions per batch"));
   await waitFor(() =>

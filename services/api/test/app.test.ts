@@ -1937,6 +1937,27 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       maximumDistanceKm: number;
     };
     assert.equal(prefs.maximumDistanceKm, 35);
+    const preview = (await (
+      await request("/v1/preferences/preview", {
+        method: "POST",
+        body: JSON.stringify({ ageMin: 120, ageMax: 120 }),
+      })
+    ).json()) as {
+      eligibleCount: number;
+      evaluatedCount: number;
+      preferencesSaved: boolean;
+    };
+    assert.equal(preview.eligibleCount, 0);
+    assert.equal(preview.evaluatedCount, 4);
+    assert.equal(preview.preferencesSaved, false);
+    assert.equal(
+      (
+        (await (await request("/v1/preferences")).json()) as {
+          maximumDistanceKm: number;
+        }
+      ).maximumDistanceKm,
+      35,
+    );
     assert.equal(
       (
         await request("/v1/preferences", {

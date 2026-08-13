@@ -89,7 +89,7 @@ Identity, eligibility, and disclosure must be technically independent. A person 
 
 ### 4.3 Preferences and boundaries
 
-Users configure mutual hard constraints first: age range, distance/region, gender eligibility, intention/relationship structure, smoking/substance boundaries, and child-related incompatibilities. The UI warns that every hard constraint reduces the pool and previews its effect without pressuring users to relax it.
+Users configure mutual hard constraints first: age range, distance/region, gender eligibility, intention/relationship structure, smoking/substance boundaries, and child-related incompatibilities. Web, iOS, and Android offer an explicit aggregate-only check of unsaved boundaries against the current unresolved prototype pool. It returns the mutually eligible and evaluated counts, saves nothing, exposes no identity, clears stale results after an edit, and says directly that a smaller count is not a recommendation to relax a boundary. It is an exact count for that small current pool, not a forecast of future availability or evidence that a boundary is good or bad.
 
 Soft priorities are capped at five and weighted by the user as Low, Medium, or High. A user can turn every soft signal off. Preference changes take effect immediately and appear in the explanation.
 

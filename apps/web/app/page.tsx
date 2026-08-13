@@ -1227,6 +1227,7 @@ function AppExperience({
                   }}
                   deliverySaving={deliverySaving}
                   deliverySaveError={deliverySaveError}
+                  preview={(draft) => api.previewPreferences(draft)}
                   suggestions={suggestions}
                   observationCount={preferenceObservationCount}
                   clearObservations={async () => {
@@ -2746,6 +2747,7 @@ function PreferencesView({
   setBatchSize,
   deliverySaving,
   deliverySaveError,
+  preview,
   suggestions,
   observationCount,
   clearObservations,
@@ -2761,6 +2763,10 @@ function PreferencesView({
   setBatchSize: (batchSize: DeliverySettings["batchSize"]) => Promise<void>;
   deliverySaving: boolean;
   deliverySaveError: string | null;
+  preview: (value: Preferences) => Promise<{
+    eligibleCount: number;
+    evaluatedCount: number;
+  }>;
   suggestions: WeightSuggestion[];
   observationCount: number;
   clearObservations: () => Promise<void>;
@@ -2771,6 +2777,16 @@ function PreferencesView({
   save: () => void;
   cancel: () => void;
 }) {
+  const [poolPreview, setPoolPreview] = useState<{
+    eligibleCount: number;
+    evaluatedCount: number;
+  } | null>(null);
+  const [previewRunning, setPreviewRunning] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  useEffect(() => {
+    setPoolPreview(null);
+    setPreviewError(null);
+  }, [value]);
   const setWeight = (key: keyof Preferences["weights"], weight: number) =>
     onChange({ ...value, weights: { ...value.weights, [key]: weight } });
   return (
@@ -2856,6 +2872,46 @@ function PreferencesView({
             />
           </label>
           <BoundaryFields value={value} onChange={onChange} />
+          <div className="prototype-consent">
+            <h3>Current pool check</h3>
+            <p className="help">
+              Check these unsaved boundaries against the current unresolved
+              prototype pool. This returns counts only. A smaller count is not a
+              recommendation to relax a boundary.
+            </p>
+            <button
+              type="button"
+              disabled={previewRunning}
+              onClick={() => {
+                setPreviewRunning(true);
+                setPreviewError(null);
+                void preview(value)
+                  .then(setPoolPreview)
+                  .catch(() => {
+                    setPoolPreview(null);
+                    setPreviewError(
+                      "The current pool could not be checked. No preferences were saved.",
+                    );
+                  })
+                  .finally(() => setPreviewRunning(false));
+              }}
+            >
+              {previewRunning ? "Checking current pool…" : "Check current pool"}
+            </button>
+            {poolPreview && (
+              <p role="status">
+                {poolPreview.eligibleCount} of {poolPreview.evaluatedCount}
+                {" current unresolved "}
+                {poolPreview.evaluatedCount === 1
+                  ? "profile is"
+                  : "profiles are"}
+                {
+                  " mutually eligible under these boundaries. Nothing was saved."
+                }
+              </p>
+            )}
+            {previewError && <p role="alert">{previewError}</p>}
+          </div>
         </section>
         <section className="settings-card">
           <h2>Distance</h2>

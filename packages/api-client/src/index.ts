@@ -107,6 +107,13 @@ export type SetupReceipt = {
   consent: ConsentReceipt;
   directoryConsent: DirectoryConsentReceipt | null;
 };
+export type PreferencePoolPreview = {
+  eligibleCount: number;
+  evaluatedCount: number;
+  scope: "current-unresolved-prototype-pool";
+  estimate: false;
+  preferencesSaved: false;
+};
 export const directoryParticipationIsActive = (
   receipt: DirectoryConsentReceipt | null,
   now = Date.now(),
@@ -437,6 +444,11 @@ export function createApiClient(
     preferences: () => request<Preferences>("/v1/preferences"),
     updatePreferences: (patch: Partial<Preferences>) =>
       request<Preferences>("/v1/preferences", json("PATCH", patch)),
+    previewPreferences: (patch: Partial<Preferences>) =>
+      request<PreferencePoolPreview>(
+        "/v1/preferences/preview",
+        json("POST", patch),
+      ),
     preferenceSuggestions: () =>
       request<{
         items: WeightSuggestion[];

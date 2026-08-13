@@ -836,6 +836,27 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByText(/decision examples are currently stored/),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Check current pool" }).click();
+  await expect(
+    page.getByRole("status").filter({
+      hasText:
+        /current unresolved profiles? (is|are) mutually eligible.*Nothing was saved/,
+    }),
+  ).toBeVisible();
+  await page.route(
+    "**/v1/preferences/preview",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_preview_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Check current pool" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "No preferences were saved" }),
+  ).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Clear learning examples" }).click();
   await expect(

@@ -1583,6 +1583,7 @@ export default function App() {
               delivery={delivery}
               deliverySaving={deliverySaving}
               deliverySaveError={deliverySaveError}
+              preview={(draft) => api.previewPreferences(draft)}
               setBatchSize={(batchSize) => {
                 setDeliverySaving(true);
                 setDeliverySaveError(null);
@@ -3760,6 +3761,7 @@ function PreferencesScreen({
   setBatchSize,
   deliverySaving = false,
   deliverySaveError = null,
+  preview,
   pendingChanges = false,
   saving = false,
   saveError = null,
@@ -3775,12 +3777,26 @@ function PreferencesScreen({
   setBatchSize?: (batchSize: DeliverySettings["batchSize"]) => void;
   deliverySaving?: boolean;
   deliverySaveError?: string | null;
+  preview?: (value: Preferences) => Promise<{
+    eligibleCount: number;
+    evaluatedCount: number;
+  }>;
   pendingChanges?: boolean;
   saving?: boolean;
   saveError?: string | null;
   save?: () => void;
   cancel?: () => void;
 }) {
+  const [poolPreview, setPoolPreview] = useState<{
+    eligibleCount: number;
+    evaluatedCount: number;
+  } | null>(null);
+  const [previewRunning, setPreviewRunning] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  useEffect(() => {
+    setPoolPreview(null);
+    setPreviewError(null);
+  }, [value]);
   const bump = (key: keyof Preferences["weights"], delta: -1 | 1) => {
     const current = nearestPriority(value.weights[key]);
     const index = PRIORITY_LEVELS.indexOf(current);
@@ -4006,6 +4022,55 @@ function PreferencesScreen({
             A person is introduced only when both people’s stated boundaries are
             satisfied.
           </Text>
+          {preview && (
+            <View style={styles.prototypeConsent}>
+              <Text style={styles.name}>Current pool check</Text>
+              <Text style={styles.mathNote}>
+                Check these unsaved boundaries against the current unresolved
+                prototype pool. This returns counts only. A smaller count is not
+                a recommendation to relax a boundary.
+              </Text>
+              <Action
+                label={
+                  previewRunning
+                    ? "Checking current pool…"
+                    : "Check current pool"
+                }
+                secondary
+                disabled={previewRunning}
+                onPress={() => {
+                  setPreviewRunning(true);
+                  setPreviewError(null);
+                  void preview(value)
+                    .then(setPoolPreview)
+                    .catch(() => {
+                      setPoolPreview(null);
+                      setPreviewError(
+                        "The current pool could not be checked. No preferences were saved.",
+                      );
+                    })
+                    .finally(() => setPreviewRunning(false));
+                }}
+              />
+              {poolPreview && (
+                <Text accessibilityLiveRegion="polite" style={styles.mathNote}>
+                  {poolPreview.eligibleCount} of {poolPreview.evaluatedCount}
+                  {" current unresolved "}
+                  {poolPreview.evaluatedCount === 1
+                    ? "profile is"
+                    : "profiles are"}
+                  {
+                    " mutually eligible under these boundaries. Nothing was saved."
+                  }
+                </Text>
+              )}
+              {previewError && (
+                <Text accessibilityRole="alert" style={styles.errorText}>
+                  {previewError}
+                </Text>
+              )}
+            </View>
+          )}
         </View>
         <View style={styles.scoreCard}>
           <Text style={styles.name}>Distance</Text>
@@ -4855,6 +4920,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E2DC",
     marginTop: 6,
+  },
+  prototypeConsent: {
+    backgroundColor: "#F5F5F1",
+    borderRadius: 16,
+    padding: 16,
+    gap: 10,
+    marginTop: 18,
   },
   deletionReceipt: {
     backgroundColor: "#EAF4ED",

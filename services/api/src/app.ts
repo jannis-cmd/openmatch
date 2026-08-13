@@ -14,6 +14,7 @@ import {
   nextWeeklyBatchAt,
   publicWeeklySeed,
   toPublicProfile,
+  validatePreferences,
   type Candidate,
 } from "@openmatch/matching";
 import { Store, type ReportUpdateKind, type SetupCommand } from "./store.js";
@@ -1026,6 +1027,39 @@ export function createApp(
         );
       if (request.method === "GET" && url.pathname === "/v1/preferences")
         return send(response, 200, store.preferences());
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/preferences/preview"
+      ) {
+        const patch = (await readJson(request)) as Parameters<
+          Store["updatePreferences"]
+        >[0];
+        const current = store.preferences();
+        const preferences = validatePreferences({
+          ...current,
+          ...patch,
+          weights: { ...current.weights, ...patch.weights },
+        });
+        const unavailable = new Set([
+          ...store.decidedIds(),
+          ...store.hiddenIds(),
+          ...store.savedIds(),
+        ]);
+        const unresolved = candidates.filter(
+          ({ profile }) => !unavailable.has(profile.id),
+        );
+        return send(response, 200, {
+          eligibleCount: createIntroductions(
+            store.profile(),
+            unresolved,
+            preferences,
+          ).length,
+          evaluatedCount: unresolved.length,
+          scope: "current-unresolved-prototype-pool",
+          estimate: false,
+          preferencesSaved: false,
+        });
+      }
       if (
         request.method === "GET" &&
         url.pathname === "/v1/preferences/suggestions"

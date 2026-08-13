@@ -573,6 +573,35 @@ test("submits first-run setup as one versioned command", async () => {
   assert.equal(receipt.complete, true);
 });
 
+test("previews unsaved preferences with aggregate counts only", async () => {
+  let receivedUrl = "";
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (url) => {
+      receivedUrl = String(url);
+      return new Response(
+        JSON.stringify({
+          eligibleCount: 2,
+          evaluatedCount: 3,
+          scope: "current-unresolved-prototype-pool",
+          estimate: false,
+          preferencesSaved: false,
+        }),
+        { status: 200 },
+      );
+    }),
+  );
+  const preview = await client.previewPreferences({ ageMin: 30 });
+  assert.equal(receivedUrl, "http://example.test/v1/preferences/preview");
+  assert.deepEqual(preview, {
+    eligibleCount: 2,
+    evaluatedCount: 3,
+    scope: "current-unresolved-prototype-pool",
+    estimate: false,
+    preferencesSaved: false,
+  });
+});
+
 test("updates separate reversible account-directory consent", async () => {
   let received: { url?: string; body?: unknown } = {};
   const client = createApiClient(
