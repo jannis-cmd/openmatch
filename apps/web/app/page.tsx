@@ -3000,6 +3000,10 @@ function ProfileView({
   const [visibilityActionError, setVisibilityActionError] = useState<
     string | null
   >(null);
+  const [researchConsentSaving, setResearchConsentSaving] = useState(false);
+  const [researchConsentError, setResearchConsentError] = useState<
+    string | null
+  >(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -3764,17 +3768,32 @@ function ProfileView({
         <div className="data-actions">
           <button
             aria-pressed={researchConsent?.participating === true}
-            onClick={() =>
-              void setResearchConsent(
-                !(researchConsent?.participating === true),
-              )
-            }
+            disabled={researchConsentSaving}
+            onClick={async () => {
+              setResearchConsentSaving(true);
+              setResearchConsentError(null);
+              try {
+                await setResearchConsent(
+                  !(researchConsent?.participating === true),
+                );
+              } catch {
+                setResearchConsentError(
+                  "Research consent was not changed. The previous confirmed choice is still active; retry when ready.",
+                );
+              } finally {
+                setResearchConsentSaving(false);
+              }
+            }}
           >
             {researchConsent?.participating
               ? "Withdraw research consent"
               : "Opt in to future prototype research"}
           </button>
         </div>
+        {researchConsentSaving && (
+          <p role="status">Saving research-consent choice…</p>
+        )}
+        {researchConsentError && <p role="alert">{researchConsentError}</p>}
         <p className="help" role="status">
           {researchConsent
             ? `${researchConsent.participating ? "Opted in" : "Opted out"} under ${researchConsent.noticeVersion}.`

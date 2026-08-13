@@ -68,6 +68,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let failNextBatchSizeSave = false;
   let failNextVisibilitySave = false;
   let failNextDirectorySave = false;
+  let failNextResearchConsentSave = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -289,6 +290,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     if (path === "/v1/consents")
       return response({ receipt: consentAccepted ? {} : null });
     if (path === "/v1/consents/research" && init.method === "PATCH") {
+      if (failNextResearchConsentSave) {
+        failNextResearchConsentSave = false;
+        return response({ error: "simulated_research_consent_failure" }, 503);
+      }
       researchParticipating = body.participating;
       return response({
         participating: researchParticipating,
@@ -764,6 +769,19 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.queryByLabelText("Profile display name")).toBeNull(),
   );
+  expect(screen.getByText(/Not enrolled/)).toBeTruthy();
+  failNextResearchConsentSave = true;
+  await fireEvent.press(
+    screen.getByText("Opt in to future prototype research"),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Research consent was not changed. The previous confirmed choice is still active; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(researchParticipating).toBeNull();
   expect(screen.getByText(/Not enrolled/)).toBeTruthy();
   await fireEvent.press(
     screen.getByText("Opt in to future prototype research"),

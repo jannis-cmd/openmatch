@@ -813,6 +813,25 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Your profile" }).click();
   await expectAccessible(page);
   await expect(page.getByText(/Not enrolled/)).toBeVisible();
+  await page.route(
+    "**/v1/consents/research",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_research_consent_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page
+    .getByRole("button", { name: "Opt in to future prototype research" })
+    .click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Research consent was not changed" }),
+  ).toBeVisible();
+  await expect(page.getByText(/Not enrolled/)).toBeVisible();
   await page
     .getByRole("button", { name: "Opt in to future prototype research" })
     .click();

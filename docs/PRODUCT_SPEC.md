@@ -64,7 +64,7 @@ The system must distinguish:
 - Short, versioned consent screens for service processing, research participation, and optional verification—never bundled.
 - Export, pause, hide, and delete controls available from Profile without contacting support.
 - The executable prototype implements JSON export, deletion/reset, pause, and hide across web, iOS, and Android. Profile visibility and account-matching participation change only after server confirmation. While either privacy mutation is running, competing controls are disabled; failure leaves the prior confirmed state visibly active and provides a retryable, action-specific error. These controls still require threat-model and assistive-technology review before any pilot.
-- Research consent defaults off and can be withdrawn prospectively at any time.
+- Research consent defaults off and can be withdrawn prospectively at any time. Opt-in and withdrawal preserve the last server-confirmed receipt while saving, disable repeat submission, and expose a local retry error after failure rather than implying that consent changed.
 - The executable passphrase prototype accepts 15–128 characters without composition or periodic-change rules, allows password-manager autofill/paste, verifies the current passphrase before a change, and atomically replaces all sessions. Passkeys and verified recovery remain the production direction.
 - The executable recovery prototype issues eight one-time 128-bit look-up secrets only after current-passphrase verification, stores only their hashes, invalidates an older set when replaced, and atomically consumes the complete set while replacing the passphrase and all sessions. It is an offline fallback—not verified contact ownership, identity proofing, or MFA.
 - When SMTP delivery is explicitly configured, the account service sends an eight-digit, salted-scrypt-protected, single-use email confirmation code that expires within 24 hours. Confirmation proves inbox access only. Unconfirmed accounts can finish private setup but cannot opt into or appear in account matching; missing delivery configuration remains visibly unconfirmed rather than inventing verification.
@@ -75,7 +75,7 @@ The first-run product setup is intentionally short: public name, adult age, shor
 
 ### 4.2 Profile
 
-Required: display name/pseudonym, age, approximate region, gender description, people sought, relationship intention, short biography, at least one current representative photo, availability/readiness.
+Required in the executable prototype: display name/pseudonym, age, approximate region, gender description, people sought, relationship intention, short biography, and availability/readiness. A representative photo remains absent until the separate public safety, privacy, abuse-operations, accessibility, outing-risk, and inclusion review permits it.
 
 Optional structured fields: languages, accessibility needs, children/current parenting, desire for children, religion/importance, politics/importance, smoking, alcohol, other substances, pets, schedule, distance/mobility, relationship structure, and selected values/prompts.
 

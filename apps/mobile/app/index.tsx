@@ -217,6 +217,10 @@ export default function App() {
   const [connectionPreferenceError, setConnectionPreferenceError] = useState<
     string | null
   >(null);
+  const [researchConsentSaving, setResearchConsentSaving] = useState(false);
+  const [researchConsentError, setResearchConsentError] = useState<
+    string | null
+  >(null);
   const [accountDeliveryStatus, setAccountDeliveryStatus] =
     useState<AccountDeliveryStatus | null>(null);
   const [securityNotificationDelivery, setSecurityNotificationDelivery] =
@@ -370,6 +374,8 @@ export default function App() {
     setVisibilityActionError(null);
     setConnectionPreferenceAction(null);
     setConnectionPreferenceError(null);
+    setResearchConsentSaving(false);
+    setResearchConsentError(null);
   }, [accessMode]);
   useEffect(() => {
     let active = true;
@@ -2709,14 +2715,36 @@ export default function App() {
                       : "Opt in to future prototype research"
                   }
                   secondary
-                  onPress={() =>
+                  disabled={researchConsentSaving}
+                  onPress={() => {
+                    setResearchConsentSaving(true);
+                    setResearchConsentError(null);
                     void api
                       .updateResearchConsent(
                         !(researchConsent?.participating === true),
                       )
                       .then(setResearchConsent)
-                  }
+                      .catch(() =>
+                        setResearchConsentError(
+                          "Research consent was not changed. The previous confirmed choice is still active; retry when ready.",
+                        ),
+                      )
+                      .finally(() => setResearchConsentSaving(false));
+                  }}
                 />
+                {researchConsentSaving && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.mathNote}
+                  >
+                    Saving research-consent choice…
+                  </Text>
+                )}
+                {researchConsentError && (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {researchConsentError}
+                  </Text>
+                )}
                 <Text accessibilityLiveRegion="polite" style={styles.mathNote}>
                   {researchConsent
                     ? `${researchConsent.participating ? "Opted in" : "Opted out"} under ${researchConsent.noticeVersion}.`
