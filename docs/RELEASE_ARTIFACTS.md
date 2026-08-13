@@ -1,12 +1,36 @@
 # Verified mobile artifacts
 
 This file records reproducible provenance for archived owner-testing artifacts.
-Every listed binary is an immutable source snapshot that predates the current
-repository head. It is not the current implementation, an app-store approval,
-or a claim of production readiness. The same facts are published in
+Every listed binary is an immutable source snapshot. The newest Simulator
+archive is built from the repository revision named below; older Android and
+iOS artifacts remain explicitly archived. None is an app-store approval or a
+claim of production readiness. The same facts are published in
 [`RELEASE_ARTIFACTS.json`](./RELEASE_ARTIFACTS.json) for machine verification.
 
 ## OpenMatch 0.1.0
+
+### Current iOS Simulator archive — build ff567a6f
+
+- Purpose: unsigned native compilation and Simulator testing while Apple
+  Developer Program enrollment is pending
+- EAS build: `ff567a6f-23eb-4eae-b058-d62842d1cb1e`
+- Source commit: `e1c495ec9b216fefe796d0359432ae4ce40f97ab`
+- Bundle identifier: `org.openmatch.app`
+- Version: `0.1.0` (`CFBundleVersion` 1)
+- Artifact: <https://expo.dev/artifacts/eas/5pf4cynFmwyee-zFtDmMeZSQFZlqwnA6wC_O82bt-40.tar.gz>
+- Size: 22,493,645 bytes
+- SHA-256: `72320e5666f0f5c96cbeef7f3f903a8cc90f14c86514750d0132372b83e4ff51`
+- Verification: EAS finished successfully; gzip integrity passed; the archive
+  contains `OpenMatch.app`; `Info.plist` contains the expected identifier,
+  version, strict transport policy, and `ITSAppUsesNonExemptEncryption=false`;
+  the executable is a universal Simulator Mach-O for `arm64` and `x86_64`;
+  Expo's embedded app configuration contains the complete source revision; and
+  the bundle contains the Tailnet API and web origins plus the verified primary
+  email-change and cancellation paths.
+
+This archive cannot run on an iPhone and is not TestFlight-signed. It requires
+Xcode's iOS Simulator on a Mac. Physical-device signing and TestFlight remain
+gated by active Apple Developer Program membership and App Store Connect setup.
 
 ### Android direct-install APK — build 10
 
@@ -59,7 +83,7 @@ because the account's included Android build quota is exhausted until September
 An AAB is not directly installable. Google Play Console enrollment, listing,
 data-safety declarations, tester setup, and submission have not been performed.
 
-### iOS Simulator archive — build 1
+### Archived iOS Simulator archive — build 1
 
 - Purpose: unsigned native compilation and testing in iOS Simulator
 - EAS build: `f10dbdcd-6d41-4338-9a8a-0b175ade0994`

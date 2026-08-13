@@ -29,6 +29,19 @@
       "sha256": "0cd9d786195666fdc90b6304f11f05e54a379a86425f979b26535b6e59c95958"
     },
     {
+      "id": "ios-simulator-build-ff567a6f",
+      "platform": "ios",
+      "kind": "simulator-archive",
+      "version": "0.1.0",
+      "buildNumber": "1",
+      "sourceCommit": "e1c495ec9b216fefe796d0359432ae4ce40f97ab",
+      "status": "archived-source-snapshot",
+      "directlyInstallable": false,
+      "url": "https://expo.dev/artifacts/eas/5pf4cynFmwyee-zFtDmMeZSQFZlqwnA6wC_O82bt-40.tar.gz",
+      "sizeBytes": 22493645,
+      "sha256": "72320e5666f0f5c96cbeef7f3f903a8cc90f14c86514750d0132372b83e4ff51"
+    },
+    {
       "id": "ios-simulator-build-1",
       "platform": "ios",
       "kind": "simulator-archive",

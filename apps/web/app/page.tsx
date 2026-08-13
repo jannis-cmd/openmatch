@@ -58,6 +58,9 @@ type SiteView = "landing" | "sign-in" | "app";
 const archivedAndroidApk = releaseArtifacts.artifacts.find(
   ({ id }) => id === "android-apk-build-10",
 )!;
+const currentIosSimulator = releaseArtifacts.artifacts.find(
+  ({ id }) => id === "ios-simulator-build-ff567a6f",
+)!;
 
 const operationLimitMessage = (error: unknown, fallback: string) => {
   if (
@@ -1914,9 +1917,9 @@ function LandingPage({
           <p className="landing-eyebrow">Owner testing</p>
           <h2>Native builds, with exact provenance.</h2>
           <p>
-            Android and iOS compile from the shared current source. Existing
-            downloadable artifacts are immutable older snapshots, not the
-            current app and not public app-store releases.
+            Android and iOS compile from the shared source. Downloadable
+            artifacts are immutable source snapshots, not public app-store
+            releases.
           </p>
         </div>
         <div className="download-grid">
@@ -1947,10 +1950,22 @@ function LandingPage({
             <span className="download-platform">iPhone and iPad</span>
             <h3>TestFlight pending</h3>
             <p>
-              Native iOS compilation is verified with a Simulator build.
-              Installation on an iPhone still requires active Apple Developer
-              Program enrollment and a signed TestFlight build.
+              Native iOS compilation is verified from commit{" "}
+              <a
+                href={`https://github.com/jannis-cmd/openmatch/commit/${currentIosSimulator.sourceCommit}`}
+              >
+                {currentIosSimulator.sourceCommit.slice(0, 7)}
+              </a>
+              . This unsigned archive runs only in an iOS Simulator—not on an
+              iPhone. Physical installation still requires active Apple
+              Developer Program enrollment and a signed TestFlight build.
             </p>
+            <a
+              className="primary-action download-action"
+              href={currentIosSimulator.url}
+            >
+              Download iOS Simulator archive
+            </a>
             <span className="pending-action" role="status">
               Waiting for Apple enrollment
             </span>
