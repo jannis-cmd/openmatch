@@ -314,7 +314,7 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("link", { name: "machine-readable metadata ↗" }),
   ).toHaveAttribute("href", /RELEASE_ARTIFACTS\.json/);
   await expect(
-    page.getByText("Signing ready · waiting for build capacity"),
+    page.getByText("Signing ready · local Xcode license pending"),
   ).toBeVisible();
   const publicApiRequests: string[] = [];
   page.on("request", (request) => {

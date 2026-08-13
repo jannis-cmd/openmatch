@@ -1977,8 +1977,8 @@ function LandingPage({
               . This unsigned archive runs only in an iOS Simulator—not on an
               iPhone. Apple membership, distribution signing, provisioning, and
               least-privilege App Store submission credentials are ready. The
-              signed archive is waiting for available EAS cloud-build capacity
-              or full Xcode on this Mac.
+              signed archive can be built locally without hosted EAS quota once
+              the account owner accepts the installed Xcode license.
             </p>
             <a
               className="primary-action download-action"
@@ -1987,7 +1987,7 @@ function LandingPage({
               Download iOS Simulator archive
             </a>
             <span className="pending-action" role="status">
-              Signing ready · waiting for build capacity
+              Signing ready · local Xcode license pending
             </span>
             <p className="help">{releaseArtifacts.buildAvailability.ios}</p>
           </article>

@@ -31,8 +31,9 @@ claim of production readiness. The same facts are published in
 This archive cannot run on an iPhone and is not TestFlight-signed. It requires
 Xcode's iOS Simulator on a Mac. Apple membership, the distribution certificate,
 provisioning profile, and least-privilege App Store Connect submission key are
-now configured. A physical-device/TestFlight archive still requires available
-EAS cloud-build capacity or full Xcode, which is not installed on this Mac.
+now configured. Full Xcode 26.6 is installed, so a physical-device/TestFlight
+archive can be compiled with local EAS without consuming hosted build quota
+after the account owner reviews and accepts Apple's Xcode license.
 
 ### Android direct-install APK — build 10
 
@@ -105,10 +106,10 @@ data-safety declarations, tester setup, and submission have not been performed.
   warning, and immediate safely-queued mutation response are embedded; and
   `ITSAppUsesNonExemptEncryption` is false
 
-This archive cannot run on an iPhone and is not TestFlight-signed. The Mac does
-not currently have full Xcode or Simulator installed. A physical-device build
-and TestFlight submission remain gated by active Apple Developer Program
-membership and App Store Connect setup.
+This archive cannot run on an iPhone and is not TestFlight-signed. Full Xcode is
+now installed on the Mac, and Apple Developer membership plus App Store Connect
+signing are active. The account owner's acceptance of Apple's Xcode license is
+the remaining prerequisite before local native compilation can begin.
 
 ## Common limits
 

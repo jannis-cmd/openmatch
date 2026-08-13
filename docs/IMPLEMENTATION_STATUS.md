@@ -76,6 +76,14 @@ pnpm build
 cd apps/mobile && pnpm dlx expo-doctor
 ```
 
+Apple membership and signing credentials are active, and full Xcode 26.6 is
+installed on the build Mac. The next signed iOS archive can use local EAS and
+therefore does not depend on hosted-build quota. Local compilation is currently
+gated only by the account owner's review and acceptance of Apple's Xcode
+license, followed by any CocoaPods/toolchain prerequisites reported by the
+local builder. Automation does not accept legal agreements on the owner's
+behalf.
+
 ## Deliberately not claimed
 
 Before any real-user pilot, the project still requires a deployed HTTPS service, verified production authentication and authorization, a transactional multi-user datastore and migrations, privacy-reviewed coarse location, identity/inclusion research, photo storage and processing, staffed moderation and appeals, rate limiting beyond the local boundary, encryption and secret management, notification design, deletion/backup drills, device-level assistive-technology testing, security review, legal/DPIA review, and a geographically viable safety program.

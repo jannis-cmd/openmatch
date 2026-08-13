@@ -18,9 +18,13 @@ contains no endpoint. EAS injects the selected HTTPS origin at build time.
   provisioning profile for `org.openmatch.app`, both expiring 13 August 2027.
 - A least-privilege `APP_MANAGER` App Store Connect API key is assigned to the
   project for EAS Submit. No signing private key or API key is committed here.
-- The next physical-device/TestFlight archive is waiting for available EAS
-  cloud-build capacity. This Mac has Command Line Tools, but not full Xcode, so
-  it cannot produce the signed archive locally.
+- Full Xcode 26.6 is installed on the build Mac. The account owner must still
+  review and accept Apple's Xcode license; OpenMatch automation must not accept
+  a legal agreement on their behalf.
+- After that acceptance, a local EAS production build can create the next
+  signed archive without consuming hosted EAS build quota. CocoaPods and any
+  other local prerequisites reported by the preflight remain machine setup,
+  not repository secrets.
 - The tailnet beta exposes a prototype privacy notice at
   `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/privacy` and support
   information at `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/support`.
@@ -136,6 +140,51 @@ the selected Apple Developer team, replace it in `app.json` with a unique
 reverse-domain identifier. App Store privacy disclosures must reflect the
 deployed service, not only this prototype repository.
 
+## Quota-free local iOS build
+
+Local EAS builds use the same managed Expo project and signing configuration but
+compile on this Mac rather than consuming hosted build capacity. First, the
+account owner reviews and accepts the installed Xcode license in Terminal:
+
+```bash
+sudo xcodebuild -license
+```
+
+Then verify the license and Xcode selection without changing either:
+
+```bash
+xcode-select -p
+xcodebuild -license check
+xcodebuild -version
+```
+
+From a clean, pushed source revision, fetch the public production environment,
+set the immutable source revision explicitly, and build locally:
+
+```bash
+cd apps/mobile
+npx eas-cli@latest env:pull --environment production --path .env.production.local
+export EAS_BUILD_GIT_COMMIT_HASH="$(git rev-parse HEAD)"
+npx eas-cli@latest build --local --profile production --platform ios \
+  --output ./openmatch-production.ipa
+rm .env.production.local
+```
+
+The local environment file is ignored by Git, but it should still be removed
+after use. Before submission, inspect the IPA, confirm that the embedded source
+revision and HTTPS origins are correct, record its SHA-256 digest in the release
+inventory, and verify account deletion on the installed build. Do not submit an
+uninspected local artifact. If the local builder reports a missing CocoaPods or
+Ruby toolchain, install that prerequisite before retrying; do not bypass native
+dependency installation or code signing.
+
+Once the archive is verified, submission does not require another build:
+
+```bash
+cd apps/mobile
+npx eas-cli@latest submit --platform ios --path ./openmatch-production.ipa
+```
+
 ## Resume iOS when build capacity is available
 
 1. Confirm current agreements remain accepted in Apple Developer and App Store
@@ -163,9 +212,9 @@ eas build --profile ios-simulator --platform ios
 
 This artifact can be installed only into an iOS Simulator. It proves native
 compilation and supports simulator testing, but it cannot run on an iPhone and
-does not replace TestFlight signing. The current Mac has Apple Command Line
-Tools but not full Xcode or Simulator, so local installation remains unavailable
-until Xcode is installed.
+does not replace TestFlight signing. Full Xcode is now installed locally; its
+license must be accepted by the account owner before Simulator compilation or
+installation can run.
 
 ## Store information still requiring an owner decision
 
