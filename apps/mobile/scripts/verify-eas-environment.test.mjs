@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   validateReleaseApiUrl,
   validateReleaseOrigin,
+  validateSourceRevision,
 } from "./verify-eas-environment.mjs";
 
 test("requires a service URL", () => {
@@ -23,6 +24,12 @@ test("rejects URL components beyond the origin", () => {
 
 test("accepts a plain HTTPS origin", () => {
   assert.equal(validateReleaseApiUrl(" https://api.example.com/ "), null);
+});
+
+test("requires the immutable EAS source revision", () => {
+  assert.match(validateSourceRevision(undefined), /full lowercase Git/);
+  assert.match(validateSourceRevision("abc123"), /full lowercase Git/);
+  assert.equal(validateSourceRevision("a".repeat(40)), null);
 });
 
 test("validates the separately configured public website origin", () => {

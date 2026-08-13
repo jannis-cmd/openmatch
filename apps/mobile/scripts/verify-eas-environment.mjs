@@ -30,6 +30,11 @@ export function validateReleaseOrigin(value, variableName) {
 export const validateReleaseApiUrl = (value) =>
   validateReleaseOrigin(value, "EXPO_PUBLIC_OPENMATCH_API_URL");
 
+export const validateSourceRevision = (value) =>
+  /^[0-9a-f]{40}$/.test(value ?? "")
+    ? null
+    : "EAS_BUILD_GIT_COMMIT_HASH must be the full lowercase Git commit hash.";
+
 if (process.env.EAS_BUILD === "true" || process.env.EAS_BUILD === "1") {
   const error = validateReleaseApiUrl(
     process.env.EXPO_PUBLIC_OPENMATCH_API_URL,
@@ -38,9 +43,14 @@ if (process.env.EAS_BUILD === "true" || process.env.EAS_BUILD === "1") {
     process.env.EXPO_PUBLIC_OPENMATCH_WEB_URL,
     "EXPO_PUBLIC_OPENMATCH_WEB_URL",
   );
+  const sourceError = validateSourceRevision(
+    process.env.EAS_BUILD_GIT_COMMIT_HASH,
+  );
 
-  if (error || webError) {
-    console.error(`OpenMatch mobile configuration error: ${error ?? webError}`);
+  if (error || webError || sourceError) {
+    console.error(
+      `OpenMatch mobile configuration error: ${error ?? webError ?? sourceError}`,
+    );
     process.exit(1);
   }
 

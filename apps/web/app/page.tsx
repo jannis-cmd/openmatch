@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import releaseArtifacts from "../../../docs/RELEASE_ARTIFACTS.json";
 import { resolveWebApiConfiguration } from "../lib/api-configuration.mjs";
 import {
   clearPendingMessageAttempts,
@@ -50,6 +51,10 @@ import {
 
 type View = "today" | "connections" | "preferences" | "profile" | "about";
 type SiteView = "landing" | "sign-in" | "app";
+
+const archivedAndroidApk = releaseArtifacts.artifacts.find(
+  ({ id }) => id === "android-apk-build-10",
+)!;
 
 const operationLimitMessage = (error: unknown, fallback: string) => {
   if (
@@ -1597,28 +1602,36 @@ function LandingPage({
       <section className="app-downloads" id="apps">
         <div className="evidence-heading">
           <p className="landing-eyebrow">Owner testing</p>
-          <h2>Real native builds. Private beta limits.</h2>
+          <h2>Native builds, with exact provenance.</h2>
           <p>
-            Android and iOS now compile as native applications. They connect to
-            the same transparent matching service as the web app. This remains
-            an owner-only beta—not a public app-store launch.
+            Android and iOS compile from the shared current source. Existing
+            downloadable artifacts are immutable older snapshots, not the
+            current app and not public app-store releases.
           </p>
         </div>
         <div className="download-grid">
           <article>
             <span className="download-platform">Android</span>
-            <h3>Install build 10</h3>
+            <h3>Archived APK · build {archivedAndroidApk.buildNumber}</h3>
             <p>
-              Open the APK on an Android phone. The phone must be signed into
-              the <code>cheetah-vernier</code> tailnet, and Android may ask you
-              to allow installation from the browser.
+              This owner-testing APK was built from source commit{" "}
+              <a
+                href={`https://github.com/jannis-cmd/openmatch/commit/${archivedAndroidApk.sourceCommit}`}
+              >
+                {archivedAndroidApk.sourceCommit.slice(0, 7)}
+              </a>
+              . It predates current availability, export, accessibility, and
+              deployment improvements. Install it only to inspect that older
+              snapshot. The phone must be signed into the{" "}
+              <code>cheetah-vernier</code> tailnet.
             </p>
             <a
               className="primary-action download-action"
-              href="https://expo.dev/artifacts/eas/QgNIPOR4gCsrI0iGhB8Y3wMNZeAWC5hjzdqQyXstxto.apk"
+              href={archivedAndroidApk.url}
             >
-              Download Android APK
+              Download archived Android APK
             </a>
+            <p className="help">{releaseArtifacts.buildAvailability.android}</p>
           </article>
           <article>
             <span className="download-platform">iPhone and iPad</span>
@@ -1631,6 +1644,7 @@ function LandingPage({
             <span className="pending-action" role="status">
               Waiting for Apple enrollment
             </span>
+            <p className="help">{releaseArtifacts.buildAvailability.ios}</p>
           </article>
         </div>
         <p className="download-provenance">
@@ -1638,8 +1652,13 @@ function LandingPage({
           limit is public in the{" "}
           <a href="https://github.com/jannis-cmd/openmatch/blob/main/docs/RELEASE_ARTIFACTS.md">
             verified artifact record ↗
+          </a>{" "}
+          and its{" "}
+          <a href="https://github.com/jannis-cmd/openmatch/blob/main/docs/RELEASE_ARTIFACTS.json">
+            machine-readable metadata ↗
           </a>
-          .
+          . Future native builds embed their full EAS Git source revision and
+          expose it in the in-app Method screen.
         </p>
       </section>
 

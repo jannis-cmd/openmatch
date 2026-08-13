@@ -76,10 +76,16 @@ test("resolves to strict iOS transport and internet-only Android access", async 
     [expoCli, "config", "--type", "introspect", "--json"],
     {
       cwd: new URL("..", import.meta.url),
+      env: {
+        ...process.env,
+        EAS_BUILD_GIT_COMMIT_HASH: "a".repeat(40),
+      },
       maxBuffer: 10 * 1024 * 1024,
     },
   );
-  const resolved = JSON.parse(stdout)._internal.modResults;
+  const config = JSON.parse(stdout);
+  assert.equal(config.extra.sourceRevision, "a".repeat(40));
+  const resolved = config._internal.modResults;
   assert.equal("NSFaceIDUsageDescription" in resolved.ios.infoPlist, false);
   assert.deepEqual(resolved.ios.infoPlist.NSAppTransportSecurity, {
     NSAllowsArbitraryLoads: false,

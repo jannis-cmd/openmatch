@@ -1,7 +1,10 @@
 # Verified mobile artifacts
 
-This file records reproducible provenance for the current owner-testing
-artifacts. It is not an app-store approval or a claim of production readiness.
+This file records reproducible provenance for archived owner-testing artifacts.
+Every listed binary is an immutable source snapshot that predates the current
+repository head. It is not the current implementation, an app-store approval,
+or a claim of production readiness. The same facts are published in
+[`RELEASE_ARTIFACTS.json`](./RELEASE_ARTIFACTS.json) for machine verification.
 
 ## OpenMatch 0.1.0
 
@@ -28,11 +31,12 @@ Android SDK, emulator, or connected Android device, so on-device installation
 and APK signature inspection remain separate validation steps.
 
 Build 10 shows durable pending-delivery state on load, manual refresh, and
-foreground return. The subsequent source commit `a485751` additionally shows
-the safely-queued warning immediately from a failed mutation response. Expo
-rejected Android build 11 before compilation because the account's included
-Android build quota is exhausted until September 1, 2026; the live web client
-and latest iOS Simulator archive already include the refinement.
+foreground return. It does not include later source work such as immediate
+queued-delivery feedback, account security refinements, expiring explicit
+availability, file-based data export, current accessibility changes, or native
+source-revision disclosure. Expo rejected Android build 11 before compilation
+because the account's included Android build quota is exhausted until September
+1, 2026.
 
 ### Android Play App Bundle — build 10
 
@@ -83,7 +87,10 @@ membership and App Store Connect setup.
 ## Common limits
 
 All three artifacts connect to the private Mac-hosted tailnet API. They are not
-public production releases. SMTP, production monitoring, redundant hosting,
+current binaries or public production releases. Future EAS builds resolve the
+official `EAS_BUILD_GIT_COMMIT_HASH` into the app manifest and expose that full
+revision from the in-app Method screen; the pre-install verifier rejects a
+missing or malformed revision. SMTP, production monitoring, redundant hosting,
 staffed moderation/support, public legal/operator information, independent
 security assessment, and store disclosure review remain incomplete. See
 `docs/TAILNET_BETA.md` and `docs/IMPLEMENTATION_STATUS.md` before inviting any

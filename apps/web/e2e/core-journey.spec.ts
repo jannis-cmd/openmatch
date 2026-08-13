@@ -226,12 +226,16 @@ test("first run through a persistent connection and safety action", async ({
   ).toHaveAttribute("href", "tel:142");
   await expect(
     page.getByRole("heading", {
-      name: "Real native builds. Private beta limits.",
+      name: "Native builds, with exact provenance.",
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Download Android APK" }),
+    page.getByRole("link", { name: "Download archived Android APK" }),
   ).toHaveAttribute("href", /QgNIPOR4gCsrI0iGhB8Y3wMNZeAWC5hjzdqQyXstxto\.apk/);
+  await expect(page.getByText(/predates current availability/)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "machine-readable metadata ↗" }),
+  ).toHaveAttribute("href", /RELEASE_ARTIFACTS\.json/);
   await expect(page.getByText("Waiting for Apple enrollment")).toBeVisible();
   const publicApiRequests: string[] = [];
   page.on("request", (request) => {

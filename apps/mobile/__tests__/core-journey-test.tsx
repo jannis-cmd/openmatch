@@ -676,6 +676,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(
     screen.getByText("Deployed code: unpinned development build"),
   ).toBeTruthy();
+  expect(
+    screen.getByText("Native source: unpinned local development bundle"),
+  ).toBeTruthy();
   expect(screen.getByText("Final score: 69%")).toBeTruthy();
   await fireEvent.press(screen.getByLabelText("Lower your directed fit"));
   expect(screen.getByText("Final score: 65%")).toBeTruthy();

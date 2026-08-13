@@ -75,6 +75,12 @@ credentials, a path, query, or fragment. The app also validates both values at
 runtime. Service misconfiguration fails closed; public-link misconfiguration is
 shown in the Method tab instead of opening an invented destination.
 
+EAS also supplies `EAS_BUILD_GIT_COMMIT_HASH`. Dynamic app configuration embeds
+that public full revision in the native manifest, and the build hook rejects a
+missing or malformed value. The Method tab links the exact native source commit
+separately from the API's deployed commit, so a tester can detect an older app
+talking to a newer service.
+
 ## Preview build
 
 After the HTTPS service has authentication, abuse controls, monitoring, and a

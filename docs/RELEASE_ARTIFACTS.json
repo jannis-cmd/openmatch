@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0.0",
+  "reviewedAt": "2026-08-13",
+  "artifacts": [
+    {
+      "id": "android-apk-build-10",
+      "platform": "android",
+      "kind": "apk",
+      "version": "0.1.0",
+      "buildNumber": "10",
+      "sourceCommit": "b9c4039ee5a08560f151775c962ed4d56b388ab2",
+      "status": "archived-source-snapshot",
+      "directlyInstallable": true,
+      "url": "https://expo.dev/artifacts/eas/QgNIPOR4gCsrI0iGhB8Y3wMNZeAWC5hjzdqQyXstxto.apk",
+      "sizeBytes": 96735198,
+      "sha256": "78f00010859d5349b4d9e454b8d1e9d3c1164ef4a1611c8e9c1dfbf42d392fe5"
+    },
+    {
+      "id": "android-aab-build-10",
+      "platform": "android",
+      "kind": "aab",
+      "version": "0.1.0",
+      "buildNumber": "10",
+      "sourceCommit": "b9c4039ee5a08560f151775c962ed4d56b388ab2",
+      "status": "archived-source-snapshot",
+      "directlyInstallable": false,
+      "url": "https://expo.dev/artifacts/eas/jbW0V8ehJlgZff2v61OjOkW19-Z7yVvXWl1aLK5aQFY.aab",
+      "sizeBytes": 68103161,
+      "sha256": "0cd9d786195666fdc90b6304f11f05e54a379a86425f979b26535b6e59c95958"
+    },
+    {
+      "id": "ios-simulator-build-1",
+      "platform": "ios",
+      "kind": "simulator-archive",
+      "version": "0.1.0",
+      "buildNumber": "1",
+      "sourceCommit": "a48575199f1dfa0e21301c013122d57dd1964845",
+      "status": "archived-source-snapshot",
+      "directlyInstallable": false,
+      "url": "https://expo.dev/artifacts/eas/9L0V8WoFPy2D3kbEZGrs6O5hYIKi6tLWBRivGL9FEpU.tar.gz",
+      "sizeBytes": 22365824,
+      "sha256": "43294085031b745b618a1ee841b99fbbf694392eefdbb6d122a72e6d9f92c542"
+    }
+  ],
+  "buildAvailability": {
+    "android": "A newer cloud build is blocked by the included EAS Android quota until September 1, 2026.",
+    "ios": "A physical-device or TestFlight build is blocked until Apple Developer Program enrollment becomes active."
+  }
+}

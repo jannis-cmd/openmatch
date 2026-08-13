@@ -1352,6 +1352,11 @@ textarea {
   font-size: 28px;
   letter-spacing: -0.035em;
 }
+.download-grid p a {
+  color: #fff;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.16em;
+}
 .download-action {
   display: inline-block;
   margin-top: 12px;

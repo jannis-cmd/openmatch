@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Crypto from "expo-crypto";
+import Constants from "expo-constants";
 import { resolveApiConfiguration } from "../lib/api-configuration";
 import { resolveWebConfiguration } from "../lib/web-configuration";
 import { shareDataExport } from "../lib/share-data-export";
@@ -102,6 +103,13 @@ function securityNotice(status: SecurityNotificationStatus) {
 }
 
 export default function App() {
+  const configuredNativeSourceRevision = Constants.expoConfig?.extra
+    ?.sourceRevision as string | null | undefined;
+  const nativeSourceRevision = /^[0-9a-f]{40}$/.test(
+    configuredNativeSourceRevision ?? "",
+  )
+    ? configuredNativeSourceRevision
+    : null;
   const apiConfiguration = useMemo(
     () =>
       resolveApiConfiguration(
@@ -2793,6 +2801,21 @@ export default function App() {
                 Algorithm {transparency?.matching ?? ALGORITHM_VERSION} · No
                 hidden factors · Prototype
               </Text>
+              {nativeSourceRevision ? (
+                <Action
+                  label={`Open native source ${nativeSourceRevision.slice(0, 12)}`}
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      `https://github.com/jannis-cmd/openmatch/commit/${nativeSourceRevision}`,
+                    )
+                  }
+                />
+              ) : (
+                <Text style={styles.version}>
+                  Native source: unpinned local development bundle
+                </Text>
+              )}
               {transparency?.deployedCommit ? (
                 <Action
                   label={`Open deployed code ${transparency.deployedCommit.slice(0, 12)}`}
