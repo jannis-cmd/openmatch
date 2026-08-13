@@ -94,14 +94,14 @@ Soft priorities are capped at five and weighted by the user as Low, Medium, or H
 ### 4.4 Introductions
 
 - Default batch: up to five introductions twice per week; configurable down to one or paused.
-- Each card shows photos without beauty scoring, core information, biography, intention, shared/compatible factors, known differences, and exact score explanation.
+- Each executable card shows core information, biography, intention, shared/compatible factors, known differences, and an exact score explanation. Photos are deliberately absent until the consent, secure-processing, abuse-operations, accessibility, outing-risk, and inclusion questions in the public product boundaries are resolved; if later approved, image analysis and beauty scoring remain prohibited.
 - Actions: Interested, Pass, Save until batch expiry, Report/Block.
 - Pass is private and has no penalty. No undo monetization.
 - A connection opens only after mutual interest.
 - If fewer eligible people exist, show that honestly; never insert incompatible or inactive accounts.
 - Completed batches cannot be restarted as a repeatable feed. The executable clients publish the next Monday UTC window while stating that resolved profiles stay resolved and only newly eligible profiles may appear.
 
-The batch size is a testable starting hypothesis—not settled science. Users may select a finite alternative, and research must evaluate wellbeing and outcomes.
+The batch size is a testable starting hypothesis—not settled science. Users may select a finite alternative, and research must evaluate wellbeing and outcomes. The clients keep the last server-confirmed size visibly active while an update is running, prevent concurrent updates, disclose a failed write for explicit retry, and distinguish a confirmed save from a later introduction-refresh failure.
 
 The executable account service now includes a deliberately non-production
 multi-account path: after completed setup and a separate, versioned,

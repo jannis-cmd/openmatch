@@ -216,6 +216,10 @@ export default function App() {
   const [notificationEmail, setNotificationEmail] =
     useState<NotificationEmailStatus | null>(null);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
+  const [deliverySaving, setDeliverySaving] = useState(false);
+  const [deliverySaveError, setDeliverySaveError] = useState<string | null>(
+    null,
+  );
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
@@ -344,6 +348,8 @@ export default function App() {
     setPreferencesDraft(null);
     setPreferencesSaveError(null);
     setPreferencesSaving(false);
+    setDeliverySaveError(null);
+    setDeliverySaving(false);
   }, [accessMode]);
   useEffect(() => {
     let active = true;
@@ -1368,14 +1374,30 @@ export default function App() {
                 )
               }
               delivery={delivery}
-              setBatchSize={(batchSize) =>
+              deliverySaving={deliverySaving}
+              deliverySaveError={deliverySaveError}
+              setBatchSize={(batchSize) => {
+                setDeliverySaving(true);
+                setDeliverySaveError(null);
                 void api
                   .updateDeliverySettings(batchSize)
                   .then(async (next) => {
                     setDelivery(next);
-                    setIntroductions((await api.introductions()).items);
+                    try {
+                      setIntroductions((await api.introductions()).items);
+                    } catch {
+                      setSafetyNotice(
+                        "Batch size was saved, but introductions could not refresh. Check again shortly.",
+                      );
+                    }
                   })
-              }
+                  .catch(() =>
+                    setDeliverySaveError(
+                      "Batch size was not saved. The previous confirmed size is still active; retry when ready.",
+                    ),
+                  )
+                  .finally(() => setDeliverySaving(false));
+              }}
               onChange={(next) => {
                 setPreferencesDraft(next);
                 setPreferencesSaveError(null);
@@ -3335,6 +3357,8 @@ function PreferencesScreen({
   clearObservations = () => undefined,
   delivery,
   setBatchSize,
+  deliverySaving = false,
+  deliverySaveError = null,
   pendingChanges = false,
   saving = false,
   saveError = null,
@@ -3348,6 +3372,8 @@ function PreferencesScreen({
   clearObservations?: () => void;
   delivery?: DeliverySettings;
   setBatchSize?: (batchSize: DeliverySettings["batchSize"]) => void;
+  deliverySaving?: boolean;
+  deliverySaveError?: string | null;
   pendingChanges?: boolean;
   saving?: boolean;
   saveError?: string | null;
@@ -3404,34 +3430,50 @@ function PreferencesScreen({
         style={saving ? styles.disabledEditor : undefined}
       >
         {delivery && setBatchSize && (
-          <View style={styles.scoreCard}>
-            <Text style={styles.name}>Finite batch size</Text>
-            <Text style={styles.scoreNote}>
-              Choose up to how many mutually eligible people appear at once. One
-              to five is a product hypothesis, not a scientifically optimal
-              number.
-            </Text>
-            <View style={styles.adjust}>
-              {([1, 2, 3, 4, 5] as const).map((size) => (
-                <Pressable
-                  key={size}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: delivery.batchSize === size }}
-                  accessibilityLabel={`${size} introductions per batch`}
-                  style={[
-                    styles.smallButton,
-                    delivery.batchSize === size && styles.selectedButton,
-                  ]}
-                  onPress={() => setBatchSize(size)}
-                >
-                  <Text>{size}</Text>
-                </Pressable>
-              ))}
+          <>
+            <View style={styles.scoreCard}>
+              <Text style={styles.name}>Finite batch size</Text>
+              <Text style={styles.scoreNote}>
+                Choose up to how many mutually eligible people appear at once.
+                One to five is a product hypothesis, not a scientifically
+                optimal number.
+              </Text>
+              <View style={styles.adjust}>
+                {([1, 2, 3, 4, 5] as const).map((size) => (
+                  <Pressable
+                    key={size}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      selected: delivery.batchSize === size,
+                      disabled: deliverySaving,
+                    }}
+                    accessibilityLabel={`${size} introductions per batch`}
+                    disabled={deliverySaving}
+                    style={[
+                      styles.smallButton,
+                      delivery.batchSize === size && styles.selectedButton,
+                    ]}
+                    onPress={() => setBatchSize(size)}
+                  >
+                    <Text>{size}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.mathNote}>
+                Saved profiles are separate. Pause introductions from Profile.
+              </Text>
             </View>
-            <Text style={styles.mathNote}>
-              Saved profiles are separate. Pause introductions from Profile.
-            </Text>
-          </View>
+            {deliverySaving && (
+              <Text accessibilityLiveRegion="polite" style={styles.mathNote}>
+                Saving batch size…
+              </Text>
+            )}
+            {deliverySaveError && (
+              <Text accessibilityRole="alert" style={styles.errorText}>
+                {deliverySaveError}
+              </Text>
+            )}
+          </>
         )}
         <View style={styles.scoreCard}>
           <Text style={styles.name}>Mutual boundaries</Text>

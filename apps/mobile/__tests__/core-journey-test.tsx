@@ -63,6 +63,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let emailVerified = false;
   let failNextProfileSave = false;
   let failNextPreferencesSave = false;
+  let failNextBatchSizeSave = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -260,6 +261,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       });
     }
     if (path === "/v1/delivery" && init.method === "PATCH") {
+      if (failNextBatchSizeSave) {
+        failNextBatchSizeSave = false;
+        return response({ error: "simulated_delivery_write_failure" }, 503);
+      }
       batchSize = body.batchSize;
       return response({ batchSize });
     }
@@ -642,6 +647,20 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     ),
   ).toBeTruthy();
   expect(screen.getByText("Clear learning examples")).toBeTruthy();
+  failNextBatchSizeSave = true;
+  await fireEvent.press(screen.getByLabelText("1 introductions per batch"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Batch size was not saved. The previous confirmed size is still active; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(batchSize).toBe(5);
+  expect(screen.getByLabelText("5 introductions per batch")).toHaveProp(
+    "accessibilityState",
+    expect.objectContaining({ selected: true }),
+  );
   await fireEvent.press(screen.getByLabelText("1 introductions per batch"));
   await waitFor(() => expect(batchSize).toBe(1));
   await fireEvent.press(screen.getByLabelText("Lower youngest age"));

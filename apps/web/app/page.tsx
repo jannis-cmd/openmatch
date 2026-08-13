@@ -265,6 +265,10 @@ function AppExperience({
   const [notificationEmail, setNotificationEmail] =
     useState<NotificationEmailStatus | null>(null);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
+  const [deliverySaving, setDeliverySaving] = useState(false);
+  const [deliverySaveError, setDeliverySaveError] = useState<string | null>(
+    null,
+  );
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
@@ -1067,10 +1071,28 @@ function AppExperience({
                   value={preferencesDraft ?? preferences}
                   delivery={delivery}
                   setBatchSize={async (batchSize) => {
-                    const next = await api.updateDeliverySettings(batchSize);
-                    setDelivery(next);
-                    setIntroductions((await api.introductions()).items);
+                    setDeliverySaving(true);
+                    setDeliverySaveError(null);
+                    try {
+                      const next = await api.updateDeliverySettings(batchSize);
+                      setDelivery(next);
+                      try {
+                        setIntroductions((await api.introductions()).items);
+                      } catch {
+                        setNotice(
+                          "Batch size was saved, but introductions could not refresh. Check again shortly.",
+                        );
+                      }
+                    } catch {
+                      setDeliverySaveError(
+                        "Batch size was not saved. The previous confirmed size is still active; retry when ready.",
+                      );
+                    } finally {
+                      setDeliverySaving(false);
+                    }
                   }}
+                  deliverySaving={deliverySaving}
+                  deliverySaveError={deliverySaveError}
                   suggestions={suggestions}
                   observationCount={preferenceObservationCount}
                   clearObservations={async () => {
@@ -2564,6 +2586,8 @@ function PreferencesView({
   value,
   delivery,
   setBatchSize,
+  deliverySaving,
+  deliverySaveError,
   suggestions,
   observationCount,
   clearObservations,
@@ -2577,6 +2601,8 @@ function PreferencesView({
   value: Preferences;
   delivery: DeliverySettings;
   setBatchSize: (batchSize: DeliverySettings["batchSize"]) => Promise<void>;
+  deliverySaving: boolean;
+  deliverySaveError: string | null;
   suggestions: WeightSuggestion[];
   observationCount: number;
   clearObservations: () => Promise<void>;
@@ -2629,6 +2655,7 @@ function PreferencesView({
             {([1, 2, 3, 4, 5] as const).map((size) => (
               <button
                 key={size}
+                disabled={deliverySaving}
                 aria-pressed={delivery.batchSize === size}
                 className={delivery.batchSize === size ? "interest" : "pass"}
                 onClick={() => void setBatchSize(size)}
@@ -2641,6 +2668,8 @@ function PreferencesView({
             Saved profiles are separate. Pause introductions any time from Your
             profile.
           </p>
+          {deliverySaving && <p role="status">Saving batch size…</p>}
+          {deliverySaveError && <p role="alert">{deliverySaveError}</p>}
         </section>
         <section className="settings-card">
           <h2>Mutual boundaries</h2>

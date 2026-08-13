@@ -679,6 +679,25 @@ test("first run through a persistent connection and safety action", async ({
   const batchSettings = page
     .getByRole("heading", { name: "Finite batch size" })
     .locator("..");
+  await page.route(
+    "**/v1/delivery",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_delivery_write_failure" }),
+      }),
+    { times: 1 },
+  );
+  await batchSettings.getByRole("button", { name: "1", exact: true }).click();
+  await expect(
+    batchSettings
+      .getByRole("alert")
+      .filter({ hasText: "Batch size was not saved" }),
+  ).toBeVisible();
+  await expect(
+    batchSettings.getByRole("button", { name: "5", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
   await batchSettings.getByRole("button", { name: "1", exact: true }).click();
   await expect(
     batchSettings.getByRole("button", { name: "1", exact: true }),
