@@ -781,6 +781,115 @@ export function createApp(
       }
       if (
         request.method === "GET" &&
+        url.pathname === "/v1/account/email-change"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        return send(response, 200, {
+          ...accounts.emailChangeStatus(accountSession.accountId),
+          deliveryConfigured: Boolean(emailVerificationSender),
+        });
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/email-change/request"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!emailVerificationSender)
+          return send(response, 503, {
+            error: "email_delivery_not_configured",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          email?: unknown;
+          currentPassword?: unknown;
+        };
+        try {
+          const verification = accounts.createEmailChange(
+            accountSession.accountId,
+            body.currentPassword,
+            body.email,
+          );
+          const deliveries = await Promise.allSettled([
+            emailVerificationSender(verification.current),
+            emailVerificationSender(verification.proposed),
+          ]);
+          if (deliveries.some(({ status }) => status === "rejected")) {
+            accounts.cancelEmailChange(accountSession.accountId);
+            return send(response, 503, { error: "email_delivery_failed" });
+          }
+          return send(response, 202, {
+            sent: true,
+            pendingEmail: verification.proposed.email,
+            expiresAt: verification.proposed.expiresAt,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/email-change/confirm"
+      ) {
+        if (!accountSession || !accounts)
+          return send(response, 409, {
+            error: "authenticated_account_required",
+          });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          currentCode?: unknown;
+          newCode?: unknown;
+        };
+        try {
+          const changed = accounts.confirmEmailChange(
+            accountSession.accountId,
+            accountSession.sessionId,
+            body.currentCode,
+            body.newCode,
+          );
+          let securityNotification:
+            "sent" | "partial" | "failed" | "not_configured" | "unverified" =
+            changed.notificationId ? "failed" : "unverified";
+          if (!securityNotificationSender)
+            securityNotification = "not_configured";
+          else if (changed.notificationId) {
+            const delivery = await retrySecurityNotifications(
+              accountSession.accountId,
+              changed.notificationId,
+              true,
+            );
+            const sent = delivery?.currentSent ?? 0;
+            const recipients = delivery?.currentRecipients ?? 0;
+            securityNotification =
+              sent === recipients ? "sent" : sent ? "partial" : "failed";
+          }
+          return send(response, 200, {
+            email: changed.email,
+            verifiedAt: changed.verifiedAt,
+            otherSessionsRevoked: changed.otherSessionsRevoked,
+            securityNotification,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "GET" &&
         url.pathname === "/v1/account/notification-email"
       ) {
         if (!accountSession || !accounts)

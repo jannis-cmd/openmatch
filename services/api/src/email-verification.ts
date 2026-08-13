@@ -4,6 +4,8 @@ export type EmailVerificationMessage = {
   email: string;
   code: string;
   expiresAt: string;
+  purpose?:
+    "account_confirmation" | "email_change_current" | "email_change_new";
 };
 
 export type EmailVerificationSender = (
@@ -14,6 +16,7 @@ export type SecurityNotificationEvent =
   | "password_changed"
   | "recovery_codes_replaced"
   | "account_recovered"
+  | "primary_email_changed"
   | "notification_address_added"
   | "notification_address_removed";
 
@@ -62,16 +65,31 @@ export function smtpAccountEmailSenders(
       .sendMail({ from, to, subject, text: lines.join("\n") })
       .then(() => undefined);
   return {
-    verification: ({ email, code, expiresAt }) =>
-      send(email, "Confirm your OpenMatch email", [
-        "Confirm that you can receive OpenMatch account messages.",
-        "",
-        `Confirmation code: ${code}`,
-        `Expires: ${expiresAt}`,
-        "",
-        "If you did not create this account, you can ignore this message.",
-        "OpenMatch will never ask you to send this code to another person.",
-      ]),
+    verification: ({
+      email,
+      code,
+      expiresAt,
+      purpose = "account_confirmation",
+    }) =>
+      send(
+        email,
+        purpose === "account_confirmation"
+          ? "Confirm your OpenMatch email"
+          : "Confirm your OpenMatch sign-in email change",
+        [
+          purpose === "email_change_current"
+            ? "Confirm that you requested to replace this OpenMatch sign-in email."
+            : purpose === "email_change_new"
+              ? "Confirm this new OpenMatch sign-in email."
+              : "Confirm that you can receive OpenMatch account messages.",
+          "",
+          `Confirmation code: ${code}`,
+          `Expires: ${expiresAt}`,
+          "",
+          "If you did not create this account, you can ignore this message.",
+          "OpenMatch will never ask you to send this code to another person.",
+        ],
+      ),
     security: ({ email, event, occurredAt }) => {
       const description = {
         password_changed: "Your OpenMatch passphrase was changed.",
@@ -79,6 +97,8 @@ export function smtpAccountEmailSenders(
           "A new set of OpenMatch recovery codes was created. Every older recovery code is now invalid.",
         account_recovered:
           "Your OpenMatch account was recovered with an offline recovery code. The passphrase changed, every previous session ended, and every recovery code is now invalid.",
+        primary_email_changed:
+          "Your OpenMatch primary sign-in email was changed. Every other session was ended.",
         notification_address_added:
           "A confirmed backup notification email was added to your OpenMatch account.",
         notification_address_removed:

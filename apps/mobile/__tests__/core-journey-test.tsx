@@ -153,6 +153,14 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         verifiedAt: emailVerified ? "2026-08-12T12:00:00.000Z" : null,
         deliveryConfigured: true,
       });
+    if (path === "/v1/account/email-change")
+      return response({
+        email: "native@example.org",
+        verifiedAt: emailVerified ? "2026-08-12T12:00:00.000Z" : null,
+        pendingEmail: null,
+        pendingExpiresAt: null,
+        deliveryConfigured: true,
+      });
     if (path === "/v1/account/notification-email")
       return response({
         primaryEmail: "native@example.org",
@@ -1166,6 +1174,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Confirm email"));
   await waitFor(() => expect(emailVerified).toBe(true));
   expect(screen.getByText(/Confirmed for account messages/)).toBeTruthy();
+  expect(screen.getByText("Change sign-in email")).toBeTruthy();
+  expect(screen.getByText("Send both confirmation codes")).toBeTruthy();
   failNextDirectorySave = true;
   await fireEvent.press(screen.getByText("Enable for 30 days"));
   await waitFor(() =>

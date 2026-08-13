@@ -34,6 +34,15 @@
       "disclosure": "The eight-digit code is sent through explicitly configured TLS-required SMTP and is never returned by an API endpoint. Only a random-salted scrypt hash persists. A replacement cannot be requested within one minute, does not reset failed attempts, and confirmation shares the strict authentication throttle. When delivery is configured, unconfirmed accounts cannot enter account matching."
     },
     {
+      "id": "accountEmailChangeRequests",
+      "storage": "account_email_change_requests table in the authentication SQLite database",
+      "purpose": "Hold a proposed primary sign-in email change until both the current and proposed inboxes are confirmed.",
+      "retention": "Until accepted, replaced, cancelled after delivery failure, account deletion, or operator database removal; both codes expire after at most 24 hours.",
+      "access": ["service", "operator"],
+      "fields": ["accountId", "email", "currentCodeHash", "currentCodeSalt", "newCodeHash", "newCodeSalt", "expiresAt", "failedAttempts", "sentAt"],
+      "disclosure": "The current passphrase must be re-entered before two independent eight-digit codes are delivered: one to the current confirmed inbox and one to the proposed inbox. Only random-salted scrypt hashes persist. The email changes atomically only when both codes are accepted; every other session is revoked and sparse notices are attempted to both addresses. The API does not reveal which existing account, if any, prevents an address from being used."
+    },
+    {
       "id": "accountNotificationAddresses",
       "storage": "account_notification_addresses table in the authentication SQLite database",
       "purpose": "Provide a second independently confirmed destination for sparse account-security and recovery notices.",

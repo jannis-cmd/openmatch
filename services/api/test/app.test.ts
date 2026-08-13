@@ -726,6 +726,190 @@ test("email confirmation is delivered out of band, hashed, expiring, and single 
   }
 });
 
+test("changing a primary email requires both inboxes and revokes other sessions", async () => {
+  const accounts = new Accounts(":memory:", { dataDirectory: null });
+  const deliveries: Array<{
+    email: string;
+    code: string;
+    expiresAt: string;
+    purpose?: string;
+  }> = [];
+  const notices: Array<{ email: string; event: string }> = [];
+  const server = createApp({
+    store: new Store(":memory:"),
+    accounts,
+    demoSessionsEnabled: false,
+    authRateLimit: { maximum: 30, windowMs: 60_000 },
+    emailVerificationSender: async (message) => deliveries.push(message),
+    securityNotificationSender: async (message) => notices.push(message),
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  try {
+    const created = await accountSession(
+      base,
+      "/v1/accounts",
+      "old@example.org",
+      "a primary email change passphrase",
+      "web",
+    );
+    const headers = {
+      "content-type": "application/json",
+      authorization: `Bearer ${created.body.token}`,
+    };
+    const accountId = (
+      accounts.db
+        .prepare("SELECT id FROM accounts WHERE email=?")
+        .get("old@example.org") as { id: string }
+    ).id;
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-verification/confirm", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ code: deliveries[0]!.code }),
+        })
+      ).status,
+      200,
+    );
+    const other = await accountSession(
+      base,
+      "/v1/sessions",
+      "old@example.org",
+      "a primary email change passphrase",
+      "ios",
+    );
+    const otherHeaders = {
+      authorization: `Bearer ${other.body.token}`,
+    };
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-change/request", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            email: "new@example.org",
+            currentPassword: "wrong passphrase",
+          }),
+        })
+      ).status,
+      400,
+    );
+    const requested = await fetch(base + "/v1/account/email-change/request", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        email: "new@example.org",
+        currentPassword: "a primary email change passphrase",
+      }),
+    });
+    assert.equal(requested.status, 202);
+    assert.deepEqual(
+      deliveries.slice(1).map(({ email, purpose }) => ({ email, purpose })),
+      [
+        { email: "old@example.org", purpose: "email_change_current" },
+        { email: "new@example.org", purpose: "email_change_new" },
+      ],
+    );
+    assert.deepEqual(await requested.json(), {
+      sent: true,
+      pendingEmail: "new@example.org",
+      expiresAt: deliveries[2]!.expiresAt,
+    });
+    assert.deepEqual(
+      await (
+        await fetch(base + "/v1/account/email-change", { headers })
+      ).json(),
+      {
+        email: "old@example.org",
+        verifiedAt: accounts.emailStatus(accountId).verifiedAt,
+        pendingEmail: "new@example.org",
+        pendingExpiresAt: deliveries[2]!.expiresAt,
+        deliveryConfigured: true,
+      },
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-change/confirm", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            currentCode: deliveries[1]!.code,
+            newCode: "00000000",
+          }),
+        })
+      ).status,
+      400,
+    );
+    const confirmed = await fetch(base + "/v1/account/email-change/confirm", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        currentCode: deliveries[1]!.code,
+        newCode: deliveries[2]!.code,
+      }),
+    });
+    assert.equal(confirmed.status, 200);
+    const result = (await confirmed.json()) as {
+      email: string;
+      otherSessionsRevoked: boolean;
+      securityNotification: string;
+    };
+    assert.equal(result.email, "new@example.org");
+    assert.equal(result.otherSessionsRevoked, true);
+    assert.equal(result.securityNotification, "sent");
+    assert.deepEqual(
+      notices.map(({ email, event }) => ({ email, event })),
+      [
+        { email: "old@example.org", event: "primary_email_changed" },
+        { email: "new@example.org", event: "primary_email_changed" },
+      ],
+    );
+    assert.equal(
+      (await fetch(base + "/v1/account/email-change", { headers })).status,
+      200,
+    );
+    assert.equal(
+      (
+        await fetch(base + "/v1/account/email-change", {
+          headers: otherHeaders,
+        })
+      ).status,
+      401,
+    );
+    assert.equal(
+      (
+        await accountSession(
+          base,
+          "/v1/sessions",
+          "old@example.org",
+          "a primary email change passphrase",
+          "web",
+        )
+      ).response.status,
+      401,
+    );
+    assert.equal(
+      (
+        await accountSession(
+          base,
+          "/v1/sessions",
+          "new@example.org",
+          "a primary email change passphrase",
+          "web",
+        )
+      ).response.status,
+      200,
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test("failed security notices remain durable until an authenticated retry succeeds", async () => {
   const accounts = new Accounts(":memory:", { dataDirectory: null });
   const session = accounts.register(
@@ -1696,6 +1880,17 @@ test("the public data inventory covers every current storage and export field", 
       "accountId",
       "codeHash",
       "codeSalt",
+      "expiresAt",
+      "failedAttempts",
+      "sentAt",
+    ],
+    accountEmailChangeRequests: [
+      "accountId",
+      "email",
+      "currentCodeHash",
+      "currentCodeSalt",
+      "newCodeHash",
+      "newCodeSalt",
       "expiresAt",
       "failedAttempts",
       "sentAt",

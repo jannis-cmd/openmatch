@@ -21,6 +21,7 @@ import {
   type DeletionReceipt,
   type DeliverySettings,
   type DirectoryConsentReceipt,
+  type EmailChangeStatus,
   type EmailVerificationStatus,
   type Message,
   type NotificationEmailStatus,
@@ -268,6 +269,9 @@ function AppExperience({
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
+  const [emailChange, setEmailChange] = useState<EmailChangeStatus | null>(
+    null,
+  );
   const [notificationEmail, setNotificationEmail] =
     useState<NotificationEmailStatus | null>(null);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
@@ -339,6 +343,7 @@ function AppExperience({
         nextAccountSessions,
         nextDirectoryConsent,
         nextEmailVerification,
+        nextEmailChange,
         nextNotificationEmail,
         nextAccountDeliveryStatus,
         nextSecurityNotificationDelivery,
@@ -358,6 +363,7 @@ function AppExperience({
         api.sessions(),
         api.directoryConsent(),
         authToken ? api.emailVerification() : Promise.resolve(null),
+        authToken ? api.emailChange() : Promise.resolve(null),
         authToken ? api.notificationEmail() : Promise.resolve(null),
         api.accountDeliveryStatus(),
         authToken ? api.securityNotificationStatus() : Promise.resolve(null),
@@ -380,6 +386,7 @@ function AppExperience({
       setAccountSessions(nextAccountSessions.items);
       setDirectoryConsent(nextDirectoryConsent.receipt);
       setEmailVerification(nextEmailVerification);
+      setEmailChange(nextEmailChange);
       setNotificationEmail(nextNotificationEmail);
       setAccountDeliveryStatus(nextAccountDeliveryStatus);
       setSecurityNotificationDelivery(nextSecurityNotificationDelivery);
@@ -1477,6 +1484,7 @@ function AppExperience({
                   }}
                   sessions={authToken ? accountSessions : []}
                   emailVerification={emailVerification}
+                  emailChange={emailChange}
                   notificationEmail={notificationEmail}
                   requestNotificationEmail={
                     authToken
@@ -1525,6 +1533,32 @@ function AppExperience({
                       ? async (code) => {
                           await api.confirmEmail(code);
                           setEmailVerification(await api.emailVerification());
+                          setEmailChange(await api.emailChange());
+                        }
+                      : undefined
+                  }
+                  requestEmailChange={
+                    authToken
+                      ? async (email, currentPassword) => {
+                          await api.requestEmailChange(email, currentPassword);
+                          setEmailChange(await api.emailChange());
+                        }
+                      : undefined
+                  }
+                  confirmEmailChange={
+                    authToken
+                      ? async (currentCode, newCode) => {
+                          const result = await api.confirmEmailChange(
+                            currentCode,
+                            newCode,
+                          );
+                          setEmailChange(await api.emailChange());
+                          setEmailVerification(await api.emailVerification());
+                          setNotificationEmail(await api.notificationEmail());
+                          setAccountSessions((await api.sessions()).items);
+                          return synchronizeSecurityNotification(
+                            result.securityNotification,
+                          );
                         }
                       : undefined
                   }
@@ -3179,12 +3213,15 @@ function ProfileView({
   setDirectoryConsent,
   sessions,
   emailVerification,
+  emailChange,
   notificationEmail,
   requestNotificationEmail,
   confirmNotificationEmail,
   removeNotificationEmail,
   requestEmailVerification,
   confirmEmail,
+  requestEmailChange,
+  confirmEmailChange,
   changePassword,
   generateRecoveryCodes,
   revokeSession,
@@ -3209,6 +3246,7 @@ function ProfileView({
   setDirectoryConsent: (participating: boolean) => Promise<void>;
   sessions: AccountSession[];
   emailVerification: EmailVerificationStatus | null;
+  emailChange: EmailChangeStatus | null;
   notificationEmail: NotificationEmailStatus | null;
   requestNotificationEmail?: (
     email: string,
@@ -3222,6 +3260,14 @@ function ProfileView({
   ) => Promise<SecurityNotificationStatus>;
   requestEmailVerification?: () => Promise<void>;
   confirmEmail?: (code: string) => Promise<void>;
+  requestEmailChange?: (
+    email: string,
+    currentPassword: string,
+  ) => Promise<void>;
+  confirmEmailChange?: (
+    currentCode: string,
+    newCode: string,
+  ) => Promise<SecurityNotificationStatus>;
   changePassword?: (
     currentPassword: string,
     newPassword: string,
@@ -3274,6 +3320,15 @@ function ProfileView({
   const [verificationError, setVerificationError] = useState<string | null>(
     null,
   );
+  const [changedEmail, setChangedEmail] = useState("");
+  const [emailChangePassword, setEmailChangePassword] = useState("");
+  const [currentEmailCode, setCurrentEmailCode] = useState("");
+  const [newEmailCode, setNewEmailCode] = useState("");
+  const [emailChangeNotice, setEmailChangeNotice] = useState<string | null>(
+    null,
+  );
+  const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
+  const [emailChangeSaving, setEmailChangeSaving] = useState(false);
   const [backupEmail, setBackupEmail] = useState("");
   const [backupPassword, setBackupPassword] = useState("");
   const [backupCode, setBackupCode] = useState("");
@@ -3564,6 +3619,163 @@ function ProfileView({
               configure encrypted SMTP delivery before relying on it.
             </p>
           )}
+        </section>
+      )}
+      {emailChange && requestEmailChange && confirmEmailChange && (
+        <section className="settings-card">
+          <h2>Change sign-in email</h2>
+          <p>
+            Because this account currently uses only a passphrase, OpenMatch
+            requires one code from the current inbox and one from the proposed
+            inbox. The address changes only after both are accepted. Every other
+            session is then signed out.
+          </p>
+          {!emailChange.deliveryConfigured ? (
+            <p>
+              Email delivery is not configured, so sign-in email changes are
+              unavailable.
+            </p>
+          ) : !emailChange.verifiedAt ? (
+            <p>Confirm the current primary inbox before changing it.</p>
+          ) : emailChange.pendingEmail ? (
+            <form
+              className="profile-fields"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                setEmailChangeSaving(true);
+                setEmailChangeError(null);
+                setEmailChangeNotice(null);
+                try {
+                  const notification = await confirmEmailChange(
+                    currentEmailCode,
+                    newEmailCode,
+                  );
+                  setCurrentEmailCode("");
+                  setNewEmailCode("");
+                  setChangedEmail("");
+                  setEmailChangePassword("");
+                  setEmailChangeNotice(
+                    `Sign-in email changed.${securityNotice(notification)}`,
+                  );
+                } catch (error) {
+                  setEmailChangeError(
+                    error instanceof ApiError &&
+                      error.code === "invalid_verification_code"
+                      ? "One or both codes were not accepted or have expired. Nothing changed."
+                      : "The sign-in email was not changed.",
+                  );
+                } finally {
+                  setEmailChangeSaving(false);
+                }
+              }}
+            >
+              <p>
+                Pending address: <strong>{emailChange.pendingEmail}</strong>
+                {emailChange.pendingExpiresAt
+                  ? ` · Codes expire ${new Date(emailChange.pendingExpiresAt).toLocaleString()}`
+                  : ""}
+              </p>
+              <label>
+                Code sent to current inbox
+                <input
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{8}"
+                  maxLength={8}
+                  value={currentEmailCode}
+                  onChange={(event) =>
+                    setCurrentEmailCode(
+                      event.target.value.replace(/\D/g, "").slice(0, 8),
+                    )
+                  }
+                />
+              </label>
+              <label>
+                Code sent to new inbox
+                <input
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{8}"
+                  maxLength={8}
+                  value={newEmailCode}
+                  onChange={(event) =>
+                    setNewEmailCode(
+                      event.target.value.replace(/\D/g, "").slice(0, 8),
+                    )
+                  }
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={
+                  emailChangeSaving ||
+                  currentEmailCode.length !== 8 ||
+                  newEmailCode.length !== 8
+                }
+              >
+                Confirm both inboxes
+              </button>
+            </form>
+          ) : (
+            <form
+              className="profile-fields"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                setEmailChangeSaving(true);
+                setEmailChangeError(null);
+                setEmailChangeNotice(null);
+                try {
+                  await requestEmailChange(changedEmail, emailChangePassword);
+                  setEmailChangeNotice(
+                    "Two codes were sent. The current sign-in email remains active until both are confirmed.",
+                  );
+                } catch (error) {
+                  setEmailChangeError(
+                    error instanceof ApiError &&
+                      error.code === "invalid_current_password"
+                      ? "The current passphrase was not accepted."
+                      : error instanceof ApiError &&
+                          error.code === "email_change_unavailable"
+                        ? "That address cannot be used. Nothing changed."
+                        : "The email-change request was not started.",
+                  );
+                } finally {
+                  setEmailChangeSaving(false);
+                }
+              }}
+            >
+              <label>
+                New sign-in email
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={changedEmail}
+                  onChange={(event) => setChangedEmail(event.target.value)}
+                />
+              </label>
+              <label>
+                Current passphrase
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={emailChangePassword}
+                  onChange={(event) =>
+                    setEmailChangePassword(event.target.value)
+                  }
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={
+                  emailChangeSaving || !changedEmail || !emailChangePassword
+                }
+              >
+                Send both confirmation codes
+              </button>
+            </form>
+          )}
+          {emailChangeNotice && <p role="status">{emailChangeNotice}</p>}
+          {emailChangeError && <p role="alert">{emailChangeError}</p>}
         </section>
       )}
       {notificationEmail &&

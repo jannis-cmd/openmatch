@@ -18,7 +18,7 @@ import type { SecurityNotificationEvent } from "./email-verification.js";
 import type { Candidate, PublicProfile } from "@openmatch/matching";
 import { migrateSqlite } from "./migrations.js";
 
-export const ACCOUNT_SCHEMA_VERSION = 1;
+export const ACCOUNT_SCHEMA_VERSION = 2;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MINIMUM = 15;
@@ -265,6 +265,21 @@ export class Accounts {
           "CREATE UNIQUE INDEX IF NOT EXISTS account_sessions_id ON account_sessions(id)",
         );
       },
+      (database) => {
+        database.exec(`
+          CREATE TABLE account_email_change_requests (
+            account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+            email TEXT UNIQUE NOT NULL,
+            current_code_hash TEXT NOT NULL,
+            current_code_salt TEXT NOT NULL,
+            new_code_hash TEXT NOT NULL,
+            new_code_salt TEXT NOT NULL,
+            expires_at INTEGER NOT NULL,
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            sent_at INTEGER NOT NULL
+          );
+        `);
+      },
     ]);
     if (schemaVersion !== ACCOUNT_SCHEMA_VERSION)
       throw new Error("account schema version declaration is stale");
@@ -439,8 +454,9 @@ export class Accounts {
     accountId: string,
     event: SecurityNotificationEvent,
     occurredAt: string,
+    recipientOverride?: string[],
   ) {
-    const recipients = this.notificationEmails(accountId);
+    const recipients = recipientOverride ?? this.notificationEmails(accountId);
     if (!recipients.length) return null;
     const id = randomUUID();
     this.db
@@ -1122,6 +1138,198 @@ export class Accounts {
       throw error;
     }
     return { email: this.emailStatus(accountId).email, verifiedAt };
+  }
+
+  emailChangeStatus(accountId: string) {
+    const pending = this.db
+      .prepare(
+        "SELECT email,expires_at AS expiresAt FROM account_email_change_requests WHERE account_id=?",
+      )
+      .get(accountId) as { email: string; expiresAt: number } | undefined;
+    return {
+      ...this.emailStatus(accountId),
+      pendingEmail: pending?.email ?? null,
+      pendingExpiresAt: pending
+        ? new Date(pending.expiresAt).toISOString()
+        : null,
+    };
+  }
+
+  createEmailChange(
+    accountId: string,
+    currentPasswordValue: unknown,
+    emailValue: unknown,
+  ) {
+    const account = this.db
+      .prepare(
+        "SELECT id,email,password_hash,password_salt,created_at FROM accounts WHERE id=?",
+      )
+      .get(accountId) as AccountRow | undefined;
+    if (!account || !this.passwordMatches(account, currentPasswordValue))
+      throw new AccountError("invalid_current_password", 400);
+    const status = this.emailStatus(accountId);
+    if (!status.verifiedAt)
+      throw new AccountError("primary_email_unverified", 409);
+    const email = this.normalizeEmail(emailValue);
+    if (email === status.email)
+      throw new AccountError("primary_email_unchanged", 409);
+    const existingAccount = this.db
+      .prepare("SELECT 1 FROM accounts WHERE email=?")
+      .get(email);
+    if (existingAccount)
+      throw new AccountError("email_change_unavailable", 409);
+    const existing = this.db
+      .prepare(
+        "SELECT email,sent_at AS sentAt,failed_attempts AS failedAttempts FROM account_email_change_requests WHERE account_id=?",
+      )
+      .get(accountId) as
+      { email: string; sentAt: number; failedAttempts: number } | undefined;
+    const now = Date.now();
+    if (existing?.email === email && now - existing.sentAt < 60_000)
+      throw new AccountError("verification_resend_too_soon", 429);
+    if (existing?.email === email && existing.failedAttempts >= 5)
+      throw new AccountError("verification_attempts_exceeded", 429);
+    const currentCode = String(randomInt(10_000_000, 100_000_000));
+    const newCode = String(randomInt(10_000_000, 100_000_000));
+    const currentSalt = randomBytes(16);
+    const newSalt = randomBytes(16);
+    const expiresAt = now + 24 * 60 * 60 * 1000;
+    try {
+      this.db
+        .prepare(
+          `INSERT INTO account_email_change_requests(
+             account_id,email,current_code_hash,current_code_salt,new_code_hash,new_code_salt,
+             expires_at,failed_attempts,sent_at
+           ) VALUES (?,?,?,?,?,?,?,?,?)
+           ON CONFLICT(account_id) DO UPDATE SET
+             email=excluded.email,current_code_hash=excluded.current_code_hash,
+             current_code_salt=excluded.current_code_salt,new_code_hash=excluded.new_code_hash,
+             new_code_salt=excluded.new_code_salt,expires_at=excluded.expires_at,
+             failed_attempts=excluded.failed_attempts,sent_at=excluded.sent_at`,
+        )
+        .run(
+          accountId,
+          email,
+          this.passwordHash(currentCode, currentSalt).toString("base64url"),
+          currentSalt.toString("base64url"),
+          this.passwordHash(newCode, newSalt).toString("base64url"),
+          newSalt.toString("base64url"),
+          expiresAt,
+          existing?.email === email ? existing.failedAttempts : 0,
+          now,
+        );
+    } catch (error) {
+      if (String(error).includes("UNIQUE constraint failed"))
+        throw new AccountError("email_change_unavailable", 409);
+      throw error;
+    }
+    const expiration = new Date(expiresAt).toISOString();
+    return {
+      current: {
+        email: status.email,
+        code: currentCode,
+        expiresAt: expiration,
+        purpose: "email_change_current" as const,
+      },
+      proposed: {
+        email,
+        code: newCode,
+        expiresAt: expiration,
+        purpose: "email_change_new" as const,
+      },
+    };
+  }
+
+  cancelEmailChange(accountId: string) {
+    this.db
+      .prepare("DELETE FROM account_email_change_requests WHERE account_id=?")
+      .run(accountId);
+  }
+
+  confirmEmailChange(
+    accountId: string,
+    currentSessionId: string,
+    currentCodeValue: unknown,
+    newCodeValue: unknown,
+  ) {
+    const currentCode =
+      typeof currentCodeValue === "string" ? currentCodeValue.trim() : "";
+    const newCode = typeof newCodeValue === "string" ? newCodeValue.trim() : "";
+    const record = this.db
+      .prepare(
+        `SELECT email,current_code_hash AS currentCodeHash,current_code_salt AS currentCodeSalt,
+                new_code_hash AS newCodeHash,new_code_salt AS newCodeSalt,
+                expires_at AS expiresAt,failed_attempts AS failedAttempts
+         FROM account_email_change_requests WHERE account_id=?`,
+      )
+      .get(accountId) as
+      | {
+          email: string;
+          currentCodeHash: string;
+          currentCodeSalt: string;
+          newCodeHash: string;
+          newCodeSalt: string;
+          expiresAt: number;
+          failedAttempts: number;
+        }
+      | undefined;
+    const validFormat = /^\d{8}$/;
+    const matches = (value: string, hash?: string, salt?: string) =>
+      timingSafeEqual(
+        this.passwordHash(
+          validFormat.test(value) ? value : "",
+          salt ? Buffer.from(salt, "base64url") : Buffer.alloc(16),
+        ),
+        hash ? Buffer.from(hash, "base64url") : Buffer.alloc(64),
+      );
+    if (record && record.failedAttempts >= 5)
+      throw new AccountError("verification_attempts_exceeded", 429);
+    if (
+      !record ||
+      record.expiresAt <= Date.now() ||
+      !matches(currentCode, record.currentCodeHash, record.currentCodeSalt) ||
+      !matches(newCode, record.newCodeHash, record.newCodeSalt)
+    ) {
+      if (record)
+        this.db
+          .prepare(
+            "UPDATE account_email_change_requests SET failed_attempts=failed_attempts+1 WHERE account_id=?",
+          )
+          .run(accountId);
+      throw new AccountError("invalid_verification_code", 400);
+    }
+    const previousRecipients = this.notificationEmails(accountId);
+    const verifiedAt = new Date().toISOString();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare("UPDATE accounts SET email=?,email_verified_at=? WHERE id=?")
+        .run(record.email, verifiedAt, accountId);
+      this.db
+        .prepare("DELETE FROM account_email_change_requests WHERE account_id=?")
+        .run(accountId);
+      this.db
+        .prepare("DELETE FROM account_sessions WHERE account_id=? AND id<>?")
+        .run(accountId, currentSessionId);
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      if (String(error).includes("UNIQUE constraint failed"))
+        throw new AccountError("email_change_unavailable", 409);
+      throw error;
+    }
+    const notificationId = this.enqueueSecurityNotification(
+      accountId,
+      "primary_email_changed",
+      verifiedAt,
+      [...new Set([...previousRecipients, record.email])],
+    );
+    return {
+      email: record.email,
+      verifiedAt,
+      otherSessionsRevoked: true as const,
+      notificationId,
+    };
   }
 
   signIn(emailValue: unknown, passwordValue: unknown, client?: unknown) {

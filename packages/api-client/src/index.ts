@@ -166,6 +166,10 @@ export type EmailVerificationStatus = {
   verifiedAt: string | null;
   deliveryConfigured: boolean;
 };
+export type EmailChangeStatus = EmailVerificationStatus & {
+  pendingEmail: string | null;
+  pendingExpiresAt: string | null;
+};
 export type SecurityNotificationStatus =
   "sent" | "partial" | "failed" | "not_configured" | "unverified";
 export type PasswordChangeSession = AuthSession & {
@@ -407,6 +411,22 @@ export function createApiClient(
       request<{ email: string; verifiedAt: string }>(
         "/v1/account/email-verification/confirm",
         json("POST", { code }),
+      ),
+    emailChange: () => request<EmailChangeStatus>("/v1/account/email-change"),
+    requestEmailChange: (email: string, currentPassword: string) =>
+      request<{ sent: true; pendingEmail: string; expiresAt: string }>(
+        "/v1/account/email-change/request",
+        json("POST", { email, currentPassword }),
+      ),
+    confirmEmailChange: (currentCode: string, newCode: string) =>
+      request<{
+        email: string;
+        verifiedAt: string;
+        otherSessionsRevoked: true;
+        securityNotification: SecurityNotificationStatus;
+      }>(
+        "/v1/account/email-change/confirm",
+        json("POST", { currentCode, newCode }),
       ),
     notificationEmail: () =>
       request<NotificationEmailStatus>("/v1/account/notification-email"),

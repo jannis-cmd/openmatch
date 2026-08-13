@@ -403,6 +403,58 @@ test("manages a separately confirmed backup notification email", async () => {
   });
 });
 
+test("changes a primary email only through the dual-code flow", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async (url, init) => {
+      requests.push({ url: String(url), init });
+      if (String(url).endsWith("/request"))
+        return new Response(
+          JSON.stringify({
+            sent: true,
+            pendingEmail: "new@example.org",
+            expiresAt: "2026-08-14T00:00:00.000Z",
+          }),
+          { status: 202 },
+        );
+      if (String(url).endsWith("/confirm"))
+        return new Response(
+          JSON.stringify({
+            email: "new@example.org",
+            verifiedAt: "2026-08-13T00:00:00.000Z",
+            otherSessionsRevoked: true,
+            securityNotification: "sent",
+          }),
+          { status: 200 },
+        );
+      return new Response(
+        JSON.stringify({
+          email: "old@example.org",
+          verifiedAt: "2026-08-12T00:00:00.000Z",
+          pendingEmail: null,
+          pendingExpiresAt: null,
+          deliveryConfigured: true,
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch,
+    { initialToken: "e".repeat(43), demoSessions: false },
+  );
+  assert.equal((await client.emailChange()).pendingEmail, null);
+  await client.requestEmailChange("new@example.org", "current passphrase");
+  assert.deepEqual(JSON.parse(String(requests[1]?.init?.body)), {
+    email: "new@example.org",
+    currentPassword: "current passphrase",
+  });
+  const changed = await client.confirmEmailChange("11111111", "22222222");
+  assert.equal(changed.otherSessionsRevoked, true);
+  assert.deepEqual(JSON.parse(String(requests[2]?.init?.body)), {
+    currentCode: "11111111",
+    newCode: "22222222",
+  });
+});
+
 test("turns API failures into inspectable errors", async () => {
   const client = createApiClient(
     "http://example.test",

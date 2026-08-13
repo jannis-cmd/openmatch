@@ -41,6 +41,7 @@ import {
   type DeletionReceipt,
   type DeliverySettings,
   type DirectoryConsentReceipt,
+  type EmailChangeStatus,
   type EmailVerificationStatus,
   type Message,
   type NotificationEmailStatus,
@@ -253,6 +254,9 @@ export default function App() {
   const [accountSessions, setAccountSessions] = useState<AccountSession[]>([]);
   const [emailVerification, setEmailVerification] =
     useState<EmailVerificationStatus | null>(null);
+  const [emailChange, setEmailChange] = useState<EmailChangeStatus | null>(
+    null,
+  );
   const [notificationEmail, setNotificationEmail] =
     useState<NotificationEmailStatus | null>(null);
   const [delivery, setDelivery] = useState<DeliverySettings>({ batchSize: 5 });
@@ -289,6 +293,15 @@ export default function App() {
   const [verificationError, setVerificationError] = useState<string | null>(
     null,
   );
+  const [changedEmail, setChangedEmail] = useState("");
+  const [emailChangePassword, setEmailChangePassword] = useState("");
+  const [currentEmailCode, setCurrentEmailCode] = useState("");
+  const [newEmailCode, setNewEmailCode] = useState("");
+  const [emailChangeNotice, setEmailChangeNotice] = useState<string | null>(
+    null,
+  );
+  const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
+  const [emailChangeSaving, setEmailChangeSaving] = useState(false);
   const [backupEmail, setBackupEmail] = useState("");
   const [backupPassword, setBackupPassword] = useState("");
   const [backupCode, setBackupCode] = useState("");
@@ -465,6 +478,7 @@ export default function App() {
         nextAccountSessions,
         nextDirectoryConsent,
         nextEmailVerification,
+        nextEmailChange,
         nextNotificationEmail,
         nextAccountDeliveryStatus,
         nextSecurityNotificationDelivery,
@@ -486,6 +500,7 @@ export default function App() {
         accessMode === "account"
           ? api.emailVerification()
           : Promise.resolve(null),
+        accessMode === "account" ? api.emailChange() : Promise.resolve(null),
         accessMode === "account"
           ? api.notificationEmail()
           : Promise.resolve(null),
@@ -512,6 +527,7 @@ export default function App() {
       setAccountSessions(nextAccountSessions.items);
       setDirectoryConsent(nextDirectoryConsent.receipt);
       setEmailVerification(nextEmailVerification);
+      setEmailChange(nextEmailChange);
       setNotificationEmail(nextNotificationEmail);
       setAccountDeliveryStatus(nextAccountDeliveryStatus);
       setSecurityNotificationDelivery(nextSecurityNotificationDelivery);
@@ -2388,6 +2404,7 @@ export default function App() {
                               setEmailVerification(
                                 await api.emailVerification(),
                               );
+                              setEmailChange(await api.emailChange());
                               setVerificationNotice("Email confirmed.");
                             })
                             .catch((error) =>
@@ -2444,6 +2461,187 @@ export default function App() {
                       service, so the address is not confirmed. A real-person
                       deployment must configure encrypted SMTP delivery before
                       relying on it.
+                    </Text>
+                  )}
+                </View>
+              )}
+              {accessMode === "account" && emailChange && (
+                <View style={styles.scoreCard}>
+                  <Text style={styles.name}>Change sign-in email</Text>
+                  <Text style={styles.scoreNote}>
+                    This passphrase-only account requires one code from the
+                    current inbox and one from the proposed inbox. Nothing
+                    changes until both are accepted; every other session is then
+                    signed out.
+                  </Text>
+                  {!emailChange.deliveryConfigured ? (
+                    <Text style={styles.mathNote}>
+                      Email delivery is not configured, so sign-in email changes
+                      are unavailable.
+                    </Text>
+                  ) : !emailChange.verifiedAt ? (
+                    <Text style={styles.mathNote}>
+                      Confirm the current primary inbox before changing it.
+                    </Text>
+                  ) : emailChange.pendingEmail ? (
+                    <>
+                      <Text selectable style={styles.setting}>
+                        Pending: {emailChange.pendingEmail}
+                      </Text>
+                      {emailChange.pendingExpiresAt && (
+                        <Text style={styles.mathNote}>
+                          Codes expire{" "}
+                          {new Date(
+                            emailChange.pendingExpiresAt,
+                          ).toLocaleString()}
+                          .
+                        </Text>
+                      )}
+                      <Text style={styles.setting}>
+                        Code from current inbox
+                      </Text>
+                      <TextInput
+                        accessibilityLabel="Code sent to current email"
+                        autoComplete="one-time-code"
+                        keyboardType="number-pad"
+                        maxLength={8}
+                        value={currentEmailCode}
+                        onChangeText={(value) =>
+                          setCurrentEmailCode(
+                            value.replace(/\D/g, "").slice(0, 8),
+                          )
+                        }
+                        style={styles.textField}
+                      />
+                      <Text style={styles.setting}>Code from new inbox</Text>
+                      <TextInput
+                        accessibilityLabel="Code sent to new email"
+                        autoComplete="one-time-code"
+                        keyboardType="number-pad"
+                        maxLength={8}
+                        value={newEmailCode}
+                        onChangeText={(value) =>
+                          setNewEmailCode(value.replace(/\D/g, "").slice(0, 8))
+                        }
+                        style={styles.textField}
+                      />
+                      <Action
+                        label="Confirm both inboxes"
+                        secondary
+                        disabled={
+                          emailChangeSaving ||
+                          currentEmailCode.length !== 8 ||
+                          newEmailCode.length !== 8
+                        }
+                        onPress={() => {
+                          setEmailChangeSaving(true);
+                          setEmailChangeError(null);
+                          setEmailChangeNotice(null);
+                          void api
+                            .confirmEmailChange(currentEmailCode, newEmailCode)
+                            .then(async (result) => {
+                              setCurrentEmailCode("");
+                              setNewEmailCode("");
+                              setChangedEmail("");
+                              setEmailChangePassword("");
+                              setEmailChange(await api.emailChange());
+                              setEmailVerification(
+                                await api.emailVerification(),
+                              );
+                              setNotificationEmail(
+                                await api.notificationEmail(),
+                              );
+                              setAccountSessions((await api.sessions()).items);
+                              setEmailChangeNotice(
+                                "Sign-in email changed. Other sessions were signed out." +
+                                  recordSecurityNotification(
+                                    result.securityNotification,
+                                  ),
+                              );
+                            })
+                            .catch((error) =>
+                              setEmailChangeError(
+                                error instanceof ApiError &&
+                                  error.code === "invalid_verification_code"
+                                  ? "One or both codes were not accepted or have expired. Nothing changed."
+                                  : "The sign-in email was not changed.",
+                              ),
+                            )
+                            .finally(() => setEmailChangeSaving(false));
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.setting}>New sign-in email</Text>
+                      <TextInput
+                        accessibilityLabel="New sign-in email"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        keyboardType="email-address"
+                        value={changedEmail}
+                        onChangeText={setChangedEmail}
+                        style={styles.textField}
+                      />
+                      <Text style={styles.setting}>Current passphrase</Text>
+                      <TextInput
+                        accessibilityLabel="Passphrase to change sign-in email"
+                        autoComplete="current-password"
+                        secureTextEntry
+                        value={emailChangePassword}
+                        onChangeText={setEmailChangePassword}
+                        style={styles.textField}
+                      />
+                      <Action
+                        label="Send both confirmation codes"
+                        secondary
+                        disabled={
+                          emailChangeSaving ||
+                          !changedEmail ||
+                          !emailChangePassword
+                        }
+                        onPress={() => {
+                          setEmailChangeSaving(true);
+                          setEmailChangeError(null);
+                          setEmailChangeNotice(null);
+                          void api
+                            .requestEmailChange(
+                              changedEmail,
+                              emailChangePassword,
+                            )
+                            .then(async () => {
+                              setEmailChange(await api.emailChange());
+                              setEmailChangeNotice(
+                                "Two codes were sent. The current sign-in email remains active until both are confirmed.",
+                              );
+                            })
+                            .catch((error) =>
+                              setEmailChangeError(
+                                error instanceof ApiError &&
+                                  error.code === "invalid_current_password"
+                                  ? "The current passphrase was not accepted."
+                                  : error instanceof ApiError &&
+                                      error.code === "email_change_unavailable"
+                                    ? "That address cannot be used. Nothing changed."
+                                    : "The email-change request was not started.",
+                              ),
+                            )
+                            .finally(() => setEmailChangeSaving(false));
+                        }}
+                      />
+                    </>
+                  )}
+                  {emailChangeNotice && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      {emailChangeNotice}
+                    </Text>
+                  )}
+                  {emailChangeError && (
+                    <Text accessibilityRole="alert" style={styles.errorText}>
+                      {emailChangeError}
                     </Text>
                   )}
                 </View>
