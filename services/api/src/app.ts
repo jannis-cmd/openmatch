@@ -17,7 +17,13 @@ import {
   validatePreferences,
   type Candidate,
 } from "@openmatch/matching";
-import { Store, type ReportUpdateKind, type SetupCommand } from "./store.js";
+import {
+  CONNECTION_OUTCOME_KINDS,
+  Store,
+  type ConnectionOutcomeKind,
+  type ReportUpdateKind,
+  type SetupCommand,
+} from "./store.js";
 import { AccountError, Accounts } from "./accounts.js";
 import {
   smtpAccountEmailSenders,
@@ -1504,6 +1510,9 @@ export function createApp(
       const meetingPreference = url.pathname.match(
         /^\/v1\/connections\/([^/]+)\/meeting-preference$/,
       );
+      const connectionOutcome = url.pathname.match(
+        /^\/v1\/connections\/([^/]+)\/outcomes\/([^/]+)$/,
+      );
       if (request.method === "PATCH" && connectionMute) {
         const body = (await readJson(request)) as { muted?: unknown };
         if (typeof body.muted !== "boolean")
@@ -1531,6 +1540,23 @@ export function createApp(
         const result = store.updateMeetingPreference(
           meetingPreference[1],
           body.meetingPreference as "not_asked" | "not_yet" | "open_to_plan",
+        );
+        return result
+          ? send(response, 200, result)
+          : send(response, 404, { error: "connection_not_found" });
+      }
+      if (request.method === "PATCH" && connectionOutcome) {
+        const kind = connectionOutcome[2] as ConnectionOutcomeKind;
+        const body = (await readJson(request)) as { recorded?: unknown };
+        if (
+          !CONNECTION_OUTCOME_KINDS.includes(kind) ||
+          typeof body.recorded !== "boolean"
+        )
+          return send(response, 400, { error: "invalid_connection_outcome" });
+        const result = store.updateConnectionOutcome(
+          connectionOutcome[1],
+          kind,
+          body.recorded,
         );
         return result
           ? send(response, 200, result)

@@ -17,6 +17,7 @@ import {
   type AccountDeliveryStatus,
   type AccountSession,
   type Connection,
+  type ConnectionOutcomeKind,
   type DeletionReceipt,
   type DeliverySettings,
   type DirectoryConsentReceipt,
@@ -1374,6 +1375,21 @@ function AppExperience({
                       );
                       await load();
                     }
+                  }}
+                  setOutcome={async (kind, recorded) => {
+                    if (!selectedConnection) return;
+                    const result = await api.updateConnectionOutcome(
+                      selectedConnection.id,
+                      kind,
+                      recorded,
+                    );
+                    setConnections((current) =>
+                      current.map((item) =>
+                        item.id === selectedConnection.id
+                          ? { ...item, outcomes: result.outcomes }
+                          : item,
+                      ),
+                    );
                   }}
                   block={async () => {
                     if (selectedConnection) {
@@ -4394,6 +4410,7 @@ function ConnectionsView({
   closePolitely,
   setMuted,
   setMeetingPreference,
+  setOutcome,
   block,
   report,
 }: {
@@ -4411,6 +4428,7 @@ function ConnectionsView({
   setMeetingPreference: (
     value: "not_asked" | "not_yet" | "open_to_plan",
   ) => Promise<void>;
+  setOutcome: (kind: ConnectionOutcomeKind, recorded: boolean) => Promise<void>;
   block: () => Promise<void>;
   report: (reason: ReportReason, details: string) => Promise<void>;
 }) {
@@ -4420,7 +4438,7 @@ function ConnectionsView({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [preferenceAction, setPreferenceAction] = useState<
-    "mute" | "meeting" | null
+    "mute" | "meeting" | "outcome" | null
   >(null);
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
   useEffect(() => {
@@ -4568,6 +4586,62 @@ function ConnectionsView({
           <li>Keep control of your transport and exact location.</li>
           <li>Tell someone you trust where you are going.</li>
         </ul>
+      </section>
+      <section className="settings-card meeting-card">
+        <p className="eyebrow">Private outcome journal</p>
+        <h2>What happened after this introduction?</h2>
+        <p>
+          Optional self-report only. Each stage stays separate, is never shown
+          to the other person, and does not change matching automatically. You
+          can remove any entry.
+        </p>
+        <div
+          className="setting-actions"
+          aria-label="Private connection outcomes"
+        >
+          {(
+            [
+              ["met_in_person", "Met in person"],
+              ["wanted_second_date", "Wanted another date"],
+              ["relationship_started", "Started a relationship"],
+              ["relationship_ended", "Relationship ended"],
+            ] as const
+          ).map(([kind, label]) => {
+            const recorded = connection.outcomes.some(
+              (outcome) => outcome.kind === kind,
+            );
+            return (
+              <button
+                key={kind}
+                aria-pressed={recorded}
+                disabled={preferenceAction !== null}
+                onClick={async () => {
+                  setPreferenceAction("outcome");
+                  setPreferenceError(null);
+                  try {
+                    await setOutcome(kind, !recorded);
+                  } catch {
+                    setPreferenceError(
+                      "The private outcome was not changed. The previous confirmed journal is still active; retry when ready.",
+                    );
+                  } finally {
+                    setPreferenceAction(null);
+                  }
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        {preferenceAction === "outcome" && (
+          <p role="status">Saving private outcome…</p>
+        )}
+        <p className="help">
+          These milestones are not a satisfaction scale, proof, or a statement
+          from both people. OpenMatch keeps them distinct rather than turning
+          them into one engagement score.
+        </p>
       </section>
       <section className="settings-card conversation">
         <div className="connection-head">

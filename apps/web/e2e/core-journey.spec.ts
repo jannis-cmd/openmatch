@@ -613,6 +613,33 @@ test("first run through a persistent connection and safety action", async ({
     page.getByText("Saved privately: open to planning."),
   ).toBeVisible();
   await expect(page.getByText("Choose a busy public place.")).toBeVisible();
+  await page.getByRole("button", { name: "Met in person" }).click();
+  await expect(
+    page.getByRole("button", { name: "Met in person" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.route(
+    "**/v1/connections/*/outcomes/*",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_outcome_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Wanted another date" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "private outcome was not changed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Wanted another date" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "Met in person" }).click();
+  await expect(
+    page.getByRole("button", { name: "Met in person" }),
+  ).toHaveAttribute("aria-pressed", "false");
   const composer = page.getByRole("textbox", { name: "Message Mara" });
   await composer.fill("See https://example.com before we meet");
   let safetyWarning = "";

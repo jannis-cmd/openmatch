@@ -12,7 +12,15 @@ import {
 } from "@openmatch/matching";
 import { migrateSqlite } from "./migrations.js";
 
-export const APPLICATION_SCHEMA_VERSION = 1;
+export const APPLICATION_SCHEMA_VERSION = 2;
+
+export const CONNECTION_OUTCOME_KINDS = [
+  "met_in_person",
+  "wanted_second_date",
+  "relationship_started",
+  "relationship_ended",
+] as const;
+export type ConnectionOutcomeKind = (typeof CONNECTION_OUTCOME_KINDS)[number];
 
 export type Connection = {
   id: string;
@@ -21,6 +29,7 @@ export type Connection = {
   closedAt: string | null;
   muted: boolean;
   meetingPreference: MeetingPreference;
+  outcomes: Array<{ kind: ConnectionOutcomeKind; recordedAt: string }>;
 };
 export type MeetingPreference = "not_asked" | "not_yet" | "open_to_plan";
 export type Message = {
@@ -165,6 +174,16 @@ export class Store {
         database.exec(
           "CREATE UNIQUE INDEX IF NOT EXISTS messages_delivery_event_id ON messages(delivery_event_id) WHERE delivery_event_id IS NOT NULL",
         );
+      },
+      (database) => {
+        database.exec(`
+          CREATE TABLE connection_outcomes (
+            connection_id TEXT NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+            kind TEXT NOT NULL CHECK(kind IN ('met_in_person','wanted_second_date','relationship_started','relationship_ended')),
+            recorded_at TEXT NOT NULL,
+            PRIMARY KEY(connection_id,kind)
+          );
+        `);
       },
     ]);
     if (schemaVersion !== APPLICATION_SCHEMA_VERSION)
@@ -570,9 +589,13 @@ export class Store {
           "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted,meeting_preference AS meetingPreference FROM connections WHERE closed_at IS NULL ORDER BY created_at DESC",
         )
         .all() as unknown as Array<
-        Omit<Connection, "muted"> & { muted: number }
+        Omit<Connection, "muted" | "outcomes"> & { muted: number }
       >
-    ).map((connection) => ({ ...connection, muted: connection.muted === 1 }));
+    ).map((connection) => ({
+      ...connection,
+      muted: connection.muted === 1,
+      outcomes: this.connectionOutcomes(connection.id),
+    }));
   }
   connection(id: string) {
     const connection = this.db
@@ -580,10 +603,44 @@ export class Store {
         "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted,meeting_preference AS meetingPreference FROM connections WHERE id=? AND closed_at IS NULL",
       )
       .get(id) as unknown as
-      (Omit<Connection, "muted"> & { muted: number }) | undefined;
+      (Omit<Connection, "muted" | "outcomes"> & { muted: number }) | undefined;
     return connection
-      ? { ...connection, muted: connection.muted === 1 }
+      ? {
+          ...connection,
+          muted: connection.muted === 1,
+          outcomes: this.connectionOutcomes(connection.id),
+        }
       : undefined;
+  }
+  connectionOutcomes(connectionId: string) {
+    return this.db
+      .prepare(
+        "SELECT kind,recorded_at AS recordedAt FROM connection_outcomes WHERE connection_id=? ORDER BY recorded_at,kind",
+      )
+      .all(connectionId) as Array<{
+      kind: ConnectionOutcomeKind;
+      recordedAt: string;
+    }>;
+  }
+  updateConnectionOutcome(
+    connectionId: string,
+    kind: ConnectionOutcomeKind,
+    recorded: boolean,
+  ) {
+    if (!this.connection(connectionId)) return undefined;
+    if (recorded)
+      this.db
+        .prepare(
+          "INSERT INTO connection_outcomes(connection_id,kind,recorded_at) VALUES (?,?,?) ON CONFLICT(connection_id,kind) DO NOTHING",
+        )
+        .run(connectionId, kind, new Date().toISOString());
+    else
+      this.db
+        .prepare(
+          "DELETE FROM connection_outcomes WHERE connection_id=? AND kind=?",
+        )
+        .run(connectionId, kind);
+    return { outcomes: this.connectionOutcomes(connectionId) };
   }
   messages(connectionId: string) {
     return this.db
@@ -785,7 +842,7 @@ export class Store {
 
   exportData() {
     return {
-      schemaVersion: "1.0.0",
+      schemaVersion: "1.1.0",
       algorithmVersion: ALGORITHM_VERSION,
       exportedAt: new Date().toISOString(),
       profile: this.profile(),
@@ -817,6 +874,11 @@ export class Store {
         ...connection,
         muted: connection.muted === 1,
       })),
+      connectionOutcomes: this.db
+        .prepare(
+          "SELECT connection_id AS connectionId,kind,recorded_at AS recordedAt FROM connection_outcomes ORDER BY recorded_at,kind",
+        )
+        .all(),
       messages: this.db
         .prepare(
           "SELECT id,connection_id AS connectionId,sender_id AS senderId,text,created_at AS createdAt FROM messages ORDER BY id",
@@ -849,7 +911,7 @@ export class Store {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db.exec(
-        "DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM report_updates; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM processed_account_events; DELETE FROM state;",
+        "DELETE FROM connection_outcomes; DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM report_updates; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM processed_account_events; DELETE FROM state;",
       );
       this.seed();
       this.db.exec("COMMIT");

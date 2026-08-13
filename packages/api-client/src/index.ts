@@ -8,11 +8,20 @@ import type {
 
 export type Decision = "interested" | "passed";
 export type DataExport = Record<string, unknown> & {
-  schemaVersion: "1.0.0";
+  schemaVersion: "1.1.0";
   algorithmVersion: string;
   exportedAt: string;
 };
 export type MeetingPreference = "not_asked" | "not_yet" | "open_to_plan";
+export type ConnectionOutcomeKind =
+  | "met_in_person"
+  | "wanted_second_date"
+  | "relationship_started"
+  | "relationship_ended";
+export type ConnectionOutcome = {
+  kind: ConnectionOutcomeKind;
+  recordedAt: string;
+};
 export type Connection = {
   id: string;
   profileId: string;
@@ -20,6 +29,7 @@ export type Connection = {
   closedAt: string | null;
   muted: boolean;
   meetingPreference: MeetingPreference;
+  outcomes: ConnectionOutcome[];
   profile?: PublicProfile;
 };
 export type Message = {
@@ -585,6 +595,15 @@ export function createApiClient(
       request<{ meetingPreference: MeetingPreference }>(
         `/v1/connections/${encodeURIComponent(connectionId)}/meeting-preference`,
         json("PATCH", { meetingPreference }),
+      ),
+    updateConnectionOutcome: (
+      connectionId: string,
+      kind: ConnectionOutcomeKind,
+      recorded: boolean,
+    ) =>
+      request<{ outcomes: ConnectionOutcome[] }>(
+        `/v1/connections/${encodeURIComponent(connectionId)}/outcomes/${encodeURIComponent(kind)}`,
+        json("PATCH", { recorded }),
       ),
     block: (profileId: string) =>
       request<{ profileId: string; blocked: true }>(

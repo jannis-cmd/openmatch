@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "status": "local-prototype",
   "updated": "2026-08-13",
   "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
@@ -283,6 +283,22 @@
         "meetingPreference"
       ],
       "disclosure": "For account pairs, the same deterministic connection identifier is stored in both isolated account stores and closure is mirrored on a best-effort basis. The meeting preference remains private and reversible, is not sent to the other account, and is not evidence that a meeting occurred."
+    },
+    {
+      "id": "connectionOutcomes",
+      "storage": "connection_outcomes table",
+      "purpose": "Let a person privately record distinct, voluntary post-introduction milestones without converting them into one engagement score.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": ["connectionId", "kind", "recordedAt"],
+      "disclosure": "Each milestone is a one-person self-report, not proof, not a statement from the other person, and not disclosed across the connection. Entries do not alter matching automatically and can be removed individually.",
+      "excluded": [
+        "partner response",
+        "location",
+        "date details",
+        "satisfaction score",
+        "message-derived inference"
+      ]
     },
     {
       "id": "savedIntroductions",

@@ -678,6 +678,44 @@ test("updates a reversible meeting-planning preference", async () => {
   assert.equal(result.meetingPreference, "open_to_plan");
 });
 
+test("updates one private connection outcome without collapsing stages", async () => {
+  let received: { url?: string; body?: unknown } = {};
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (url, init) => {
+      received = {
+        url: String(url),
+        body: JSON.parse(String(init?.body)),
+      };
+      return new Response(
+        JSON.stringify({
+          outcomes: [
+            {
+              kind: "met_in_person",
+              recordedAt: "2026-08-13T12:00:00.000Z",
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }),
+  );
+  const result = await client.updateConnectionOutcome(
+    "connection-1",
+    "met_in_person",
+    true,
+  );
+  assert.equal(
+    received.url,
+    "http://example.test/v1/connections/connection-1/outcomes/met_in_person",
+  );
+  assert.deepEqual(received.body, { recorded: true });
+  assert.deepEqual(
+    result.outcomes.map(({ kind }) => kind),
+    ["met_in_person"],
+  );
+});
+
 test("adds an append-only update to a safety report", async () => {
   let received: { url?: string; body?: unknown } = {};
   const client = createApiClient(

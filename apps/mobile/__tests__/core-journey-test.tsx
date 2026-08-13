@@ -50,6 +50,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let reportPayload: { reason?: string; details?: string } | null = null;
   let connectionActive = false;
   let meetingPreference = "not_asked";
+  let connectionOutcomes: Array<{ kind: string; recordedAt: string }> = [];
   let muted = false;
   let failNextConnectionPreferenceSave = false;
   let preferenceObservationCount = 0;
@@ -456,6 +457,25 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       muted = body.muted;
       return response({ muted });
     }
+    if (
+      path.startsWith("/v1/connections/connection-mara/outcomes/") &&
+      init.method === "PATCH"
+    ) {
+      if (failNextConnectionPreferenceSave) {
+        failNextConnectionPreferenceSave = false;
+        return response({ error: "simulated_outcome_failure" }, 503);
+      }
+      const kind = path.split("/").at(-1)!;
+      connectionOutcomes = body.recorded
+        ? connectionOutcomes.some((item) => item.kind === kind)
+          ? connectionOutcomes
+          : [
+              ...connectionOutcomes,
+              { kind, recordedAt: "2026-08-12T12:00:00.000Z" },
+            ]
+        : connectionOutcomes.filter((item) => item.kind !== kind);
+      return response({ outcomes: connectionOutcomes });
+    }
     if (path === "/v1/connections")
       return response({
         items: connectionActive
@@ -467,6 +487,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
                 closedAt: null,
                 muted,
                 meetingPreference,
+                outcomes: connectionOutcomes,
                 profile: toPublicProfile(demoCandidates[0].profile),
               },
               {
@@ -476,6 +497,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
                 closedAt: null,
                 muted: false,
                 meetingPreference: "not_asked",
+                outcomes: [],
                 profile: toPublicProfile(demoCandidates[1].profile),
               },
             ]
@@ -775,6 +797,26 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() => expect(meetingPreference).toBe("open_to_plan"));
   expect(screen.getByText("Saved privately: open to planning.")).toBeTruthy();
   expect(screen.getByText("✓ Choose a busy public place.")).toBeTruthy();
+  await fireEvent.press(screen.getByText("Met in person"));
+  await waitFor(() =>
+    expect(connectionOutcomes.map(({ kind }) => kind)).toContain(
+      "met_in_person",
+    ),
+  );
+  expect(screen.getByRole("button", { name: "Met in person" })).toHaveProp(
+    "accessibilityState",
+    { selected: true, disabled: false },
+  );
+  failNextConnectionPreferenceSave = true;
+  await fireEvent.press(screen.getByText("Wanted another date"));
+  expect(
+    await screen.findByText(
+      "The private outcome was not changed. The previous confirmed journal is still active; retry when ready.",
+    ),
+  ).toBeTruthy();
+  expect(connectionOutcomes.map(({ kind }) => kind)).not.toContain(
+    "wanted_second_date",
+  );
   failNextConnectionPreferenceSave = true;
   await fireEvent.press(screen.getByText("Mute conversation"));
   await waitFor(() =>

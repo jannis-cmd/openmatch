@@ -1823,6 +1823,7 @@ test("the public data inventory covers every current storage and export field", 
       "muted",
       "meetingPreference",
     ],
+    connectionOutcomes: ["connectionId", "kind", "recordedAt"],
     savedIntroductions: ["profileId", "createdAt"],
     messages: [
       "id",
@@ -2232,11 +2233,13 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
         id: string;
         muted: boolean;
         meetingPreference: string;
+        outcomes: Array<{ kind: string }>;
       }>;
     };
     assert.equal(connections.items.length, 1);
     assert.equal(connections.items[0].muted, false);
     assert.equal(connections.items[0].meetingPreference, "not_asked");
+    assert.deepEqual(connections.items[0].outcomes, []);
     const id = connections.items[0].id;
     assert.equal(
       (
@@ -2286,6 +2289,50 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
         await request(`/v1/connections/${id}/meeting-preference`, {
           method: "PATCH",
           body: JSON.stringify({ meetingPreference: "met" }),
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/outcomes/met_in_person`, {
+          method: "PATCH",
+          body: JSON.stringify({ recorded: true }),
+        })
+      ).status,
+      200,
+    );
+    assert.deepEqual(
+      (
+        (await (await request("/v1/connections")).json()) as {
+          items: Array<{ outcomes: Array<{ kind: string }> }>;
+        }
+      ).items[0].outcomes.map(({ kind }) => kind),
+      ["met_in_person"],
+    );
+    for (const recorded of [true, false])
+      assert.equal(
+        (
+          await request(`/v1/connections/${id}/outcomes/wanted_second_date`, {
+            method: "PATCH",
+            body: JSON.stringify({ recorded }),
+          })
+        ).status,
+        200,
+      );
+    assert.deepEqual(
+      (
+        (await (await request("/v1/connections")).json()) as {
+          items: Array<{ outcomes: Array<{ kind: string }> }>;
+        }
+      ).items[0].outcomes.map(({ kind }) => kind),
+      ["met_in_person"],
+    );
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/outcomes/unverified_claim`, {
+          method: "PATCH",
+          body: JSON.stringify({ recorded: true }),
         })
       ).status,
       400,
@@ -2454,6 +2501,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       preferenceObservations: Array<{ selectionProbability: number }>;
       messages: Array<{ text: string }>;
       connections: Array<{ muted: boolean; meetingPreference: string }>;
+      connectionOutcomes: Array<{ kind: string }>;
       accountStatus: string;
       deliverySettings: { batchSize: number };
       introductionBatch: {
@@ -2469,7 +2517,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       };
       savedIntroductions: Array<{ profileId: string }>;
     };
-    assert.equal(dataExport.schemaVersion, "1.0.0");
+    assert.equal(dataExport.schemaVersion, "1.1.0");
     assert.equal(dataExport.algorithmVersion, ALGORITHM_VERSION);
     assert.equal(Number.isNaN(Date.parse(dataExport.exportedAt)), false);
     assert.equal(dataExport.profile.id, "me");
@@ -2498,6 +2546,10 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     );
     assert.equal(dataExport.connections[0].muted, true);
     assert.equal(dataExport.connections[0].meetingPreference, "open_to_plan");
+    assert.deepEqual(
+      dataExport.connectionOutcomes.map(({ kind }) => kind),
+      ["met_in_person"],
+    );
     assert.equal(dataExport.accountStatus, "active");
     assert.equal(dataExport.deliverySettings.batchSize, 5);
     assert.equal(dataExport.introductionBatch.weeklySeed, publicWeeklySeed());

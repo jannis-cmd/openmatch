@@ -37,6 +37,7 @@ import {
   type AccountDeliveryStatus,
   type AccountStatus,
   type Connection,
+  type ConnectionOutcomeKind,
   type DeletionReceipt,
   type DeliverySettings,
   type DirectoryConsentReceipt,
@@ -90,6 +91,15 @@ function sessionClientLabel(client: AccountSession["client"]) {
   if (client === "android") return "Android app";
   return "Earlier OpenMatch client";
 }
+
+const CONNECTION_OUTCOME_OPTIONS: ReadonlyArray<
+  readonly [ConnectionOutcomeKind, string]
+> = [
+  ["met_in_person", "Met in person"],
+  ["wanted_second_date", "Wanted another date"],
+  ["relationship_started", "Started a relationship"],
+  ["relationship_ended", "Relationship ended"],
+];
 
 function securityNotice(status: SecurityNotificationStatus) {
   return status === "sent"
@@ -218,7 +228,7 @@ export default function App() {
     string | null
   >(null);
   const [connectionPreferenceAction, setConnectionPreferenceAction] = useState<
-    "mute" | "meeting" | null
+    "mute" | "meeting" | "outcome" | null
   >(null);
   const [connectionPreferenceError, setConnectionPreferenceError] = useState<
     string | null
@@ -1806,6 +1816,69 @@ export default function App() {
                   </Text>
                   <Text style={styles.reason}>
                     ✓ Tell someone you trust where you are going.
+                  </Text>
+                </View>
+                <View style={styles.scoreCard}>
+                  <Text style={styles.eyebrow}>Private outcome journal</Text>
+                  <Text style={styles.name}>
+                    What happened after this introduction?
+                  </Text>
+                  <Text style={styles.scoreNote}>
+                    Optional self-report only. Each stage stays separate, is
+                    never shown to the other person, and does not change
+                    matching automatically. You can remove any entry.
+                  </Text>
+                  {CONNECTION_OUTCOME_OPTIONS.map(([kind, label]) => {
+                    const recorded = connection.outcomes.some(
+                      (outcome) => outcome.kind === kind,
+                    );
+                    return (
+                      <Action
+                        key={kind}
+                        label={label}
+                        secondary={!recorded}
+                        selected={recorded}
+                        disabled={connectionPreferenceAction !== null}
+                        onPress={() => {
+                          setConnectionPreferenceAction("outcome");
+                          setConnectionPreferenceError(null);
+                          void api
+                            .updateConnectionOutcome(
+                              connection.id,
+                              kind,
+                              !recorded,
+                            )
+                            .then((result) =>
+                              setConnections((current) =>
+                                current.map((item) =>
+                                  item.id === connection.id
+                                    ? { ...item, outcomes: result.outcomes }
+                                    : item,
+                                ),
+                              ),
+                            )
+                            .catch(() =>
+                              setConnectionPreferenceError(
+                                "The private outcome was not changed. The previous confirmed journal is still active; retry when ready.",
+                              ),
+                            )
+                            .finally(() => setConnectionPreferenceAction(null));
+                        }}
+                      />
+                    );
+                  })}
+                  {connectionPreferenceAction === "outcome" && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      Saving private outcome…
+                    </Text>
+                  )}
+                  <Text style={styles.mathNote}>
+                    These milestones are not a satisfaction scale, proof, or a
+                    statement from both people. OpenMatch keeps them distinct
+                    rather than turning them into one engagement score.
                   </Text>
                 </View>
                 <View style={styles.scoreCard}>
