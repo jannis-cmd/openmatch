@@ -174,8 +174,10 @@ export default function App() {
     string | null
   >(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [bio, setBio] = useState(demoUser.bio);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [profileDraft, setProfileDraft] = useState<Profile | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [safetyNotice, setSafetyNotice] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRecord[]>([]);
   const [reportUpdateId, setReportUpdateId] = useState<number | null>(null);
@@ -248,6 +250,18 @@ export default function App() {
   );
   const visibleIntroductions = showSaved ? savedIntroductions : introductions;
   const current = visibleIntroductions[0];
+  const profileEdit = profileDraft ?? profile;
+  const profileEditValid =
+    profileEdit.name.trim().length > 0 &&
+    profileEdit.city.trim().length > 0 &&
+    profileEdit.bio.trim().length > 0 &&
+    profileEdit.prompt.trim().length > 0 &&
+    profileEdit.promptAnswer.trim().length > 0 &&
+    profileEdit.values.length > 0 &&
+    profileEdit.gender.trim().length > 0 &&
+    profileEdit.genderGroups.length > 0 &&
+    profileEdit.age >= 18 &&
+    profileEdit.age <= 120;
   const connection =
     connections.find(({ id }) => id === selectedConnectionId) ?? connections[0];
   const draft = connection ? (conversationDrafts[connection.id] ?? "") : "";
@@ -315,6 +329,12 @@ export default function App() {
     setRecoveryPassword("");
     setRecoveryError(null);
   }, [accessMode, tab]);
+  useEffect(() => {
+    setEditingProfile(false);
+    setProfileDraft(null);
+    setProfileSaveError(null);
+    setProfileSaving(false);
+  }, [accessMode]);
   useEffect(() => {
     let active = true;
     if (!apiConfiguration.url) {
@@ -406,7 +426,6 @@ export default function App() {
           : Promise.resolve(null),
       ]);
       setProfile(nextProfile);
-      setBio(nextProfile.bio);
       setPreferences(nextPreferences);
       setIntroductions(nextIntroductions.items);
       setNextBatchAt(nextIntroductions.nextBatchAt);
@@ -1722,21 +1741,23 @@ export default function App() {
                     <Text style={styles.setting}>Display name</Text>
                     <TextInput
                       accessibilityLabel="Profile display name"
-                      value={profile.name}
+                      value={profileEdit.name}
                       maxLength={50}
-                      onChangeText={(name) => setProfile({ ...profile, name })}
+                      onChangeText={(name) =>
+                        setProfileDraft({ ...profileEdit, name })
+                      }
                       style={styles.textField}
                     />
-                    <Text style={styles.setting}>Age · {profile.age}</Text>
+                    <Text style={styles.setting}>Age · {profileEdit.age}</Text>
                     <View style={styles.adjust}>
                       <Action
                         label="−"
                         accessibilityLabel="Lower profile age"
                         secondary
                         onPress={() =>
-                          setProfile({
-                            ...profile,
-                            age: Math.max(18, profile.age - 1),
+                          setProfileDraft({
+                            ...profileEdit,
+                            age: Math.max(18, profileEdit.age - 1),
                           })
                         }
                       />
@@ -1745,9 +1766,9 @@ export default function App() {
                         accessibilityLabel="Raise profile age"
                         secondary
                         onPress={() =>
-                          setProfile({
-                            ...profile,
-                            age: Math.min(120, profile.age + 1),
+                          setProfileDraft({
+                            ...profileEdit,
+                            age: Math.min(120, profileEdit.age + 1),
                           })
                         }
                       />
@@ -1757,96 +1778,129 @@ export default function App() {
                     </Text>
                     <TextInput
                       accessibilityLabel="Profile approximate city or region"
-                      value={profile.city}
+                      value={profileEdit.city}
                       maxLength={80}
-                      onChangeText={(city) => setProfile({ ...profile, city })}
+                      onChangeText={(city) =>
+                        setProfileDraft({ ...profileEdit, city })
+                      }
                       style={styles.textField}
                     />
                     <Text style={styles.setting}>Pronouns · optional</Text>
                     <TextInput
                       accessibilityLabel="Profile pronouns optional"
-                      value={profile.pronouns}
+                      value={profileEdit.pronouns}
                       maxLength={50}
                       onChangeText={(pronouns) =>
-                        setProfile({ ...profile, pronouns })
+                        setProfileDraft({ ...profileEdit, pronouns })
                       }
                       style={styles.textField}
                     />
                     <GenderDiscoveryFields
-                      value={profile}
-                      onChange={setProfile}
+                      value={profileEdit}
+                      onChange={setProfileDraft}
                     />
                     <IntentSelector
-                      value={profile.intent}
-                      onChange={(intent) => setProfile({ ...profile, intent })}
+                      value={profileEdit.intent}
+                      onChange={(intent) =>
+                        setProfileDraft({ ...profileEdit, intent })
+                      }
                     />
                     <ReadinessSelector
-                      value={profile.readiness}
+                      value={profileEdit.readiness}
                       onChange={(readiness) =>
-                        setProfile({ ...profile, readiness })
+                        setProfileDraft({ ...profileEdit, readiness })
                       }
                     />
                     <Text style={styles.setting}>Biography</Text>
                     <TextInput
                       accessibilityLabel="Profile bio"
                       multiline
-                      value={bio}
+                      value={profileEdit.bio}
                       maxLength={500}
-                      onChangeText={setBio}
+                      onChangeText={(bio) =>
+                        setProfileDraft({ ...profileEdit, bio })
+                      }
                       style={styles.bioInput}
                     />
                     <MatchingProfileFields
-                      value={profile}
-                      onChange={setProfile}
+                      value={profileEdit}
+                      onChange={setProfileDraft}
                     />
                     <PublicProfilePreview
-                      profile={{ ...profile, bio }}
+                      profile={profileEdit}
                       title="Unsaved public preview"
                     />
                   </>
                 ) : (
                   <PublicProfilePreview
-                    profile={{ ...profile, bio }}
+                    profile={profile}
                     title="Public preview"
                   />
                 )}
-                <Action
-                  label={editingProfile ? "Done" : "Edit profile"}
-                  secondary
-                  disabled={
-                    editingProfile &&
-                    (!profile.name.trim() ||
-                      !profile.city.trim() ||
-                      !bio.trim() ||
-                      !profile.prompt.trim() ||
-                      !profile.promptAnswer.trim() ||
-                      !profile.values.length ||
-                      !profile.gender.trim() ||
-                      !profile.genderGroups.length)
-                  }
-                  onPress={() => {
-                    if (editingProfile)
-                      void api
-                        .updateProfile({
-                          name: profile.name.trim(),
-                          age: profile.age,
-                          city: profile.city.trim(),
-                          pronouns: profile.pronouns.trim(),
-                          gender: profile.gender.trim(),
-                          genderGroups: profile.genderGroups,
-                          intent: profile.intent,
-                          readiness: profile.readiness,
-                          bio: bio.trim(),
-                          prompt: profile.prompt.trim(),
-                          promptAnswer: profile.promptAnswer.trim(),
-                          values: profile.values,
-                          lifestyle: profile.lifestyle,
-                        })
-                        .then(setProfile)
-                        .catch(() => setError("Profile could not be saved."));
-                    setEditingProfile(!editingProfile);
-                  }}
-                />
+                {profileSaveError && (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {profileSaveError}
+                  </Text>
+                )}
+                {editingProfile ? (
+                  <View style={styles.actions}>
+                    <Action
+                      label="Cancel profile changes"
+                      secondary
+                      disabled={profileSaving}
+                      onPress={() => {
+                        setProfileDraft(null);
+                        setProfileSaveError(null);
+                        setEditingProfile(false);
+                      }}
+                    />
+                    <Action
+                      label={profileSaving ? "Saving profile…" : "Save profile"}
+                      disabled={!profileEditValid || profileSaving}
+                      onPress={() => {
+                        setProfileSaving(true);
+                        setProfileSaveError(null);
+                        void api
+                          .updateProfile({
+                            name: profileEdit.name.trim(),
+                            age: profileEdit.age,
+                            city: profileEdit.city.trim(),
+                            pronouns: profileEdit.pronouns.trim(),
+                            gender: profileEdit.gender.trim(),
+                            genderGroups: profileEdit.genderGroups,
+                            intent: profileEdit.intent,
+                            readiness: profileEdit.readiness,
+                            bio: profileEdit.bio.trim(),
+                            prompt: profileEdit.prompt.trim(),
+                            promptAnswer: profileEdit.promptAnswer.trim(),
+                            values: profileEdit.values,
+                            lifestyle: profileEdit.lifestyle,
+                          })
+                          .then((saved) => {
+                            setProfile(saved);
+                            setProfileDraft(null);
+                            setEditingProfile(false);
+                          })
+                          .catch(() =>
+                            setProfileSaveError(
+                              "Your changes were not saved. They remain here so you can retry or cancel.",
+                            ),
+                          )
+                          .finally(() => setProfileSaving(false));
+                      }}
+                    />
+                  </View>
+                ) : (
+                  <Action
+                    label="Edit profile"
+                    secondary
+                    onPress={() => {
+                      setProfileDraft(structuredClone(profile));
+                      setProfileSaveError(null);
+                      setEditingProfile(true);
+                    }}
+                  />
+                )}
               </View>
               {accessMode === "account" && emailVerification && (
                 <View style={styles.scoreCard}>

@@ -428,6 +428,26 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByLabel("Profile prompt")).toBeVisible();
   await expect(page.getByLabel(/Values 1–5/)).toBeVisible();
+  await page.getByLabel("Display name").fill("Unsaved Taylor");
+  await page.route(
+    "**/v1/me",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_profile_write_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Your changes were not saved" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Display name")).toHaveValue("Unsaved Taylor");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Taylor, 31", level: 1 }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Today" }).click();
   const firstIntroduction = await page
     .locator(".profile-card h2")

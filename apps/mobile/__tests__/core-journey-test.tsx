@@ -61,6 +61,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let passwordChanged = false;
   let recoveryCodesGenerated = false;
   let emailVerified = false;
+  let failNextProfileSave = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -189,8 +190,13 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         applicationBackups: "none",
       });
     }
-    if (path === "/v1/me" && init.method === "PATCH")
+    if (path === "/v1/me" && init.method === "PATCH") {
+      if (failNextProfileSave) {
+        failNextProfileSave = false;
+        return response({ error: "simulated_profile_write_failure" }, 503);
+      }
       return response((profile = { ...profile, ...body, id: "me" }));
+    }
     if (path === "/v1/me") return response(profile);
     if (path === "/v1/preferences" && init.method === "PATCH")
       return response(
@@ -639,6 +645,30 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     expect(preferences.intents).toContain("Still figuring it out"),
   );
   await fireEvent.press(screen.getByText("Profile"));
+  await fireEvent.press(screen.getByText("Edit profile"));
+  await fireEvent.changeText(
+    screen.getByLabelText("Profile display name"),
+    "Taylor Updated",
+  );
+  failNextProfileSave = true;
+  await fireEvent.press(screen.getByText("Save profile"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Your changes were not saved. They remain here so you can retry or cancel.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(profile.name).toBe("Taylor");
+  expect(screen.getByLabelText("Profile display name")).toHaveProp(
+    "value",
+    "Taylor Updated",
+  );
+  await fireEvent.press(screen.getByText("Save profile"));
+  await waitFor(() => expect(profile.name).toBe("Taylor Updated"));
+  await waitFor(() =>
+    expect(screen.queryByLabelText("Profile display name")).toBeNull(),
+  );
   expect(screen.getByText(/Not enrolled/)).toBeTruthy();
   await fireEvent.press(
     screen.getByText("Opt in to future prototype research"),
@@ -676,7 +706,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     "Care, Community",
   );
   await fireEvent.press(screen.getByText("Flexible"));
-  await fireEvent.press(screen.getByText("Done"));
+  await fireEvent.press(screen.getByText("Save profile"));
   await waitFor(() => expect(profile.name).toBe("Taylor Two"));
   expect(profile.values).toEqual(["Care", "Community"]);
   expect(profile.lifestyle.schedule).toBe("flexible");

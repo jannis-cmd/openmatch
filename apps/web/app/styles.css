@@ -839,6 +839,11 @@ textarea {
   align-items: flex-start;
   justify-content: space-between;
 }
+.inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .connection-picker {
   display: flex;
   gap: 8px;

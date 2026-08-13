@@ -2891,6 +2891,8 @@ function ProfileView({
   deleteAccount?: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -2923,7 +2925,9 @@ function ProfileView({
     null,
   );
   const [draft, setDraft] = useState(profile);
-  useEffect(() => setDraft(profile), [profile]);
+  useEffect(() => {
+    if (!editing) setDraft(profile);
+  }, [editing, profile]);
   const draftValid =
     draft.name.trim().length > 0 &&
     draft.city.trim().length > 0 &&
@@ -2949,33 +2953,67 @@ function ProfileView({
       <section className="settings-card">
         <div className="card-title">
           <h2>About you</h2>
-          <button
-            className="text-button"
-            disabled={editing && !draftValid}
-            onClick={async () => {
-              if (editing) {
-                await saveProfile({
-                  name: draft.name.trim(),
-                  age: draft.age,
-                  city: draft.city.trim(),
-                  pronouns: draft.pronouns.trim(),
-                  gender: draft.gender.trim(),
-                  genderGroups: draft.genderGroups,
-                  intent: draft.intent,
-                  readiness: draft.readiness,
-                  bio: draft.bio.trim(),
-                  prompt: draft.prompt.trim(),
-                  promptAnswer: draft.promptAnswer.trim(),
-                  values: draft.values,
-                  lifestyle: draft.lifestyle,
-                });
-              }
-              setEditing(!editing);
-            }}
-          >
-            {editing ? "Save" : "Edit"}
-          </button>
+          {editing ? (
+            <div className="inline-actions">
+              <button
+                className="text-button"
+                disabled={profileSaving}
+                onClick={() => {
+                  setDraft(profile);
+                  setProfileSaveError(null);
+                  setEditing(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!draftValid || profileSaving}
+                onClick={async () => {
+                  setProfileSaving(true);
+                  setProfileSaveError(null);
+                  try {
+                    await saveProfile({
+                      name: draft.name.trim(),
+                      age: draft.age,
+                      city: draft.city.trim(),
+                      pronouns: draft.pronouns.trim(),
+                      gender: draft.gender.trim(),
+                      genderGroups: draft.genderGroups,
+                      intent: draft.intent,
+                      readiness: draft.readiness,
+                      bio: draft.bio.trim(),
+                      prompt: draft.prompt.trim(),
+                      promptAnswer: draft.promptAnswer.trim(),
+                      values: draft.values,
+                      lifestyle: draft.lifestyle,
+                    });
+                    setEditing(false);
+                  } catch {
+                    setProfileSaveError(
+                      "Your changes were not saved. They remain here so you can retry or cancel.",
+                    );
+                  } finally {
+                    setProfileSaving(false);
+                  }
+                }}
+              >
+                {profileSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          ) : (
+            <button
+              className="text-button"
+              onClick={() => {
+                setDraft(profile);
+                setProfileSaveError(null);
+                setEditing(true);
+              }}
+            >
+              Edit
+            </button>
+          )}
         </div>
+        {profileSaveError && <p role="alert">{profileSaveError}</p>}
         {editing ? (
           <div className="profile-fields">
             <label>
