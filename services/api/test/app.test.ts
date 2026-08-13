@@ -14,13 +14,25 @@ import {
   type Profile,
 } from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
-import { AccountError, Accounts } from "../src/accounts.ts";
+import {
+  ACCOUNT_SCHEMA_VERSION,
+  AccountError,
+  Accounts,
+} from "../src/accounts.ts";
 import { smtpEmailVerificationSender } from "../src/email-verification.ts";
-import { Store } from "../src/store.ts";
+import { APPLICATION_SCHEMA_VERSION, Store } from "../src/store.ts";
 
 test("first-run setup rolls back every field when its transaction fails", () => {
   const directory = mkdtempSync(join(tmpdir(), "openmatch-setup-"));
   const store = new Store(join(directory, "setup.sqlite"));
+  assert.equal(
+    (
+      store.db.prepare("PRAGMA user_version").get() as {
+        user_version: number;
+      }
+    ).user_version,
+    APPLICATION_SCHEMA_VERSION,
+  );
   const originalProfile = store.profile();
   const originalPreferences = store.preferences();
   store.db.exec(`
@@ -139,6 +151,14 @@ test("account storage migrates existing sessions to public opaque identifiers", 
       .get() as { id: string; client: string };
     assert.match(session.id, /^[0-9a-f-]{36}$/);
     assert.equal(session.client, "unknown");
+    assert.equal(
+      (
+        accounts.db.prepare("PRAGMA user_version").get() as {
+          user_version: number;
+        }
+      ).user_version,
+      ACCOUNT_SCHEMA_VERSION,
+    );
     assert.ok(
       (
         accounts.db.prepare("PRAGMA table_info(accounts)").all() as Array<{

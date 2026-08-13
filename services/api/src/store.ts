@@ -10,6 +10,9 @@ import {
   type Preferences,
   type Profile,
 } from "@openmatch/matching";
+import { migrateSqlite } from "./migrations.js";
+
+export const APPLICATION_SCHEMA_VERSION = 1;
 
 export type Connection = {
   id: string;
@@ -124,9 +127,10 @@ export class Store {
   ) {
     this.accountProfile = options.accountProfile === true;
     this.db = new DatabaseSync(path);
-    this.db.exec(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA foreign_keys = ON;
+    this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+    const schemaVersion = migrateSqlite(this.db, "application data", [
+      (database) => {
+        database.exec(`
       CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS decisions (profile_id TEXT PRIMARY KEY, decision TEXT NOT NULL CHECK(decision IN ('interested','passed')), created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS connections (id TEXT PRIMARY KEY, profile_id TEXT UNIQUE NOT NULL, created_at TEXT NOT NULL, closed_at TEXT);
@@ -138,25 +142,33 @@ export class Store {
       CREATE TABLE IF NOT EXISTS preference_observations (profile_id TEXT PRIMARY KEY, interested INTEGER NOT NULL CHECK(interested IN (0,1)), factors_json TEXT NOT NULL, selection_probability REAL NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS processed_account_events (event_id TEXT PRIMARY KEY, processed_at TEXT NOT NULL);
     `);
-    const connectionColumns = this.db
-      .prepare("PRAGMA table_info(connections)")
-      .all() as Array<{ name: string }>;
-    if (!connectionColumns.some(({ name }) => name === "muted"))
-      this.db.exec(
-        "ALTER TABLE connections ADD COLUMN muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1))",
-      );
-    if (!connectionColumns.some(({ name }) => name === "meeting_preference"))
-      this.db.exec(
-        "ALTER TABLE connections ADD COLUMN meeting_preference TEXT NOT NULL DEFAULT 'not_asked' CHECK(meeting_preference IN ('not_asked','not_yet','open_to_plan'))",
-      );
-    const messageColumns = this.db
-      .prepare("PRAGMA table_info(messages)")
-      .all() as Array<{ name: string }>;
-    if (!messageColumns.some(({ name }) => name === "delivery_event_id"))
-      this.db.exec("ALTER TABLE messages ADD COLUMN delivery_event_id TEXT");
-    this.db.exec(
-      "CREATE UNIQUE INDEX IF NOT EXISTS messages_delivery_event_id ON messages(delivery_event_id) WHERE delivery_event_id IS NOT NULL",
-    );
+        const connectionColumns = database
+          .prepare("PRAGMA table_info(connections)")
+          .all() as Array<{ name: string }>;
+        if (!connectionColumns.some(({ name }) => name === "muted"))
+          database.exec(
+            "ALTER TABLE connections ADD COLUMN muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1))",
+          );
+        if (
+          !connectionColumns.some(({ name }) => name === "meeting_preference")
+        )
+          database.exec(
+            "ALTER TABLE connections ADD COLUMN meeting_preference TEXT NOT NULL DEFAULT 'not_asked' CHECK(meeting_preference IN ('not_asked','not_yet','open_to_plan'))",
+          );
+        const messageColumns = database
+          .prepare("PRAGMA table_info(messages)")
+          .all() as Array<{ name: string }>;
+        if (!messageColumns.some(({ name }) => name === "delivery_event_id"))
+          database.exec(
+            "ALTER TABLE messages ADD COLUMN delivery_event_id TEXT",
+          );
+        database.exec(
+          "CREATE UNIQUE INDEX IF NOT EXISTS messages_delivery_event_id ON messages(delivery_event_id) WHERE delivery_event_id IS NOT NULL",
+        );
+      },
+    ]);
+    if (schemaVersion !== APPLICATION_SCHEMA_VERSION)
+      throw new Error("application schema version declaration is stale");
     this.seed();
   }
 

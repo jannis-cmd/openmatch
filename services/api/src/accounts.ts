@@ -16,6 +16,9 @@ import {
 } from "./store.js";
 import type { SecurityNotificationEvent } from "./email-verification.js";
 import type { Candidate, PublicProfile } from "@openmatch/matching";
+import { migrateSqlite } from "./migrations.js";
+
+export const ACCOUNT_SCHEMA_VERSION = 1;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MINIMUM = 15;
@@ -116,9 +119,10 @@ export class Accounts {
         "account session lifetime must be at least one minute",
       );
     if (this.dataDirectory) mkdirSync(this.dataDirectory, { recursive: true });
-    this.db.exec(`
-      PRAGMA journal_mode = WAL;
-      PRAGMA foreign_keys = ON;
+    this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+    const schemaVersion = migrateSqlite(this.db, "account registry", [
+      (database) => {
+        database.exec(`
       CREATE TABLE IF NOT EXISTS accounts (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
@@ -189,71 +193,81 @@ export class Accounts {
         created_at TEXT NOT NULL
       );
     `);
-    const accountColumns = this.db
-      .prepare("PRAGMA table_info(accounts)")
-      .all() as Array<{
-      name: string;
-    }>;
-    if (!accountColumns.some(({ name }) => name === "email_verified_at"))
-      this.db.exec("ALTER TABLE accounts ADD COLUMN email_verified_at TEXT");
-    const sessionColumns = this.db
-      .prepare("PRAGMA table_info(account_sessions)")
-      .all() as Array<{ name: string }>;
-    if (!sessionColumns.some(({ name }) => name === "id"))
-      this.db.exec("ALTER TABLE account_sessions ADD COLUMN id TEXT");
-    if (!sessionColumns.some(({ name }) => name === "client"))
-      this.db.exec(
-        "ALTER TABLE account_sessions ADD COLUMN client TEXT NOT NULL DEFAULT 'unknown'",
-      );
-    const deliveryColumns = this.db
-      .prepare("PRAGMA table_info(account_delivery_events)")
-      .all() as Array<{ name: string }>;
-    if (!deliveryColumns.some(({ name }) => name === "attempt_count"))
-      this.db.exec(
-        "ALTER TABLE account_delivery_events ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0",
-      );
-    if (!deliveryColumns.some(({ name }) => name === "last_attempt_at"))
-      this.db.exec(
-        "ALTER TABLE account_delivery_events ADD COLUMN last_attempt_at TEXT",
-      );
-    if (!deliveryColumns.some(({ name }) => name === "last_error_code"))
-      this.db.exec(
-        "ALTER TABLE account_delivery_events ADD COLUMN last_error_code TEXT",
-      );
-    if (!deliveryColumns.some(({ name }) => name === "next_attempt_at"))
-      this.db.exec(
-        "ALTER TABLE account_delivery_events ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0",
-      );
-    if (!deliveryColumns.some(({ name }) => name === "lease_until"))
-      this.db.exec(
-        "ALTER TABLE account_delivery_events ADD COLUMN lease_until INTEGER NOT NULL DEFAULT 0",
-      );
-    const notificationOutboxColumns = this.db
-      .prepare("PRAGMA table_info(account_security_notification_outbox)")
-      .all() as Array<{ name: string }>;
-    if (
-      !notificationOutboxColumns.some(({ name }) => name === "next_attempt_at")
-    )
-      this.db.exec(
-        "ALTER TABLE account_security_notification_outbox ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0",
-      );
-    if (!notificationOutboxColumns.some(({ name }) => name === "lease_until"))
-      this.db.exec(
-        "ALTER TABLE account_security_notification_outbox ADD COLUMN lease_until INTEGER NOT NULL DEFAULT 0",
-      );
-    const sessionsWithoutId = this.db
-      .prepare(
-        "SELECT token_hash AS tokenHash FROM account_sessions WHERE id IS NULL",
-      )
-      .all() as Array<{ tokenHash: string }>;
-    const assignId = this.db.prepare(
-      "UPDATE account_sessions SET id=? WHERE token_hash=?",
-    );
-    for (const session of sessionsWithoutId)
-      assignId.run(randomUUID(), session.tokenHash);
-    this.db.exec(
-      "CREATE UNIQUE INDEX IF NOT EXISTS account_sessions_id ON account_sessions(id)",
-    );
+        const accountColumns = database
+          .prepare("PRAGMA table_info(accounts)")
+          .all() as Array<{
+          name: string;
+        }>;
+        if (!accountColumns.some(({ name }) => name === "email_verified_at"))
+          database.exec(
+            "ALTER TABLE accounts ADD COLUMN email_verified_at TEXT",
+          );
+        const sessionColumns = database
+          .prepare("PRAGMA table_info(account_sessions)")
+          .all() as Array<{ name: string }>;
+        if (!sessionColumns.some(({ name }) => name === "id"))
+          database.exec("ALTER TABLE account_sessions ADD COLUMN id TEXT");
+        if (!sessionColumns.some(({ name }) => name === "client"))
+          database.exec(
+            "ALTER TABLE account_sessions ADD COLUMN client TEXT NOT NULL DEFAULT 'unknown'",
+          );
+        const deliveryColumns = database
+          .prepare("PRAGMA table_info(account_delivery_events)")
+          .all() as Array<{ name: string }>;
+        if (!deliveryColumns.some(({ name }) => name === "attempt_count"))
+          database.exec(
+            "ALTER TABLE account_delivery_events ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0",
+          );
+        if (!deliveryColumns.some(({ name }) => name === "last_attempt_at"))
+          database.exec(
+            "ALTER TABLE account_delivery_events ADD COLUMN last_attempt_at TEXT",
+          );
+        if (!deliveryColumns.some(({ name }) => name === "last_error_code"))
+          database.exec(
+            "ALTER TABLE account_delivery_events ADD COLUMN last_error_code TEXT",
+          );
+        if (!deliveryColumns.some(({ name }) => name === "next_attempt_at"))
+          database.exec(
+            "ALTER TABLE account_delivery_events ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0",
+          );
+        if (!deliveryColumns.some(({ name }) => name === "lease_until"))
+          database.exec(
+            "ALTER TABLE account_delivery_events ADD COLUMN lease_until INTEGER NOT NULL DEFAULT 0",
+          );
+        const notificationOutboxColumns = database
+          .prepare("PRAGMA table_info(account_security_notification_outbox)")
+          .all() as Array<{ name: string }>;
+        if (
+          !notificationOutboxColumns.some(
+            ({ name }) => name === "next_attempt_at",
+          )
+        )
+          database.exec(
+            "ALTER TABLE account_security_notification_outbox ADD COLUMN next_attempt_at INTEGER NOT NULL DEFAULT 0",
+          );
+        if (
+          !notificationOutboxColumns.some(({ name }) => name === "lease_until")
+        )
+          database.exec(
+            "ALTER TABLE account_security_notification_outbox ADD COLUMN lease_until INTEGER NOT NULL DEFAULT 0",
+          );
+        const sessionsWithoutId = database
+          .prepare(
+            "SELECT token_hash AS tokenHash FROM account_sessions WHERE id IS NULL",
+          )
+          .all() as Array<{ tokenHash: string }>;
+        const assignId = database.prepare(
+          "UPDATE account_sessions SET id=? WHERE token_hash=?",
+        );
+        for (const session of sessionsWithoutId)
+          assignId.run(randomUUID(), session.tokenHash);
+        database.exec(
+          "CREATE UNIQUE INDEX IF NOT EXISTS account_sessions_id ON account_sessions(id)",
+        );
+      },
+    ]);
+    if (schemaVersion !== ACCOUNT_SCHEMA_VERSION)
+      throw new Error("account schema version declaration is stale");
     try {
       this.flushDeliveryEvents(true);
     } catch {
