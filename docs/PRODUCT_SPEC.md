@@ -63,7 +63,7 @@ The system must distinguish:
 - Age gate and region eligibility.
 - Short, versioned consent screens for service processing, research participation, and optional verification—never bundled.
 - Export, pause, hide, and delete controls available from Profile without contacting support.
-- The executable prototype implements JSON export, deletion/reset, pause, and hide across web, iOS, and Android. These controls still require threat-model and assistive-technology review before any pilot.
+- The executable prototype implements JSON export, deletion/reset, pause, and hide across web, iOS, and Android. Profile visibility and account-matching participation change only after server confirmation. While either privacy mutation is running, competing controls are disabled; failure leaves the prior confirmed state visibly active and provides a retryable, action-specific error. These controls still require threat-model and assistive-technology review before any pilot.
 - Research consent defaults off and can be withdrawn prospectively at any time.
 - The executable passphrase prototype accepts 15–128 characters without composition or periodic-change rules, allows password-manager autofill/paste, verifies the current passphrase before a change, and atomically replaces all sessions. Passkeys and verified recovery remain the production direction.
 - The executable recovery prototype issues eight one-time 128-bit look-up secrets only after current-passphrase verification, stores only their hashes, invalidates an older set when replaced, and atomically consumes the complete set while replacing the passphrase and all sessions. It is an offline fallback—not verified contact ownership, identity proofing, or MFA.

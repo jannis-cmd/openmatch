@@ -2991,6 +2991,15 @@ function ProfileView({
   const [editing, setEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  const [privacyAction, setPrivacyAction] = useState<
+    "directory" | "visibility" | null
+  >(null);
+  const [directoryActionError, setDirectoryActionError] = useState<
+    string | null
+  >(null);
+  const [visibilityActionError, setVisibilityActionError] = useState<
+    string | null
+  >(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -3480,18 +3489,29 @@ function ProfileView({
             <button
               aria-pressed={directoryParticipationIsActive(directoryConsent)}
               disabled={
-                !directoryParticipationIsActive(directoryConsent) &&
-                ((Boolean(emailVerification?.deliveryConfigured) &&
-                  !emailVerification?.verifiedAt) ||
-                  !profile.gender.trim() ||
-                  profile.genderGroups.length === 0 ||
-                  !genderPreferencesConfigured)
+                privacyAction !== null ||
+                (!directoryParticipationIsActive(directoryConsent) &&
+                  ((Boolean(emailVerification?.deliveryConfigured) &&
+                    !emailVerification?.verifiedAt) ||
+                    !profile.gender.trim() ||
+                    profile.genderGroups.length === 0 ||
+                    !genderPreferencesConfigured))
               }
-              onClick={() =>
-                void setDirectoryConsent(
-                  !directoryParticipationIsActive(directoryConsent),
-                )
-              }
+              onClick={async () => {
+                setPrivacyAction("directory");
+                setDirectoryActionError(null);
+                try {
+                  await setDirectoryConsent(
+                    !directoryParticipationIsActive(directoryConsent),
+                  );
+                } catch {
+                  setDirectoryActionError(
+                    "Account matching was not changed. The previous confirmed choice is still active; retry when ready.",
+                  );
+                } finally {
+                  setPrivacyAction(null);
+                }
+              }}
             >
               {directoryParticipationIsActive(directoryConsent)
                 ? "Stop account matching"
@@ -3500,6 +3520,10 @@ function ProfileView({
                   : "Enable for 30 days"}
             </button>
           </div>
+          {privacyAction === "directory" && (
+            <p role="status">Saving account-matching choice…</p>
+          )}
+          {directoryActionError && <p role="alert">{directoryActionError}</p>}
           <p className="help" role="status">
             {directoryParticipationIsActive(directoryConsent) &&
             (!profile.gender.trim() ||
@@ -3900,18 +3924,67 @@ function ProfileView({
         <div className="data-actions">
           {accountStatus === "active" ? (
             <>
-              <button onClick={() => void setAccountStatus("paused")}>
+              <button
+                disabled={privacyAction !== null}
+                onClick={async () => {
+                  setPrivacyAction("visibility");
+                  setVisibilityActionError(null);
+                  try {
+                    await setAccountStatus("paused");
+                  } catch {
+                    setVisibilityActionError(
+                      "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
+                    );
+                  } finally {
+                    setPrivacyAction(null);
+                  }
+                }}
+              >
                 Pause introductions
               </button>
-              <button onClick={() => void setAccountStatus("hidden")}>
+              <button
+                disabled={privacyAction !== null}
+                onClick={async () => {
+                  setPrivacyAction("visibility");
+                  setVisibilityActionError(null);
+                  try {
+                    await setAccountStatus("hidden");
+                  } catch {
+                    setVisibilityActionError(
+                      "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
+                    );
+                  } finally {
+                    setPrivacyAction(null);
+                  }
+                }}
+              >
                 Hide my profile
               </button>
             </>
           ) : (
-            <button onClick={() => void setAccountStatus("active")}>
+            <button
+              disabled={privacyAction !== null}
+              onClick={async () => {
+                setPrivacyAction("visibility");
+                setVisibilityActionError(null);
+                try {
+                  await setAccountStatus("active");
+                } catch {
+                  setVisibilityActionError(
+                    "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
+                  );
+                } finally {
+                  setPrivacyAction(null);
+                }
+              }}
+            >
               Resume and show profile
             </button>
           )}
+          {privacyAction === "visibility" && (
+            <p role="status">Saving profile visibility…</p>
+          )}
+          {visibilityActionError && <p role="alert">{visibilityActionError}</p>}
           <button onClick={() => void exportData()}>Export my data</button>
           <button className="danger" onClick={() => void deleteData()}>
             Delete local data

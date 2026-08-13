@@ -64,6 +64,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let failNextProfileSave = false;
   let failNextPreferencesSave = false;
   let failNextBatchSizeSave = false;
+  let failNextVisibilitySave = false;
+  let failNextDirectorySave = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -227,6 +229,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       });
     if (path === "/v1/preferences") return response(preferences);
     if (path === "/v1/account/status" && init.method === "PATCH") {
+      if (failNextVisibilitySave) {
+        failNextVisibilitySave = false;
+        return response({ error: "simulated_visibility_write_failure" }, 503);
+      }
       accountStatus = body.status;
       return response({ status: accountStatus });
     }
@@ -300,6 +306,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
               },
       });
     if (path === "/v1/consents/directory" && init.method === "PATCH") {
+      if (failNextDirectorySave) {
+        failNextDirectorySave = false;
+        return response({ error: "simulated_directory_write_failure" }, 503);
+      }
       directoryParticipating = body.participating;
       return response({
         participating: directoryParticipating,
@@ -749,6 +759,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() => expect(profile.name).toBe("Taylor Two"));
   expect(profile.values).toEqual(["Care", "Community"]);
   expect(profile.lifestyle.schedule).toBe("flexible");
+  failNextVisibilitySave = true;
+  await fireEvent.press(screen.getByText("Pause introductions"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(accountStatus).toBe("active");
   await fireEvent.press(screen.getByText("Pause introductions"));
   await waitFor(() =>
     expect(screen.getByText("Introductions paused")).toBeTruthy(),
@@ -852,6 +872,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Confirm email"));
   await waitFor(() => expect(emailVerified).toBe(true));
   expect(screen.getByText(/Confirmed for account messages/)).toBeTruthy();
+  failNextDirectorySave = true;
+  await fireEvent.press(screen.getByText("Enable for 30 days"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Account matching was not changed. The previous confirmed choice is still active; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(directoryParticipating).toBeNull();
   await fireEvent.press(screen.getByText("Enable for 30 days"));
   await waitFor(() => expect(directoryParticipating).toBe(true));
   expect(screen.getByText(/Available through/)).toBeTruthy();

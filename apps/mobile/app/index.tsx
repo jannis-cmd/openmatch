@@ -202,6 +202,15 @@ export default function App() {
   const [preferenceObservationCount, setPreferenceObservationCount] =
     useState(0);
   const [accountStatus, setAccountStatus] = useState<AccountStatus>("active");
+  const [privacyAction, setPrivacyAction] = useState<
+    "directory" | "visibility" | null
+  >(null);
+  const [directoryActionError, setDirectoryActionError] = useState<
+    string | null
+  >(null);
+  const [visibilityActionError, setVisibilityActionError] = useState<
+    string | null
+  >(null);
   const [accountDeliveryStatus, setAccountDeliveryStatus] =
     useState<AccountDeliveryStatus | null>(null);
   const [securityNotificationDelivery, setSecurityNotificationDelivery] =
@@ -350,6 +359,9 @@ export default function App() {
     setPreferencesSaving(false);
     setDeliverySaveError(null);
     setDeliverySaving(false);
+    setPrivacyAction(null);
+    setDirectoryActionError(null);
+    setVisibilityActionError(null);
   }, [accessMode]);
   useEffect(() => {
     let active = true;
@@ -2291,22 +2303,44 @@ export default function App() {
                     }
                     secondary
                     disabled={
-                      !directoryParticipationIsActive(directoryConsent) &&
-                      ((Boolean(emailVerification?.deliveryConfigured) &&
-                        !emailVerification?.verifiedAt) ||
-                        !profile.gender.trim() ||
-                        !profile.genderGroups.length ||
-                        !preferences.genderGroups.length)
+                      privacyAction !== null ||
+                      (!directoryParticipationIsActive(directoryConsent) &&
+                        ((Boolean(emailVerification?.deliveryConfigured) &&
+                          !emailVerification?.verifiedAt) ||
+                          !profile.gender.trim() ||
+                          !profile.genderGroups.length ||
+                          !preferences.genderGroups.length))
                     }
-                    onPress={() =>
+                    onPress={() => {
+                      setPrivacyAction("directory");
+                      setDirectoryActionError(null);
                       void api
                         .updateDirectoryConsent(
                           !directoryParticipationIsActive(directoryConsent),
                         )
                         .then(setDirectoryConsent)
                         .then(load)
-                    }
+                        .catch(() =>
+                          setDirectoryActionError(
+                            "Account matching was not changed. The previous confirmed choice is still active; retry when ready.",
+                          ),
+                        )
+                        .finally(() => setPrivacyAction(null));
+                    }}
                   />
+                  {privacyAction === "directory" && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      Saving account-matching choice…
+                    </Text>
+                  )}
+                  {directoryActionError && (
+                    <Text accessibilityRole="alert" style={styles.errorText}>
+                      {directoryActionError}
+                    </Text>
+                  )}
                   <Text
                     accessibilityLiveRegion="polite"
                     style={styles.mathNote}
@@ -2752,36 +2786,78 @@ export default function App() {
                     <Action
                       label="Pause introductions"
                       secondary
-                      onPress={() =>
+                      disabled={privacyAction !== null}
+                      onPress={() => {
+                        setPrivacyAction("visibility");
+                        setVisibilityActionError(null);
                         void api
                           .updateAccountStatus("paused")
                           .then((result) => {
                             setAccountStatus(result.status);
                             setIntroductions([]);
                           })
-                      }
+                          .catch(() =>
+                            setVisibilityActionError(
+                              "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
+                            ),
+                          )
+                          .finally(() => setPrivacyAction(null));
+                      }}
                     />
                     <Action
                       label="Hide my profile"
                       secondary
-                      onPress={() =>
+                      disabled={privacyAction !== null}
+                      onPress={() => {
+                        setPrivacyAction("visibility");
+                        setVisibilityActionError(null);
                         void api
                           .updateAccountStatus("hidden")
                           .then((result) => {
                             setAccountStatus(result.status);
                             setIntroductions([]);
                           })
-                      }
+                          .catch(() =>
+                            setVisibilityActionError(
+                              "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
+                            ),
+                          )
+                          .finally(() => setPrivacyAction(null));
+                      }}
                     />
                   </>
                 ) : (
                   <Action
                     label="Resume and show profile"
                     secondary
-                    onPress={() =>
-                      void api.updateAccountStatus("active").then(load)
-                    }
+                    disabled={privacyAction !== null}
+                    onPress={() => {
+                      setPrivacyAction("visibility");
+                      setVisibilityActionError(null);
+                      void api
+                        .updateAccountStatus("active")
+                        .then(load)
+                        .catch(() =>
+                          setVisibilityActionError(
+                            "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
+                          ),
+                        )
+                        .finally(() => setPrivacyAction(null));
+                    }}
                   />
+                )}
+                {privacyAction === "visibility" && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.mathNote}
+                  >
+                    Saving profile visibility…
+                  </Text>
+                )}
+                {visibilityActionError && (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {visibilityActionError}
+                  </Text>
                 )}
                 <Action
                   label="Export my data"

@@ -376,6 +376,25 @@ test("first run through a persistent connection and safety action", async ({
       /Available through .* under account-directory-prototype-0.2/,
     ),
   ).toBeVisible();
+  await page.route(
+    "**/v1/consents/directory",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_directory_write_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Stop account matching" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Account matching was not changed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Stop account matching" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expect(
     page.getByRole("heading", { name: "Active sessions" }),
   ).toBeVisible();
@@ -794,6 +813,25 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Save" }).click();
   await expect(
     page.getByRole("heading", { name: "Taylor Two, 31" }),
+  ).toBeVisible();
+  await page.route(
+    "**/v1/account/status",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_visibility_write_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Pause introductions" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Profile visibility was not changed" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pause introductions" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Pause introductions" }).click();
   await expect(
