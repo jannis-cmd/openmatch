@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { defaultPreferences, demoUser } from "@openmatch/matching";
 import {
   ApiError,
   createApiClient,
@@ -526,6 +527,50 @@ test("accepts only an explicit versioned prototype consent request", async () =>
     prototypeDataUseAccepted: true,
   });
   assert.equal(receipt.noticeVersion, "prototype-0.1");
+});
+
+test("submits first-run setup as one versioned command", async () => {
+  let received: { url?: string; body?: Record<string, unknown> } = {};
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (url, init) => {
+      received = {
+        url: String(url),
+        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+      };
+      return new Response(
+        JSON.stringify({
+          version: "setup-0.1",
+          complete: true,
+          profile: demoUser,
+          preferences: defaultPreferences,
+          consent: {
+            adultConfirmed: true,
+            prototypeDataUseAccepted: true,
+            noticeVersion: "prototype-0.1",
+            acceptedAt: "2026-08-12T12:00:00.000Z",
+          },
+          directoryConsent: null,
+        }),
+        { status: 200 },
+      );
+    }),
+  );
+  const receipt = await client.completeSetup(
+    { name: demoUser.name },
+    defaultPreferences,
+    false,
+  );
+  assert.equal(received.url, "http://example.test/v1/setup");
+  assert.deepEqual(received.body, {
+    version: "setup-0.1",
+    profile: { name: demoUser.name },
+    preferences: defaultPreferences,
+    adultConfirmed: true,
+    prototypeDataUseAccepted: true,
+    joinDirectory: false,
+  });
+  assert.equal(receipt.complete, true);
 });
 
 test("updates separate reversible account-directory consent", async () => {

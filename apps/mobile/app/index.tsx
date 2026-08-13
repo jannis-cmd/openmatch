@@ -669,29 +669,29 @@ export default function App() {
     setOnboardingSaving(true);
     setOnboardingError(null);
     try {
-      const savedProfile = await api.updateProfile({
-        name: profile.name.trim(),
-        age: profile.age,
-        city: profile.city.trim(),
-        pronouns: profile.pronouns.trim(),
-        gender: profile.gender.trim(),
-        genderGroups: profile.genderGroups,
-        intent: profile.intent,
-        readiness: profile.readiness,
-        bio: profile.bio.trim(),
-        prompt: profile.prompt.trim(),
-        promptAnswer: profile.promptAnswer.trim(),
-        values: profile.values,
-        lifestyle: profile.lifestyle,
-      });
-      const savedPreferences = await api.updatePreferences(preferences);
-      await api.acceptPrototypeConsent();
-      if (accessMode === "account" && directoryAccepted)
-        setDirectoryConsent(await api.updateDirectoryConsent(true));
-      await api.completeOnboarding();
+      const receipt = await api.completeSetup(
+        {
+          name: profile.name.trim(),
+          age: profile.age,
+          city: profile.city.trim(),
+          pronouns: profile.pronouns.trim(),
+          gender: profile.gender.trim(),
+          genderGroups: profile.genderGroups,
+          intent: profile.intent,
+          readiness: profile.readiness,
+          bio: profile.bio.trim(),
+          prompt: profile.prompt.trim(),
+          promptAnswer: profile.promptAnswer.trim(),
+          values: profile.values,
+          lifestyle: profile.lifestyle,
+        },
+        preferences,
+        accessMode === "account" && directoryAccepted,
+      );
       setDeletionReceipt(null);
-      setProfile(savedProfile);
-      setPreferences(savedPreferences);
+      setProfile(receipt.profile);
+      setPreferences(receipt.preferences);
+      setDirectoryConsent(receipt.directoryConsent);
       setOnboarded(true);
       try {
         const [nextIntroductions, nextSuggestions] = await Promise.all([
@@ -709,7 +709,7 @@ export default function App() {
       }
     } catch {
       setOnboardingError(
-        "Setup was not completed. Your entries remain here. Some confirmed steps may already be saved; retrying safely completes the same setup.",
+        "Setup was not completed. Your entries remain here, and no partial setup was applied. Retry when ready.",
       );
     } finally {
       setOnboardingSaving(false);

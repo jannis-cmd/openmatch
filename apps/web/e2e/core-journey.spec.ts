@@ -330,7 +330,7 @@ test("first run through a persistent connection and safety action", async ({
     })
     .check();
   let failOnboardingCompletion = true;
-  await page.route("**/v1/onboarding/complete", async (route) => {
+  await page.route("**/v1/setup", async (route) => {
     if (failOnboardingCompletion) {
       failOnboardingCompletion = false;
       await route.fulfill({

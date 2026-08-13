@@ -95,6 +95,14 @@ export type DirectoryConsentReceipt = {
   updatedAt: string;
   availableUntil?: string | null;
 };
+export type SetupCommand = {
+  version: "setup-0.1";
+  profile: Partial<Profile>;
+  preferences: Partial<Preferences>;
+  adultConfirmed: true;
+  prototypeDataUseAccepted: true;
+  joinDirectory: boolean;
+};
 export const DIRECTORY_AVAILABILITY_DAYS = 30;
 export const directoryParticipationIsActive = (
   receipt: DirectoryConsentReceipt | null,
@@ -260,6 +268,74 @@ export class Store {
       throw new RangeError("gender discovery choices are required");
     this.setState("onboarding_complete", true);
     return { complete: true as const };
+  }
+  completeSetup(command: SetupCommand) {
+    if (
+      command.version !== "setup-0.1" ||
+      command.adultConfirmed !== true ||
+      command.prototypeDataUseAccepted !== true ||
+      typeof command.joinDirectory !== "boolean"
+    )
+      throw new RangeError("invalid setup command");
+    const profile = validateProfile({
+      ...this.profile(),
+      ...command.profile,
+      id: "me",
+    });
+    const currentPreferences = this.preferences();
+    const preferences = validatePreferences({
+      ...currentPreferences,
+      ...command.preferences,
+      weights: {
+        ...currentPreferences.weights,
+        ...command.preferences.weights,
+      },
+    });
+    if (
+      !profile.gender.trim() ||
+      !profile.genderGroups.length ||
+      !preferences.genderGroups.length
+    )
+      throw new RangeError("gender discovery choices are required");
+    const acceptedAt = new Date();
+    const consent: ConsentReceipt = {
+      adultConfirmed: true,
+      prototypeDataUseAccepted: true,
+      noticeVersion: "prototype-0.1",
+      acceptedAt: acceptedAt.toISOString(),
+    };
+    const directoryConsent = command.joinDirectory
+      ? {
+          participating: true as const,
+          noticeVersion: "account-directory-prototype-0.2" as const,
+          updatedAt: acceptedAt.toISOString(),
+          availableUntil: new Date(
+            acceptedAt.getTime() +
+              DIRECTORY_AVAILABILITY_DAYS * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+        }
+      : null;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.setState("profile", profile);
+      this.setState("preferences", preferences);
+      this.setState("consent_receipt", consent);
+      this.setState("directory_consent_receipt", directoryConsent);
+      this.setState("onboarding_complete", true);
+      this.clearIntroductionBatch();
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return {
+      version: command.version,
+      complete: true as const,
+      profile,
+      preferences,
+      consent,
+      directoryConsent,
+    };
   }
   consentReceipt() {
     return this.getState<ConsentReceipt | null>("consent_receipt");

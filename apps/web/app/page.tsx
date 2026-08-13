@@ -796,30 +796,29 @@ function AppExperience({
                 onProfile={setProfile}
                 onPreferences={setPreferences}
                 complete={async (joinDirectory) => {
-                  const saved = await api.updateProfile({
-                    name: profile.name.trim(),
-                    age: profile.age,
-                    city: profile.city.trim(),
-                    pronouns: profile.pronouns.trim(),
-                    gender: profile.gender.trim(),
-                    genderGroups: profile.genderGroups,
-                    intent: profile.intent,
-                    readiness: profile.readiness,
-                    bio: profile.bio.trim(),
-                    prompt: profile.prompt.trim(),
-                    promptAnswer: profile.promptAnswer.trim(),
-                    values: profile.values,
-                    lifestyle: profile.lifestyle,
-                  });
-                  const savedPreferences =
-                    await api.updatePreferences(preferences);
-                  await api.acceptPrototypeConsent();
-                  if (authToken && joinDirectory)
-                    setDirectoryConsent(await api.updateDirectoryConsent(true));
-                  await api.completeOnboarding();
+                  const receipt = await api.completeSetup(
+                    {
+                      name: profile.name.trim(),
+                      age: profile.age,
+                      city: profile.city.trim(),
+                      pronouns: profile.pronouns.trim(),
+                      gender: profile.gender.trim(),
+                      genderGroups: profile.genderGroups,
+                      intent: profile.intent,
+                      readiness: profile.readiness,
+                      bio: profile.bio.trim(),
+                      prompt: profile.prompt.trim(),
+                      promptAnswer: profile.promptAnswer.trim(),
+                      values: profile.values,
+                      lifestyle: profile.lifestyle,
+                    },
+                    preferences,
+                    Boolean(authToken && joinDirectory),
+                  );
                   setDeletionReceipt(null);
-                  setProfile(saved);
-                  setPreferences(savedPreferences);
+                  setProfile(receipt.profile);
+                  setPreferences(receipt.preferences);
+                  setDirectoryConsent(receipt.directoryConsent);
                   setOnboarded(true);
                   try {
                     const [nextIntroductions, nextSuggestions] =
@@ -2571,7 +2570,7 @@ function OnboardingView({
             void complete(directoryAccepted)
               .catch(() =>
                 setSubmitError(
-                  "Setup was not completed. Your entries remain here. Some confirmed steps may already be saved; retrying safely completes the same setup.",
+                  "Setup was not completed. Your entries remain here, and no partial setup was applied. Retry when ready.",
                 ),
               )
               .finally(() => setSubmitting(false));

@@ -99,6 +99,14 @@ export type DirectoryConsentReceipt = {
   updatedAt: string;
   availableUntil?: string | null;
 };
+export type SetupReceipt = {
+  version: "setup-0.1";
+  complete: true;
+  profile: Profile;
+  preferences: Preferences;
+  consent: ConsentReceipt;
+  directoryConsent: DirectoryConsentReceipt | null;
+};
 export const directoryParticipationIsActive = (
   receipt: DirectoryConsentReceipt | null,
   now = Date.now(),
@@ -442,6 +450,22 @@ export function createApiClient(
         json("DELETE"),
       ),
     onboarding: () => request<{ complete: boolean }>("/v1/onboarding"),
+    completeSetup: (
+      profile: Partial<Profile>,
+      preferences: Partial<Preferences>,
+      joinDirectory: boolean,
+    ) =>
+      request<SetupReceipt>(
+        "/v1/setup",
+        json("POST", {
+          version: "setup-0.1",
+          profile,
+          preferences,
+          adultConfirmed: true,
+          prototypeDataUseAccepted: true,
+          joinDirectory,
+        }),
+      ),
     accountStatus: () =>
       request<{ status: AccountStatus }>("/v1/account/status"),
     updateAccountStatus: (status: AccountStatus) =>

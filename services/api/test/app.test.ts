@@ -7,6 +7,8 @@ import test from "node:test";
 import {
   ALGORITHM_VERSION,
   POLITE_CLOSE_MESSAGE,
+  defaultPreferences,
+  demoUser,
   nextWeeklyBatchAt,
   publicWeeklySeed,
   type Profile,
@@ -15,6 +17,38 @@ import { createApp } from "../src/app.ts";
 import { AccountError, Accounts } from "../src/accounts.ts";
 import { smtpEmailVerificationSender } from "../src/email-verification.ts";
 import { Store } from "../src/store.ts";
+
+test("first-run setup rolls back every field when its transaction fails", () => {
+  const directory = mkdtempSync(join(tmpdir(), "openmatch-setup-"));
+  const store = new Store(join(directory, "setup.sqlite"));
+  const originalProfile = store.profile();
+  const originalPreferences = store.preferences();
+  store.db.exec(`
+    CREATE TRIGGER fail_setup_completion
+    BEFORE UPDATE ON state
+    WHEN NEW.key = 'onboarding_complete'
+    BEGIN
+      SELECT RAISE(ABORT, 'simulated setup write failure');
+    END;
+  `);
+  assert.throws(() =>
+    store.completeSetup({
+      version: "setup-0.1",
+      profile: { ...demoUser, name: "Atomic Taylor" },
+      preferences: defaultPreferences,
+      adultConfirmed: true,
+      prototypeDataUseAccepted: true,
+      joinDirectory: true,
+    }),
+  );
+  assert.deepEqual(store.profile(), originalProfile);
+  assert.deepEqual(store.preferences(), originalPreferences);
+  assert.equal(store.consentReceipt(), null);
+  assert.equal(store.directoryConsentReceipt(), null);
+  assert.equal(store.onboardingComplete(), false);
+  store.close();
+  rmSync(directory, { recursive: true, force: true });
+});
 
 const sessionHeaders = async (base: string) => {
   const response = await fetch(`${base}/v1/demo/session`, { method: "POST" });

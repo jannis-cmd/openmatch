@@ -16,7 +16,7 @@ import {
   toPublicProfile,
   type Candidate,
 } from "@openmatch/matching";
-import { Store, type ReportUpdateKind } from "./store.js";
+import { Store, type ReportUpdateKind, type SetupCommand } from "./store.js";
 import { AccountError, Accounts } from "./accounts.js";
 import {
   smtpAccountEmailSenders,
@@ -1053,6 +1053,18 @@ export function createApp(
         );
       if (request.method === "GET" && url.pathname === "/v1/onboarding")
         return send(response, 200, { complete: store.onboardingComplete() });
+      if (request.method === "POST" && url.pathname === "/v1/setup") {
+        const body = (await readJson(request)) as SetupCommand;
+        if (
+          body.joinDirectory === true &&
+          accountSession &&
+          accounts &&
+          emailVerificationSender &&
+          !accounts.emailStatus(accountSession.accountId).verifiedAt
+        )
+          return send(response, 409, { error: "email_verification_required" });
+        return send(response, 200, store.completeSetup(body));
+      }
       if (request.method === "GET" && url.pathname === "/v1/account/status")
         return send(response, 200, { status: store.accountStatus() });
       if (request.method === "GET" && url.pathname === "/v1/delivery")

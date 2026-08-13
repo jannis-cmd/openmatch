@@ -528,13 +528,40 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       return response(update, 201);
     }
     if (path === "/v1/reports") return response({ items: reportRecords });
-    if (path === "/v1/onboarding/complete") {
+    if (path === "/v1/setup" && init.method === "POST") {
       if (failNextOnboardingCompletion) {
         failNextOnboardingCompletion = false;
         return response({ error: "temporary_failure" }, 503);
       }
+      profile = { ...profile, ...body.profile, id: "me" };
+      preferences = {
+        ...preferences,
+        ...body.preferences,
+        weights: { ...preferences.weights, ...body.preferences.weights },
+      };
+      consentAccepted = true;
+      directoryParticipating = body.joinDirectory ? true : null;
       onboardingComplete = true;
-      return response({ complete: true });
+      return response({
+        version: "setup-0.1",
+        complete: true,
+        profile,
+        preferences,
+        consent: {
+          adultConfirmed: true,
+          prototypeDataUseAccepted: true,
+          noticeVersion: "prototype-0.1",
+          acceptedAt: "2026-08-12T12:00:00.000Z",
+        },
+        directoryConsent: body.joinDirectory
+          ? {
+              participating: true,
+              noticeVersion: "account-directory-prototype-0.2",
+              updatedAt: "2026-08-12T12:00:00.000Z",
+              availableUntil: "2026-09-11T12:00:00.000Z",
+            }
+          : null,
+      });
     }
     if (path === "/v1/onboarding")
       return response({ complete: onboardingComplete });
@@ -591,6 +618,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   ).toBeTruthy();
   expect(screen.getByDisplayValue("Taylor")).toBeTruthy();
   expect(onboardingComplete).toBe(false);
+  expect(profile.name).toBe(demoUser.name);
+  expect(consentAccepted).toBe(false);
   await fireEvent.press(screen.getByText("See my introductions"));
   await waitFor(() =>
     expect(screen.getByText("Your introductions")).toBeTruthy(),
