@@ -225,6 +225,8 @@ function AppExperience({
     [],
   );
   const [showSaved, setShowSaved] = useState(false);
+  const [savedAction, setSavedAction] = useState(false);
+  const [savedActionError, setSavedActionError] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<
@@ -962,37 +964,83 @@ function AppExperience({
                         <div className="decision-row">
                           <button
                             className="pass"
+                            disabled={savedAction}
                             onClick={async () => {
-                              if (showSaved) {
-                                await api.unsaveIntroduction(
-                                  current.profile.id,
+                              setSavedAction(true);
+                              setSavedActionError(null);
+                              try {
+                                if (showSaved) {
+                                  await api.unsaveIntroduction(
+                                    current.profile.id,
+                                  );
+                                  setSavedIntroductions((items) =>
+                                    items.filter(
+                                      (item) =>
+                                        item.profile.id !== current.profile.id,
+                                    ),
+                                  );
+                                  setIntroductions((items) =>
+                                    items.some(
+                                      (item) =>
+                                        item.profile.id === current.profile.id,
+                                    )
+                                      ? items
+                                      : [current, ...items],
+                                  );
+                                  setShowSaved(false);
+                                } else {
+                                  await api.saveIntroduction(
+                                    current.profile.id,
+                                  );
+                                  setIntroductions((items) =>
+                                    items.filter(
+                                      (item) =>
+                                        item.profile.id !== current.profile.id,
+                                    ),
+                                  );
+                                  setSavedIntroductions((items) =>
+                                    items.some(
+                                      (item) =>
+                                        item.profile.id === current.profile.id,
+                                    )
+                                      ? items
+                                      : [...items, current],
+                                  );
+                                  setNotice(
+                                    `${current.profile.name} saved for this prototype batch.`,
+                                  );
+                                }
+                                setDetails(false);
+                              } catch {
+                                setSavedActionError(
+                                  `${showSaved ? "Saved introduction was not returned to the batch" : "Introduction was not saved"}. The previous confirmed state is still active; retry when ready.`,
                                 );
-                                setShowSaved(false);
-                              } else {
-                                await api.saveIntroduction(current.profile.id);
-                                setNotice(
-                                  `${current.profile.name} saved for this prototype batch.`,
-                                );
+                              } finally {
+                                setSavedAction(false);
                               }
-                              setDetails(false);
-                              await load();
                             }}
                           >
                             {showSaved ? "Return to batch" : "Save for later"}
                           </button>
                           <button
                             className="pass"
+                            disabled={savedAction}
                             onClick={() => decide("passed")}
                           >
                             Pass
                           </button>
                           <button
                             className="interest"
+                            disabled={savedAction}
                             onClick={() => decide("interested")}
                           >
                             Interested
                           </button>
                         </div>
+                        {savedAction && <p role="status">Saving choice…</p>}
+                        {savedActionError && (
+                          <p role="alert">{savedActionError}</p>
+                        )}
                         <p className="private-note">
                           Your decision is private unless interest is mutual.
                         </p>

@@ -95,7 +95,7 @@ Soft priorities are capped at five and weighted by the user as Low, Medium, or H
 
 - Default batch: up to five introductions twice per week; configurable down to one or paused.
 - Each executable card shows core information, biography, intention, shared/compatible factors, known differences, and an exact score explanation. Photos are deliberately absent until the consent, secure-processing, abuse-operations, accessibility, outing-risk, and inclusion questions in the public product boundaries are resolved; if later approved, image analysis and beauty scoring remain prohibited.
-- Actions: Interested, Pass, Save until batch expiry, Report/Block.
+- Actions: Interested, Pass, Save for later, Report/Block. The executable prototype has no scheduled saved-item expiry yet. Save/return changes only after server confirmation; competing decisions are disabled during the write, a failure preserves the prior list with explicit retry guidance, and success updates only the affected current/saved lists without depending on a broad refresh.
 - Pass is private and has no penalty. No undo monetization.
 - A connection opens only after mutual interest.
 - If fewer eligible people exist, show that honestly; never insert incompatible or inactive accounts.

@@ -70,6 +70,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let failNextDirectorySave = false;
   let failNextResearchConsentSave = false;
   let failNextLocalDataDeletion = false;
+  let failNextSavedIntroductionWrite = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -366,6 +367,10 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       });
     const saved = path.match(/^\/v1\/introductions\/([^/]+)\/saved$/);
     if (saved && init.method === "POST") {
+      if (failNextSavedIntroductionWrite) {
+        failNextSavedIntroductionWrite = false;
+        return response({ error: "simulated_saved_write_failure" }, 503);
+      }
       savedIds.add(saved[1]);
       return response(
         { profileId: saved[1], saved: true, createdAt: "now" },
@@ -580,6 +585,17 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByText(/Selection exploration/)).toBeTruthy();
   expect(screen.getByText(/public seed s0/)).toBeTruthy();
   await fireEvent.press(screen.getByText("Hide calculation"));
+  failNextSavedIntroductionWrite = true;
+  await fireEvent.press(screen.getByText("Save for later"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Introduction was not saved. The previous confirmed state is still active; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(savedIds.size).toBe(0);
+  expect(screen.getByText("Mara, 30")).toBeTruthy();
   await fireEvent.press(screen.getByText("Save for later"));
   await waitFor(() => expect(screen.getByText("Noah, 34")).toBeTruthy());
   await fireEvent.press(screen.getByText("Saved (1)"));

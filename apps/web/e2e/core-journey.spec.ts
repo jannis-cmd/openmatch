@@ -472,6 +472,23 @@ test("first run through a persistent connection and safety action", async ({
     .locator(".profile-card h2")
     .textContent();
   expect(firstIntroduction).toBeTruthy();
+  await page.route(
+    "**/v1/introductions/*/saved",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_saved_write_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Save for later" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Introduction was not saved" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: firstIntroduction ?? "" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Save for later" }).click();
   await expect(
     page.getByRole("heading", { name: "2 remaining" }),

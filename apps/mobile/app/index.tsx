@@ -175,6 +175,8 @@ export default function App() {
     [],
   );
   const [showSaved, setShowSaved] = useState(false);
+  const [savedAction, setSavedAction] = useState(false);
+  const [savedActionError, setSavedActionError] = useState<string | null>(null);
   const [showMath, setShowMath] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<
@@ -382,6 +384,8 @@ export default function App() {
     setResearchConsentError(null);
     setDataAction(null);
     setDataActionError(null);
+    setSavedAction(false);
+    setSavedActionError(null);
   }, [accessMode]);
   useEffect(() => {
     let active = true;
@@ -1240,32 +1244,85 @@ export default function App() {
                   <Action
                     label={showSaved ? "Return to batch" : "Save for later"}
                     secondary
-                    onPress={() =>
-                      void (showSaved
-                        ? api
-                            .unsaveIntroduction(current.profile.id)
-                            .then(() => {
-                              setShowSaved(false);
-                              return load();
-                            })
-                        : api.saveIntroduction(current.profile.id).then(() => {
+                    disabled={savedAction}
+                    onPress={() => {
+                      setSavedAction(true);
+                      setSavedActionError(null);
+                      const request = showSaved
+                        ? api.unsaveIntroduction(current.profile.id)
+                        : api.saveIntroduction(current.profile.id);
+                      void request
+                        .then(() => {
+                          if (showSaved) {
+                            setSavedIntroductions((items) =>
+                              items.filter(
+                                (item) =>
+                                  item.profile.id !== current.profile.id,
+                              ),
+                            );
+                            setIntroductions((items) =>
+                              items.some(
+                                (item) =>
+                                  item.profile.id === current.profile.id,
+                              )
+                                ? items
+                                : [current, ...items],
+                            );
+                            setShowSaved(false);
+                          } else {
+                            setIntroductions((items) =>
+                              items.filter(
+                                (item) =>
+                                  item.profile.id !== current.profile.id,
+                              ),
+                            );
+                            setSavedIntroductions((items) =>
+                              items.some(
+                                (item) =>
+                                  item.profile.id === current.profile.id,
+                              )
+                                ? items
+                                : [...items, current],
+                            );
                             setSafetyNotice(
                               `${current.profile.name} saved for this prototype batch.`,
                             );
-                            return load();
-                          }))
-                    }
+                          }
+                          setShowMath(false);
+                        })
+                        .catch(() =>
+                          setSavedActionError(
+                            `${showSaved ? "Saved introduction was not returned to the batch" : "Introduction was not saved"}. The previous confirmed state is still active; retry when ready.`,
+                          ),
+                        )
+                        .finally(() => setSavedAction(false));
+                    }}
                   />
                   <Action
                     label="Pass"
                     secondary
+                    disabled={savedAction}
                     onPress={() => void decide("passed")}
                   />
                   <Action
                     label="Interested"
+                    disabled={savedAction}
                     onPress={() => void decide("interested")}
                   />
                 </View>
+                {savedAction && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.mathNote}
+                  >
+                    Saving choice…
+                  </Text>
+                )}
+                {savedActionError && (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {savedActionError}
+                  </Text>
+                )}
                 <Text style={styles.private}>
                   Private unless interest is mutual.
                 </Text>
