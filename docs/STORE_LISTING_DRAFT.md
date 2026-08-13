@@ -83,8 +83,10 @@ are public. No message text is used for matching or analytics.
 
 Account deletion is available in Profile and synchronously removes the account
 credential state, sessions, and isolated application store in the current
-service. Research and account-directory participation are separate, reversible
-choices and default off.
+service. It is also available before profile setup is completed, so deletion
+does not require accepting prototype data use or providing dating information.
+Research and account-directory participation are separate, reversible choices
+and default off.
 
 The current build connects to a private tailnet and therefore is suitable only
 for internal testing. Before review, replace this paragraph with a reachable

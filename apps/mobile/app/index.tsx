@@ -1132,6 +1132,83 @@ export default function App() {
               </Text>
             )}
           </View>
+          {accessMode === "account" && (
+            <View style={styles.scoreCard}>
+              <Text style={styles.name}>Leave without completing setup</Text>
+              <Text style={styles.scoreNote}>
+                You do not need to finish a profile or accept prototype data use
+                to delete this account. Re-enter the current passphrase, then
+                confirm permanent deletion.
+              </Text>
+              <TextInput
+                accessibilityLabel="Current passphrase to delete incomplete account"
+                autoCapitalize="none"
+                autoComplete="current-password"
+                secureTextEntry
+                value={deletionPassword}
+                maxLength={128}
+                editable={dataAction === null}
+                onChangeText={setDeletionPassword}
+                style={styles.textField}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{
+                  disabled: dataAction !== null || !deletionPassword,
+                }}
+                disabled={dataAction !== null || !deletionPassword}
+                onPress={() =>
+                  Alert.alert(
+                    "Delete incomplete account?",
+                    "This removes credentials, sessions, and all OpenMatch application data. You do not need to complete setup first. It cannot be undone.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete account",
+                        style: "destructive",
+                        onPress: () => {
+                          setDataAction("delete-account");
+                          setDataActionError(null);
+                          void api
+                            .deleteAccount(deletionPassword)
+                            .then(async () => {
+                              await clearSessionToken().catch(() => undefined);
+                              await clearPendingMessageAttempts().catch(
+                                () => undefined,
+                              );
+                              setDeletionPassword("");
+                              setAuthToken(null);
+                              setAccessMode("signed-out");
+                            })
+                            .catch((error) =>
+                              setDataActionError(
+                                error instanceof ApiError &&
+                                  error.code === "invalid_current_password"
+                                  ? "The current passphrase was not accepted. The account was not deleted."
+                                  : "The account was not deleted. You remain signed in and can retry when ready.",
+                              ),
+                            )
+                            .finally(() => setDataAction(null));
+                        },
+                      },
+                    ],
+                  )
+                }
+              >
+                <Text style={styles.safetyLink}>Delete incomplete account</Text>
+              </Pressable>
+              {dataAction === "delete-account" && (
+                <Text accessibilityLiveRegion="polite" style={styles.mathNote}>
+                  Deleting account…
+                </Text>
+              )}
+              {dataActionError && (
+                <Text accessibilityRole="alert" style={styles.errorText}>
+                  {dataActionError}
+                </Text>
+              )}
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     );

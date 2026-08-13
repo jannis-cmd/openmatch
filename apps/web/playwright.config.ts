@@ -10,7 +10,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "OPENMATCH_DB=:memory: OPENMATCH_ACCOUNTS_DB=:memory: pnpm --filter @openmatch/api dev",
+        "OPENMATCH_DB=:memory: OPENMATCH_ACCOUNTS_DB=:memory: OPENMATCH_AUTH_RATE_LIMIT_MAX=100 pnpm --filter @openmatch/api dev",
       cwd: "../..",
       url: "http://127.0.0.1:4000/health",
       reuseExistingServer: false,

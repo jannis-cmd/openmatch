@@ -149,6 +149,60 @@ test("public privacy and support pages describe the real prototype", async ({
   ).toBeVisible();
 });
 
+test("an incomplete account can delete itself from the public web path", async ({
+  page,
+  request,
+}) => {
+  const apiBase = "http://127.0.0.1:4000";
+  const email = "incomplete-delete@example.org";
+  const password = "an incomplete deletion passphrase";
+  const created = await request.post(apiBase + "/v1/accounts", {
+    data: { email, password, client: "web" },
+  });
+  expect(created.status()).toBe(201);
+  const originalToken = ((await created.json()) as { token: string }).token;
+
+  await page.goto("/delete-account");
+  await page
+    .getByRole("link", { name: "Sign in to delete my account" })
+    .click();
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Passphrase").fill(password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Set your boundaries." }),
+  ).toBeVisible();
+  const deletionPassword = page.getByLabel(
+    "Current passphrase to delete incomplete account",
+  );
+  const deleteButton = page.getByRole("button", {
+    name: "Delete incomplete account",
+  });
+  await expect(deleteButton).toBeDisabled();
+
+  await deletionPassword.fill("the wrong current passphrase");
+  page.once("dialog", (dialog) => dialog.accept());
+  await deleteButton.click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "was not accepted" }),
+  ).toBeVisible();
+  const preserved = await request.get(apiBase + "/v1/me", {
+    headers: { authorization: `Bearer ${originalToken}` },
+  });
+  expect(preserved.status()).toBe(200);
+
+  await deletionPassword.fill(password);
+  page.once("dialog", (dialog) => dialog.accept());
+  await deleteButton.click();
+  await expect(
+    page.getByRole("heading", { name: "Made to help you leave." }),
+  ).toBeVisible();
+  const revoked = await request.get(apiBase + "/v1/me", {
+    headers: { authorization: `Bearer ${originalToken}` },
+  });
+  expect(revoked.status()).toBe(401);
+});
+
 test("first run through a persistent connection and safety action", async ({
   page,
   request,

@@ -14,6 +14,9 @@ decisions, connection copies, and delivered messages from every other local
 account store; integration coverage proves failed reauthentication preserves
 the account and successful deletion removes peer copies before revoking the
 session.
+Web, iOS, and Android also expose the reauthenticated deletion control during
+first-run setup, so even an incomplete account can leave without completing a
+dating profile, accepting prototype data use, or enabling matching.
 
 | Requirement | Evidence |
 |---|---|

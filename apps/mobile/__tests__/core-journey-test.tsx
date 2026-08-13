@@ -1175,6 +1175,22 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.getByText("Set your boundaries.")).toBeTruthy(),
   );
+  const incompleteDelete = screen.getByRole("button", {
+    name: "Delete incomplete account",
+  });
+  expect(incompleteDelete.props.accessibilityState.disabled).toBe(true);
+  await fireEvent.changeText(
+    screen.getByLabelText("Current passphrase to delete incomplete account"),
+    "a native test passphrase",
+  );
+  expect(
+    screen.getByRole("button", { name: "Delete incomplete account" }).props
+      .accessibilityState.disabled,
+  ).toBe(false);
+  await fireEvent.changeText(
+    screen.getByLabelText("Current passphrase to delete incomplete account"),
+    "",
+  );
   await fireEvent.press(screen.getByText("See my introductions"));
   await waitFor(() => expect(directoryParticipating).toBeNull());
   await waitFor(() => expect(screen.getByText("Sign out")).toBeTruthy());

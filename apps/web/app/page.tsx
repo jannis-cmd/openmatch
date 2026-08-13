@@ -813,6 +813,14 @@ function AppExperience({
               )}
               <OnboardingView
                 authenticated={Boolean(authToken)}
+                deleteAccount={
+                  authToken
+                    ? async (currentPassword) => {
+                        await api.deleteAccount(currentPassword);
+                        exit();
+                      }
+                    : undefined
+                }
                 directoryAvailable={
                   !emailVerification?.deliveryConfigured ||
                   Boolean(emailVerification.verifiedAt)
@@ -2407,6 +2415,7 @@ function MatchingProfileFields({
 
 function OnboardingView({
   authenticated,
+  deleteAccount,
   directoryAvailable,
   profile,
   preferences,
@@ -2415,6 +2424,7 @@ function OnboardingView({
   complete,
 }: {
   authenticated: boolean;
+  deleteAccount?: (currentPassword: string) => Promise<void>;
   directoryAvailable: boolean;
   profile: Profile;
   preferences: Preferences;
@@ -2427,6 +2437,9 @@ function OnboardingView({
   const [directoryAccepted, setDirectoryAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [deletionPassword, setDeletionPassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deletionError, setDeletionError] = useState<string | null>(null);
   const valid =
     profile.name.trim().length > 0 &&
     profile.city.trim().length > 0 &&
@@ -2691,6 +2704,54 @@ function OnboardingView({
           </p>
         )}
       </section>
+      {deleteAccount && (
+        <section className="settings-card">
+          <h2>Leave without completing setup</h2>
+          <p className="help">
+            You do not need to finish a profile, accept prototype data use, or
+            join matching to delete this account. Re-enter the current
+            passphrase, then confirm permanent deletion.
+          </p>
+          <label>
+            Current passphrase to delete incomplete account
+            <input
+              type="password"
+              autoComplete="current-password"
+              maxLength={128}
+              value={deletionPassword}
+              disabled={deleting}
+              onChange={(event) => setDeletionPassword(event.target.value)}
+            />
+          </label>
+          <button
+            className="danger"
+            disabled={deleting || !deletionPassword}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "Delete this incomplete OpenMatch account, credentials, sessions, and all application data? This cannot be undone.",
+                )
+              )
+                return;
+              setDeleting(true);
+              setDeletionError(null);
+              void deleteAccount(deletionPassword)
+                .catch((error) =>
+                  setDeletionError(
+                    error instanceof ApiError &&
+                      error.code === "invalid_current_password"
+                      ? "The current passphrase was not accepted. The account was not deleted."
+                      : "The account was not deleted. You remain signed in and can retry when ready.",
+                  ),
+                )
+                .finally(() => setDeleting(false));
+            }}
+          >
+            {deleting ? "Deleting account…" : "Delete incomplete account"}
+          </button>
+          {deletionError && <p role="alert">{deletionError}</p>}
+        </section>
+      )}
     </div>
   );
 }
