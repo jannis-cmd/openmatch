@@ -11,7 +11,7 @@
     "eas-build-pre-install": "node ./scripts/verify-eas-environment.mjs",
     "eas-build-post-install": "pnpm --dir ../.. build:packages",
     "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand && node --test ./scripts/verify-eas-environment.test.mjs"
+    "test": "jest --runInBand && node --test ./scripts/*.test.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~56.0.19",

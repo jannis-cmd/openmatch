@@ -24,8 +24,43 @@ test("public privacy and support pages describe the real prototype", async ({
     name: "OpenMatch",
     display: "standalone",
     start_url: "/",
-    icons: [{ src: "/openmatch-icon.svg", purpose: "maskable" }],
+    icons: [
+      {
+        src: "/openmatch-icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/openmatch-icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/openmatch-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/openmatch-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
   });
+  for (const icon of [
+    "/openmatch-icon-192.png",
+    "/openmatch-icon-512.png",
+    "/apple-touch-icon.png",
+    "/favicon-32.png",
+  ]) {
+    const iconResponse = await request.get(icon);
+    expect(iconResponse.ok()).toBe(true);
+    expect(iconResponse.headers()["content-type"]).toContain("image/png");
+  }
   await page.goto("/privacy");
   await expect(
     page.getByRole("heading", {
@@ -543,8 +578,17 @@ test("first run through a persistent connection and safety action", async ({
     name: "That’s the whole set.",
   });
   for (let remaining = 0; remaining < 50; remaining += 1) {
-    if (await caughtUp.isVisible()) break;
     const visibleCard = page.locator(".profile-card h2");
+    await expect
+      .poll(async () => {
+        return (await caughtUp.isVisible())
+          ? "complete"
+          : (await visibleCard.isVisible())
+            ? "card"
+            : "loading";
+      })
+      .toMatch(/complete|card/);
+    if (await caughtUp.isVisible()) break;
     await expect(visibleCard).toBeVisible();
     const previousName = await visibleCard.textContent();
     await page.getByRole("button", { name: "Pass" }).click();

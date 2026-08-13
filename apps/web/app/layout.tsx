@@ -6,7 +6,19 @@ export const metadata: Metadata = {
   description:
     "A nonprofit, open-source introduction service with transparent matching and no infinite feed.",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/openmatch-icon.svg" },
+  icons: {
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/openmatch-icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      {
+        url: "/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
