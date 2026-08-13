@@ -280,8 +280,11 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       directoryParticipating = body.participating;
       return response({
         participating: directoryParticipating,
-        noticeVersion: "account-directory-prototype-0.1",
+        noticeVersion: "account-directory-prototype-0.2",
         updatedAt: "2026-08-12T12:00:00.000Z",
+        availableUntil: directoryParticipating
+          ? "2026-09-11T12:00:00.000Z"
+          : null,
       });
     }
     if (path === "/v1/consents/directory")
@@ -291,8 +294,11 @@ test("first run uses explicit accessible controls and opens introductions", asyn
             ? null
             : {
                 participating: directoryParticipating,
-                noticeVersion: "account-directory-prototype-0.1",
+                noticeVersion: "account-directory-prototype-0.2",
                 updatedAt: "2026-08-12T12:00:00.000Z",
+                availableUntil: directoryParticipating
+                  ? "2026-09-11T12:00:00.000Z"
+                  : null,
               },
       });
     if (path === "/v1/transparency/version")
@@ -756,8 +762,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Confirm email"));
   await waitFor(() => expect(emailVerified).toBe(true));
   expect(screen.getByText(/Confirmed for account messages/)).toBeTruthy();
-  await fireEvent.press(screen.getByText("Enable account matching"));
+  await fireEvent.press(screen.getByText("Enable for 30 days"));
   await waitFor(() => expect(directoryParticipating).toBe(true));
+  expect(screen.getByText(/Available through/)).toBeTruthy();
   expect(screen.getByText("iPhone or iPad app · This session")).toBeTruthy();
   expect(screen.getByText("Web browser")).toBeTruthy();
   await fireEvent.press(screen.getByText("Sign out this session"));

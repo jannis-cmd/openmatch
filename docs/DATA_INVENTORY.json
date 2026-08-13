@@ -241,8 +241,8 @@
       "purpose": "Record a separate, reversible choice to let a completed Active account participate in account-to-account matching.",
       "retention": "prototype",
       "access": ["person", "service", "operator"],
-      "fields": ["participating", "noticeVersion", "updatedAt"],
-      "disclosure": "Defaults to no receipt and therefore no account-directory participation. It is separate from service data-use and research consent. Withdrawing excludes the account from new candidate sets without deleting existing connections or messages."
+      "fields": ["participating", "noticeVersion", "updatedAt", "availableUntil"],
+      "disclosure": "Defaults to no receipt and therefore no account-directory participation. It is separate from service data-use and research consent. Enabling records an explicit 30-day availability window; after it expires the profile is excluded until the person renews, without recording logins, activity, or a public last-active time. Thirty days is a prototype hypothesis, not a validated optimum. Withdrawing excludes the account from new candidate sets without deleting existing connections or messages."
     },
     {
       "id": "decisions",

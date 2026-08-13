@@ -925,6 +925,53 @@ test("authenticated accounts have hashed credentials and isolated application da
       ({ email }) => email === "second@example.org",
     )?.id;
     assert.ok(firstId && secondId);
+    const availability = (await (
+      await fetch(base + "/v1/consents/directory", {
+        headers: auth(second.body.token!),
+      })
+    ).json()) as {
+      receipt: {
+        noticeVersion: string;
+        updatedAt: string;
+        availableUntil: string;
+      };
+    };
+    assert.equal(
+      availability.receipt.noticeVersion,
+      "account-directory-prototype-0.2",
+    );
+    assert.equal(
+      Date.parse(availability.receipt.availableUntil) -
+        Date.parse(availability.receipt.updatedAt),
+      30 * 24 * 60 * 60 * 1000,
+    );
+    const secondStore = accounts.accountStore(secondId);
+    assert.ok(secondStore);
+    secondStore.db
+      .prepare("UPDATE state SET value=? WHERE key='directory_consent_receipt'")
+      .run(
+        JSON.stringify({
+          ...secondStore.directoryConsentReceipt(),
+          availableUntil: "2000-01-01T00:00:00.000Z",
+        }),
+      );
+    const expiredCandidateIntroductions = (await (
+      await fetch(base + "/v1/introductions", {
+        headers: auth(first.body.token!),
+      })
+    ).json()) as { items: unknown[] };
+    assert.equal(expiredCandidateIntroductions.items.length, 0);
+    const expiredViewerIntroductions = (await (
+      await fetch(base + "/v1/introductions", {
+        headers: auth(second.body.token!),
+      })
+    ).json()) as { items: unknown[] };
+    assert.equal(expiredViewerIntroductions.items.length, 0);
+    await fetch(base + "/v1/consents/directory", {
+      method: "PATCH",
+      headers: auth(second.body.token!),
+      body: JSON.stringify({ participating: true }),
+    });
     await fetch(base + "/v1/consents/directory", {
       method: "PATCH",
       headers: auth(second.body.token!),
@@ -1700,7 +1747,12 @@ test("the public data inventory covers every current storage and export field", 
       "acceptedAt",
     ],
     researchConsentReceipt: ["participating", "noticeVersion", "updatedAt"],
-    directoryConsentReceipt: ["participating", "noticeVersion", "updatedAt"],
+    directoryConsentReceipt: [
+      "participating",
+      "noticeVersion",
+      "updatedAt",
+      "availableUntil",
+    ],
     decisions: ["profileId", "decision", "createdAt"],
     preferenceObservations: [
       "profileId",

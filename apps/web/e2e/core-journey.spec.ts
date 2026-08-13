@@ -352,7 +352,9 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "Account matching" }),
   ).toBeVisible();
   await expect(
-    page.getByText(/Enabled under account-directory-prototype-0.1/),
+    page.getByText(
+      /Available through .* under account-directory-prototype-0.2/,
+    ),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Active sessions" }),

@@ -1,6 +1,49 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ApiError, createApiClient } from "../src/index.ts";
+import {
+  ApiError,
+  createApiClient,
+  directoryParticipationIsActive,
+} from "../src/index.ts";
+
+test("directory availability requires an explicit unexpired window", () => {
+  const now = Date.parse("2026-08-13T12:00:00.000Z");
+  assert.equal(
+    directoryParticipationIsActive(
+      {
+        participating: true,
+        noticeVersion: "account-directory-prototype-0.2",
+        updatedAt: "2026-08-01T00:00:00.000Z",
+        availableUntil: "2026-08-14T00:00:00.000Z",
+      },
+      now,
+    ),
+    true,
+  );
+  assert.equal(
+    directoryParticipationIsActive(
+      {
+        participating: true,
+        noticeVersion: "account-directory-prototype-0.1",
+        updatedAt: "2026-08-01T00:00:00.000Z",
+      },
+      now,
+    ),
+    false,
+  );
+  assert.equal(
+    directoryParticipationIsActive(
+      {
+        participating: true,
+        noticeVersion: "account-directory-prototype-0.2",
+        updatedAt: "2026-08-01T00:00:00.000Z",
+        availableUntil: "2026-08-13T12:00:00.000Z",
+      },
+      now,
+    ),
+    false,
+  );
+});
 
 const demoToken = "t".repeat(43);
 const withDemoSession = (

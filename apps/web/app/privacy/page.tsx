@@ -69,14 +69,17 @@ export default function PrivacyPage() {
         <h2>Who can receive data</h2>
         <p>
           Eligible account users may receive the public profile fields needed
-          for an introduction after separate directory consent. This includes
-          your self-written gender description; OpenMatch never infers it. Your
-          self-routing groups and the groups of people you are open to meeting
-          both remain private matching inputs. A mutually interested person
-          receives messages you deliberately send. The current host operator can
-          technically access the Mac-hosted SQLite files and must be treated as
-          a privileged administrator. No data is sold, used for advertising, or
-          sent to data brokers.
+          for an introduction after separate directory consent and during a
+          30-day availability window you explicitly start or renew. Expiry stops
+          new introductions without creating login history or a public
+          last-active time. The duration is an unvalidated prototype hypothesis.
+          Public fields include your self-written gender description; OpenMatch
+          never infers it. Your self-routing groups and the groups of people you
+          are open to meeting both remain private matching inputs. A mutually
+          interested person receives messages you deliberately send. The current
+          host operator can technically access the Mac-hosted SQLite files and
+          must be treated as a privileged administrator. No data is sold, used
+          for advertising, or sent to data brokers.
         </p>
         <p>
           Expo/EAS processes application build data, GitHub hosts public source

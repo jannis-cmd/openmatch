@@ -9,7 +9,11 @@ import {
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "node:path";
 import { existsSync, mkdirSync, unlinkSync } from "node:fs";
-import { Store, type AccountDeliveryAction } from "./store.js";
+import {
+  directoryParticipationIsActive,
+  Store,
+  type AccountDeliveryAction,
+} from "./store.js";
 import type { SecurityNotificationEvent } from "./email-verification.js";
 import type { Candidate, PublicProfile } from "@openmatch/matching";
 
@@ -675,7 +679,7 @@ export class Accounts {
       !store.onboardingComplete() ||
       !store.consentReceipt() ||
       !store.discoveryConfigured() ||
-      store.directoryConsentReceipt()?.participating !== true
+      !directoryParticipationIsActive(store.directoryConsentReceipt())
     )
       return undefined;
     return {
@@ -687,7 +691,12 @@ export class Accounts {
 
   candidatesFor(accountId: string): Candidate[] {
     const viewer = this.accountStore(accountId);
-    if (!viewer) return [];
+    if (
+      !viewer ||
+      viewer.accountStatus() !== "active" ||
+      !this.candidate(accountId)
+    )
+      return [];
     const accountIds = this.db
       .prepare("SELECT id FROM accounts WHERE id<>? ORDER BY created_at,id")
       .all(accountId) as Array<{ id: string }>;

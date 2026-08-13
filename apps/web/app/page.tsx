@@ -10,6 +10,7 @@ import {
 import {
   ApiError,
   createApiClient,
+  directoryParticipationIsActive,
   type AccountStatus,
   type AccountDeliveryStatus,
   type AccountSession,
@@ -1825,8 +1826,9 @@ function SignInPage({
         <p>
           Your private data and conversations stay isolated. After setup, the
           public profile you choose can appear to mutually eligible active
-          accounts in the same approximate region. OpenMatch stores a protected
-          passphrase hash—not your passphrase.
+          accounts in the same approximate region during an explicit 30-day
+          availability window. OpenMatch does not publish a last-active time and
+          stores a protected passphrase hash—not your passphrase.
         </p>
         {demoError && (
           <p role="status">{demoError} No connection was attempted.</p>
@@ -2291,10 +2293,12 @@ function OnboardingView({
                 onChange={(event) => setDirectoryAccepted(event.target.checked)}
               />
               I separately choose to join account matching. After setup while
-              Active, my chosen public profile can be shown to mutually eligible
-              accounts whose approximate city or region text exactly matches
-              mine. My private preferences and one-sided decisions are not
-              shown. I can withdraw this from Profile.
+              Active, my chosen public profile can be shown for 30 days to
+              mutually eligible accounts whose approximate city or region text
+              exactly matches mine. I renew explicitly; OpenMatch does not
+              record or publish my last-active time. My private preferences and
+              one-sided decisions are not shown. I can stop or renew this from
+              Profile. Thirty days is a prototype hypothesis.
               {!directoryAvailable &&
                 " Confirm your email from Profile before enabling this."}
             </label>
@@ -3204,15 +3208,18 @@ function ProfileView({
           <h2>Account matching</h2>
           <p>
             This is a separate, reversible choice. When enabled and your profile
-            is Active, your chosen public profile can appear to mutually
-            eligible accounts whose approximate region text exactly matches
-            yours. Private preferences and one-sided decisions are not shown.
+            is Active, your chosen public profile can appear for 30 days to
+            mutually eligible accounts whose approximate region text exactly
+            matches yours. Renewing is explicit: OpenMatch does not record or
+            publish when you last used the app. Private preferences and
+            one-sided decisions are not shown. Thirty days is a prototype
+            hypothesis, not a scientifically validated optimum.
           </p>
           <div className="data-actions">
             <button
-              aria-pressed={directoryConsent?.participating === true}
+              aria-pressed={directoryParticipationIsActive(directoryConsent)}
               disabled={
-                directoryConsent?.participating !== true &&
+                !directoryParticipationIsActive(directoryConsent) &&
                 ((Boolean(emailVerification?.deliveryConfigured) &&
                   !emailVerification?.verifiedAt) ||
                   !profile.gender.trim() ||
@@ -3221,22 +3228,24 @@ function ProfileView({
               }
               onClick={() =>
                 void setDirectoryConsent(
-                  !(directoryConsent?.participating === true),
+                  !directoryParticipationIsActive(directoryConsent),
                 )
               }
             >
-              {directoryConsent?.participating
+              {directoryParticipationIsActive(directoryConsent)
                 ? "Stop account matching"
-                : "Enable account matching"}
+                : directoryConsent?.participating
+                  ? "Renew for 30 days"
+                  : "Enable for 30 days"}
             </button>
           </div>
           <p className="help" role="status">
-            {directoryConsent?.participating &&
+            {directoryParticipationIsActive(directoryConsent) &&
             (!profile.gender.trim() ||
               profile.genderGroups.length === 0 ||
               !genderPreferencesConfigured)
               ? "Participation is recorded, but you are excluded from matching until you finish gender discovery in Profile and Preferences."
-              : !directoryConsent?.participating &&
+              : !directoryParticipationIsActive(directoryConsent) &&
                   (!profile.gender.trim() ||
                     profile.genderGroups.length === 0 ||
                     !genderPreferencesConfigured)
@@ -3244,14 +3253,15 @@ function ProfileView({
                 : emailVerification?.deliveryConfigured &&
                     !emailVerification.verifiedAt
                   ? "Confirm your email before joining account matching."
-                  : directoryConsent
-                    ? (directoryConsent.participating
-                        ? "Enabled"
-                        : "Disabled") +
-                      " under " +
-                      directoryConsent.noticeVersion +
-                      "."
-                    : "Disabled. No account-matching consent has been recorded."}
+                  : directoryParticipationIsActive(directoryConsent)
+                    ? `Available through ${new Date(
+                        directoryConsent?.availableUntil ?? "",
+                      ).toLocaleDateString()} under ${directoryConsent?.noticeVersion}.`
+                    : directoryConsent?.participating
+                      ? "Availability expired. Your profile is excluded from new introductions until you renew."
+                      : directoryConsent
+                        ? `Disabled under ${directoryConsent.noticeVersion}.`
+                        : "Disabled. No account-matching consent has been recorded."}
           </p>
         </section>
       )}
@@ -4118,7 +4128,10 @@ function AboutView({
             expiring session, and a scrypt-protected passphrase. Completed
             active accounts can currently meet only when their self-entered
             approximate region text matches exactly; the service does not
-            geocode or estimate distance. Passkeys, email-delivery monitoring,
+            geocode or estimate distance. Account-matching availability expires
+            after 30 days unless explicitly renewed; no login history or public
+            last-active time is created. The duration is an unvalidated
+            prototype hypothesis. Passkeys, email-delivery monitoring,
             provider-backed recovery notifications, and an independent security
             review are still required before any real-person pilot.
           </p>
