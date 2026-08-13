@@ -11,8 +11,8 @@ claim of production readiness. The same facts are published in
 
 ### Current iOS Simulator archive — build ff567a6f
 
-- Purpose: unsigned native compilation and Simulator testing while Apple
-  Developer Program enrollment is pending
+- Purpose: unsigned native compilation and Simulator testing while a signed
+  archive waits for available build capacity
 - EAS build: `ff567a6f-23eb-4eae-b058-d62842d1cb1e`
 - Source commit: `e1c495ec9b216fefe796d0359432ae4ce40f97ab`
 - Bundle identifier: `org.openmatch.app`
@@ -29,8 +29,10 @@ claim of production readiness. The same facts are published in
   email-change and cancellation paths.
 
 This archive cannot run on an iPhone and is not TestFlight-signed. It requires
-Xcode's iOS Simulator on a Mac. Physical-device signing and TestFlight remain
-gated by active Apple Developer Program membership and App Store Connect setup.
+Xcode's iOS Simulator on a Mac. Apple membership, the distribution certificate,
+provisioning profile, and least-privilege App Store Connect submission key are
+now configured. A physical-device/TestFlight archive still requires available
+EAS cloud-build capacity or full Xcode, which is not installed on this Mac.
 
 ### Android direct-install APK — build 10
 

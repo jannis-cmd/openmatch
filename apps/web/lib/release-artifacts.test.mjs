@@ -43,5 +43,6 @@ test("publishes complete immutable provenance for every mobile artifact", async 
 
 test("states both current native build blockers without implying store availability", () => {
   assert.match(release.buildAvailability.android, /quota.*September 1, 2026/i);
-  assert.match(release.buildAvailability.ios, /Apple Developer Program/i);
+  assert.match(release.buildAvailability.ios, /membership.*active/i);
+  assert.match(release.buildAvailability.ios, /EAS build capacity|full Xcode/i);
 });

@@ -57,6 +57,6 @@
   ],
   "buildAvailability": {
     "android": "A newer cloud build is blocked by the included EAS Android quota until September 1, 2026.",
-    "ios": "A physical-device or TestFlight build is blocked until Apple Developer Program enrollment becomes active."
+    "ios": "Apple Developer membership and App Store signing/submission credentials are active. A physical-device or TestFlight archive now waits only for available EAS build capacity or a Mac with full Xcode; the current Mac has Command Line Tools only."
   }
 }

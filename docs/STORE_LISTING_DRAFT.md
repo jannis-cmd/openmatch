@@ -166,7 +166,8 @@ questionnaires and the actual moderation operation.
 
 ## Submission blockers
 
-- active Apple Developer Program membership and accepted agreements;
+- current Apple Developer and App Store Connect agreements (membership,
+  distribution signing, provisioning, and EAS Submit API access are active);
 - public HTTPS service and public marketing/privacy/support URLs;
 - accountable legal operator and authorized public/private contact channels;
 - staffed moderation, appeals, safety, privacy, and incident response;

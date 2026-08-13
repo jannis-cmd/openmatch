@@ -13,8 +13,14 @@ contains no endpoint. EAS injects the selected HTTPS origin at build time.
 - Android package: `org.openmatch.app`
 - EAS `preview` and `production` environments contain the tailnet API origin.
 - Android signing uses the remote EAS keystore.
-- iOS signing is waiting for active Apple Developer Program membership. A free
-  Apple account cannot distribute through TestFlight.
+- Apple Developer Program membership is active for team `9TQ799RY97`.
+- EAS holds an active Apple Distribution certificate and App Store
+  provisioning profile for `org.openmatch.app`, both expiring 13 August 2027.
+- A least-privilege `APP_MANAGER` App Store Connect API key is assigned to the
+  project for EAS Submit. No signing private key or API key is committed here.
+- The next physical-device/TestFlight archive is waiting for available EAS
+  cloud-build capacity. This Mac has Command Line Tools, but not full Xcode, so
+  it cannot produce the signed archive locally.
 - The tailnet beta exposes a prototype privacy notice at
   `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/privacy` and support
   information at `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/support`.
@@ -130,19 +136,19 @@ the selected Apple Developer team, replace it in `app.json` with a unique
 reverse-domain identifier. App Store privacy disclosures must reflect the
 deployed service, not only this prototype repository.
 
-## Resume iOS when enrollment becomes active
+## Resume iOS when build capacity is available
 
-1. Sign in at the Apple Developer site and accept any current membership or
-   program agreements as the Account Holder.
-2. Confirm that the membership page shows an active Apple Developer Program
-   team, not only the free developer account.
-3. From `apps/mobile`, run `eas credentials --platform ios` and allow EAS to
-   create or select the distribution certificate and provisioning profile.
-4. Run `eas build --profile production --platform ios`.
-5. Inspect the completed archive, then run
+1. Confirm current agreements remain accepted in Apple Developer and App Store
+   Connect.
+2. From `apps/mobile`, run `eas credentials --platform ios` and verify the
+   existing certificate, provisioning profile, and submission key remain
+   valid; do not create replacements unnecessarily.
+3. Run `eas build --profile production --platform ios` when EAS capacity is
+   available.
+4. Inspect the completed archive, then run
    `eas submit --platform ios --latest` only after the App Store Connect record
    and disclosures are complete.
-6. Start with internal TestFlight testers. External testers add Beta App Review
+5. Start with internal TestFlight testers. External testers add Beta App Review
    and require accurate beta test information.
 
 ## Unsigned iOS Simulator build

@@ -236,7 +236,9 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("link", { name: "machine-readable metadata ↗" }),
   ).toHaveAttribute("href", /RELEASE_ARTIFACTS\.json/);
-  await expect(page.getByText("Waiting for Apple enrollment")).toBeVisible();
+  await expect(
+    page.getByText("Signing ready · waiting for build capacity"),
+  ).toBeVisible();
   const publicApiRequests: string[] = [];
   page.on("request", (request) => {
     if (request.url().includes("/v1/")) publicApiRequests.push(request.url());
