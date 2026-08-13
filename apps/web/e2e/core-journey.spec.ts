@@ -534,6 +534,25 @@ test("first run through a persistent connection and safety action", async ({
       name: "Would you like to plan a first meeting?",
     }),
   ).toBeVisible();
+  await page.route(
+    "**/v1/connections/*/meeting-preference",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_meeting_preference_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Open to planning" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Meeting preference was not saved" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Open to planning" }),
+  ).toHaveAttribute("aria-pressed", "false");
   await page.getByRole("button", { name: "Open to planning" }).click();
   await expect(
     page.getByText("Saved privately: open to planning."),
@@ -555,6 +574,25 @@ test("first run through a persistent connection and safety action", async ({
       name: "Close politely with a standard message",
     }),
   ).toBeVisible();
+  await page.route(
+    "**/v1/connections/*/mute",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_mute_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Mute conversation" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Mute preference was not saved" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Mute conversation" }),
+  ).toHaveAttribute("aria-pressed", "false");
   await page.getByRole("button", { name: "Mute conversation" }).click();
   await expect(
     page.getByRole("button", { name: "Unmute conversation" }),

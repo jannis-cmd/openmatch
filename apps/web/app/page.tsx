@@ -4113,6 +4113,14 @@ function ConnectionsView({
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>("harassment");
   const [reportDetails, setReportDetails] = useState("");
+  const [preferenceAction, setPreferenceAction] = useState<
+    "mute" | "meeting" | null
+  >(null);
+  const [preferenceError, setPreferenceError] = useState<string | null>(null);
+  useEffect(() => {
+    setPreferenceAction(null);
+    setPreferenceError(null);
+  }, [connection?.id]);
   if (!connection)
     return (
       <div className="empty">
@@ -4137,8 +4145,12 @@ function ConnectionsView({
           {connections.map((item) => (
             <button
               key={item.id}
+              disabled={preferenceAction !== null}
               aria-pressed={item.id === connection.id}
-              onClick={() => selectConnection(item.id)}
+              onClick={() => {
+                setPreferenceError(null);
+                selectConnection(item.id);
+              }}
             >
               {item.profile?.name ?? "Connection"}
             </button>
@@ -4161,7 +4173,20 @@ function ConnectionsView({
       <button
         className="text-button"
         aria-pressed={connection.muted}
-        onClick={() => void setMuted(!connection.muted)}
+        disabled={preferenceAction !== null}
+        onClick={async () => {
+          setPreferenceAction("mute");
+          setPreferenceError(null);
+          try {
+            await setMuted(!connection.muted);
+          } catch {
+            setPreferenceError(
+              "Mute preference was not saved. The previous confirmed state is still active; retry when ready.",
+            );
+          } finally {
+            setPreferenceAction(null);
+          }
+        }}
       >
         {connection.muted ? "Unmute conversation" : "Mute conversation"}
       </button>
@@ -4170,6 +4195,8 @@ function ConnectionsView({
           ? "Muted. Future message notifications would be suppressed. Messages remain available."
           : "This prototype sends no notifications yet; the preference is stored for future delivery."}
       </p>
+      {preferenceAction === "mute" && <p role="status">Saving mute…</p>}
+      {preferenceError && <p role="alert">{preferenceError}</p>}
       <section className="settings-card meeting-card">
         <p className="eyebrow">Optional next step</p>
         <h2>Would you like to plan a first meeting?</h2>
@@ -4181,17 +4208,46 @@ function ConnectionsView({
         <div className="setting-actions" aria-label="Meeting preference">
           <button
             aria-pressed={connection.meetingPreference === "not_yet"}
-            onClick={() => void setMeetingPreference("not_yet")}
+            disabled={preferenceAction !== null}
+            onClick={async () => {
+              setPreferenceAction("meeting");
+              setPreferenceError(null);
+              try {
+                await setMeetingPreference("not_yet");
+              } catch {
+                setPreferenceError(
+                  "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
+                );
+              } finally {
+                setPreferenceAction(null);
+              }
+            }}
           >
             Not yet
           </button>
           <button
             aria-pressed={connection.meetingPreference === "open_to_plan"}
-            onClick={() => void setMeetingPreference("open_to_plan")}
+            disabled={preferenceAction !== null}
+            onClick={async () => {
+              setPreferenceAction("meeting");
+              setPreferenceError(null);
+              try {
+                await setMeetingPreference("open_to_plan");
+              } catch {
+                setPreferenceError(
+                  "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
+                );
+              } finally {
+                setPreferenceAction(null);
+              }
+            }}
           >
             Open to planning
           </button>
         </div>
+        {preferenceAction === "meeting" && (
+          <p role="status">Saving meeting preference…</p>
+        )}
         {connection.meetingPreference !== "not_asked" && (
           <p role="status" className="help">
             {connection.meetingPreference === "open_to_plan"

@@ -127,7 +127,7 @@ Each open connection owns a separate composer draft and retry identity. Switchin
 - Optional profile-specific conversation prompts, never AI-written impersonation.
 - Mute, unmatch, block, and report remain one tap away.
 - Optional “Would you like to meet?” card after reciprocal activity. It suggests public-place safety practices but never exposes location.
-- The executable prototype implements this as a private, reversible planning preference rather than an outcome claim. It is not sent to a demo candidate or another account and does not record that a meeting occurred.
+- The executable prototype implements this as a private, reversible planning preference rather than an outcome claim. It is not sent to a demo candidate or another account and does not record that a meeting occurred. Meeting-planning and mute controls preserve their last server-confirmed values during writes, prevent overlapping connection-preference actions or connection switching, and expose a local retry error after failure instead of implying persistence.
 - Optional video-date path may be tested before in-person planning. No beauty, emotion, deception, disability, or safety inference is performed on video.
 - Users can close a conversation politely with a standard message; silence is never penalized.
 

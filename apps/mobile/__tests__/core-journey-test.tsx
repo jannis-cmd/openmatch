@@ -49,6 +49,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let reportPayload: { reason?: string; details?: string } | null = null;
   let connectionActive = false;
   let meetingPreference = "not_asked";
+  let muted = false;
+  let failNextConnectionPreferenceSave = false;
   let preferenceObservationCount = 0;
   let deliveryRetrying = false;
   let securityNotificationRetrying = false;
@@ -394,8 +396,29 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       path === "/v1/connections/connection-mara/meeting-preference" &&
       init.method === "PATCH"
     ) {
+      if (failNextConnectionPreferenceSave) {
+        failNextConnectionPreferenceSave = false;
+        return response(
+          { error: "simulated_connection_preference_failure" },
+          503,
+        );
+      }
       meetingPreference = body.meetingPreference;
       return response({ meetingPreference });
+    }
+    if (
+      path === "/v1/connections/connection-mara/mute" &&
+      init.method === "PATCH"
+    ) {
+      if (failNextConnectionPreferenceSave) {
+        failNextConnectionPreferenceSave = false;
+        return response(
+          { error: "simulated_connection_preference_failure" },
+          503,
+        );
+      }
+      muted = body.muted;
+      return response({ muted });
     }
     if (path === "/v1/connections")
       return response({
@@ -406,7 +429,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
                 profileId: "mara",
                 createdAt: "2026-08-12T12:00:00.000Z",
                 closedAt: null,
-                muted: false,
+                muted,
                 meetingPreference,
                 profile: toPublicProfile(demoCandidates[0].profile),
               },
@@ -613,10 +636,33 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(
     screen.getByText("Would you like to plan a first meeting?"),
   ).toBeTruthy();
+  failNextConnectionPreferenceSave = true;
+  await fireEvent.press(screen.getByText("Open to planning"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(meetingPreference).toBe("not_asked");
   await fireEvent.press(screen.getByText("Open to planning"));
   await waitFor(() => expect(meetingPreference).toBe("open_to_plan"));
   expect(screen.getByText("Saved privately: open to planning.")).toBeTruthy();
   expect(screen.getByText("✓ Choose a busy public place.")).toBeTruthy();
+  failNextConnectionPreferenceSave = true;
+  await fireEvent.press(screen.getByText("Mute conversation"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Mute preference was not saved. The previous confirmed state is still active; retry when ready.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(muted).toBe(false);
+  await fireEvent.press(screen.getByText("Mute conversation"));
+  await waitFor(() => expect(muted).toBe(true));
+  expect(screen.getByText("Unmute conversation")).toBeTruthy();
   const warningSpy = jest.spyOn(Alert, "alert");
   await fireEvent.changeText(
     screen.getByLabelText("Message Mara"),

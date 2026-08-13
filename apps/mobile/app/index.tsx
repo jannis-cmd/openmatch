@@ -211,6 +211,12 @@ export default function App() {
   const [visibilityActionError, setVisibilityActionError] = useState<
     string | null
   >(null);
+  const [connectionPreferenceAction, setConnectionPreferenceAction] = useState<
+    "mute" | "meeting" | null
+  >(null);
+  const [connectionPreferenceError, setConnectionPreferenceError] = useState<
+    string | null
+  >(null);
   const [accountDeliveryStatus, setAccountDeliveryStatus] =
     useState<AccountDeliveryStatus | null>(null);
   const [securityNotificationDelivery, setSecurityNotificationDelivery] =
@@ -362,6 +368,8 @@ export default function App() {
     setPrivacyAction(null);
     setDirectoryActionError(null);
     setVisibilityActionError(null);
+    setConnectionPreferenceAction(null);
+    setConnectionPreferenceError(null);
   }, [accessMode]);
   useEffect(() => {
     let active = true;
@@ -1445,13 +1453,18 @@ export default function App() {
                         accessibilityRole="radio"
                         accessibilityState={{
                           checked: item.id === connection.id,
+                          disabled: connectionPreferenceAction !== null,
                         }}
+                        disabled={connectionPreferenceAction !== null}
                         style={[
                           styles.connectionChoice,
                           item.id === connection.id &&
                             styles.connectionChoiceSelected,
                         ]}
-                        onPress={() => setSelectedConnectionId(item.id)}
+                        onPress={() => {
+                          setConnectionPreferenceError(null);
+                          setSelectedConnectionId(item.id);
+                        }}
                         key={item.id}
                       >
                         <Text
@@ -1491,17 +1504,39 @@ export default function App() {
                       : "Mute conversation"
                   }
                   secondary
-                  onPress={() =>
+                  disabled={connectionPreferenceAction !== null}
+                  onPress={() => {
+                    setConnectionPreferenceAction("mute");
+                    setConnectionPreferenceError(null);
                     void api
                       .updateConnectionMute(connection.id, !connection.muted)
                       .then(load)
-                  }
+                      .catch(() =>
+                        setConnectionPreferenceError(
+                          "Mute preference was not saved. The previous confirmed state is still active; retry when ready.",
+                        ),
+                      )
+                      .finally(() => setConnectionPreferenceAction(null));
+                  }}
                 />
                 <Text style={styles.mathNote}>
                   {connection.muted
                     ? "Muted. Future message notifications would be suppressed. Messages remain available."
                     : "This prototype sends no notifications yet; the preference is stored for future delivery."}
                 </Text>
+                {connectionPreferenceAction === "mute" && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.mathNote}
+                  >
+                    Saving mute…
+                  </Text>
+                )}
+                {connectionPreferenceError && (
+                  <Text accessibilityRole="alert" style={styles.errorText}>
+                    {connectionPreferenceError}
+                  </Text>
+                )}
                 <View style={styles.scoreCard}>
                   <Text style={styles.eyebrow}>Optional next step</Text>
                   <Text style={styles.name}>
@@ -1517,11 +1552,20 @@ export default function App() {
                       label="Not yet"
                       secondary={connection.meetingPreference !== "not_yet"}
                       selected={connection.meetingPreference === "not_yet"}
-                      onPress={() =>
+                      disabled={connectionPreferenceAction !== null}
+                      onPress={() => {
+                        setConnectionPreferenceAction("meeting");
+                        setConnectionPreferenceError(null);
                         void api
                           .updateMeetingPreference(connection.id, "not_yet")
                           .then(load)
-                      }
+                          .catch(() =>
+                            setConnectionPreferenceError(
+                              "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
+                            ),
+                          )
+                          .finally(() => setConnectionPreferenceAction(null));
+                      }}
                     />
                     <Action
                       label="Open to planning"
@@ -1529,16 +1573,33 @@ export default function App() {
                         connection.meetingPreference !== "open_to_plan"
                       }
                       selected={connection.meetingPreference === "open_to_plan"}
-                      onPress={() =>
+                      disabled={connectionPreferenceAction !== null}
+                      onPress={() => {
+                        setConnectionPreferenceAction("meeting");
+                        setConnectionPreferenceError(null);
                         void api
                           .updateMeetingPreference(
                             connection.id,
                             "open_to_plan",
                           )
                           .then(load)
-                      }
+                          .catch(() =>
+                            setConnectionPreferenceError(
+                              "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
+                            ),
+                          )
+                          .finally(() => setConnectionPreferenceAction(null));
+                      }}
                     />
                   </View>
+                  {connectionPreferenceAction === "meeting" && (
+                    <Text
+                      accessibilityLiveRegion="polite"
+                      style={styles.mathNote}
+                    >
+                      Saving meeting preference…
+                    </Text>
+                  )}
                   {connection.meetingPreference !== "not_asked" && (
                     <Text
                       accessibilityLiveRegion="polite"
