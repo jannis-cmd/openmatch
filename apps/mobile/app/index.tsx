@@ -2826,6 +2826,15 @@ export default function App() {
                     )
                   }
                 />
+                <Action
+                  label="Open product boundaries"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://github.com/jannis-cmd/openmatch/blob/main/docs/PRODUCT_BOUNDARIES.json",
+                    )
+                  }
+                />
               </View>
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Known limits</Text>

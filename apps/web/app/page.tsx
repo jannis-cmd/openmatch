@@ -1567,6 +1567,16 @@ function LandingPage({
               Every current field, purpose, retention, and access role.
             </span>
           </a>
+          <a
+            href="https://github.com/jannis-cmd/openmatch/blob/main/docs/PRODUCT_BOUNDARIES.json"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <strong>Product boundaries</strong>
+            <span>
+              Machine-checked capabilities this app forbids or leaves absent.
+            </span>
+          </a>
         </div>
         <div className="public-limit">
           <h3>Known limits</h3>
@@ -4084,6 +4094,13 @@ function AboutView({
           rel="noreferrer"
         >
           Machine-readable data inventory ↗
+        </a>
+        <a
+          href="https://github.com/jannis-cmd/openmatch/blob/main/docs/PRODUCT_BOUNDARIES.json"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Machine-checked product boundaries ↗
         </a>
         <h2>Known limits</h2>
         <p>

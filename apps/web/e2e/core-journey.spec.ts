@@ -61,6 +61,10 @@ test("public privacy and support pages describe the real prototype", async ({
     expect(iconResponse.ok()).toBe(true);
     expect(iconResponse.headers()["content-type"]).toContain("image/png");
   }
+  await page.goto("/");
+  await expect(
+    page.getByRole("link", { name: /Product boundaries/ }),
+  ).toHaveAttribute("href", /PRODUCT_BOUNDARIES\.json/);
   await page.goto("/privacy");
   await expect(
     page.getByRole("heading", {

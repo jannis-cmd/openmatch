@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "1.0.0",
+  "updated": "2026-08-13",
+  "objective": "Useful introductions that help people leave the app, never engagement or revenue extraction.",
+  "states": {
+    "forbidden_by_mission": "The capability conflicts with the nonprofit product objective and must not ship.",
+    "absent_until_review": "The capability is not implemented and may be proposed only after the named safety, privacy, and inclusion review.",
+    "intentionally_absent": "The capability is unnecessary for the current product and is deliberately not implemented."
+  },
+  "capabilities": [
+    {
+      "id": "advertising_and_paid_visibility",
+      "state": "forbidden_by_mission",
+      "userFacing": "No ads, boosts, premium ranking, paid visibility, coins, or subscriptions that affect introductions.",
+      "reason": "Revenue must not depend on attention, exclusion, or unequal access to introductions."
+    },
+    {
+      "id": "engagement_analytics",
+      "state": "forbidden_by_mission",
+      "userFacing": "No dwell-time, scrolling, session-frequency, notification-open, or message-volume optimization.",
+      "reason": "These proxies reward keeping people in the product instead of helping them form useful offline relationships."
+    },
+    {
+      "id": "push_engagement_notifications",
+      "state": "absent_until_review",
+      "userFacing": "No push-notification permission or engagement reminders. Sparse account-security email is a separate user-protective channel.",
+      "reason": "A future notification must demonstrate user benefit without coercion, presence disclosure, or engagement optimization."
+    },
+    {
+      "id": "contact_import",
+      "state": "forbidden_by_mission",
+      "userFacing": "No address-book upload, contact discovery, or social-graph matching.",
+      "reason": "Non-users cannot consent, and contact graphs create high-impact outing and relationship-inference risks."
+    },
+    {
+      "id": "precise_or_background_location",
+      "state": "absent_until_review",
+      "userFacing": "No GPS permission, background location, live distance, or location history.",
+      "reason": "The current prototype uses self-entered approximate region text; any coarse-region replacement needs privacy and safety review."
+    },
+    {
+      "id": "camera_and_profile_photos",
+      "state": "absent_until_review",
+      "userFacing": "No camera, photo-library, biometric, beauty-score, or image-analysis capability in the executable prototype.",
+      "reason": "Media needs consent, secure processing, abuse operations, accessibility, outing-risk, and inclusion decisions before implementation."
+    },
+    {
+      "id": "presence_and_receipts",
+      "state": "forbidden_by_mission",
+      "userFacing": "No read receipts, typing indicators, online status, last-active time, streaks, or response-pressure scoring.",
+      "reason": "Presence signals create pressure and sensitive behavioral records without improving transparent matchmaking."
+    },
+    {
+      "id": "private_service_worker_cache",
+      "state": "intentionally_absent",
+      "userFacing": "No service worker caches private profiles, messages, sessions, or API responses.",
+      "reason": "Installable web metadata does not justify an additional persistent copy of intimate data."
+    },
+    {
+      "id": "device_biometrics",
+      "state": "absent_until_review",
+      "userFacing": "No Face ID, fingerprint, liveness, or identity-verification permission is requested.",
+      "reason": "The app uses device-only secure storage without biometric authentication; verification needs evidence of net benefit and an exclusion analysis."
+    },
+    {
+      "id": "device_backup_of_app_state",
+      "state": "intentionally_absent",
+      "userFacing": "Android application backup is disabled; mobile session material is device-only and not migrated in backups.",
+      "reason": "A convenience backup must not silently create another recoverable copy of account authorization or pending message text."
+    }
+  ],
+  "releaseEnforcement": {
+    "forbiddenDirectDependencyFragments": [
+      "analytics",
+      "amplitude",
+      "mixpanel",
+      "segment",
+      "admob",
+      "google-mobile-ads",
+      "expo-notifications",
+      "expo-location",
+      "expo-contacts",
+      "expo-camera",
+      "expo-image-picker",
+      "expo-tracking-transparency"
+    ],
+    "forbiddenSourceFragments": [
+      "navigator.geolocation",
+      "navigator.serviceWorker.register",
+      "Notification.requestPermission",
+      "expo-notifications",
+      "expo-location",
+      "expo-contacts",
+      "expo-camera",
+      "expo-image-picker",
+      "expo-tracking-transparency",
+      "react-native-google-mobile-ads",
+      "firebase/analytics"
+    ]
+  }
+}

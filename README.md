@@ -101,6 +101,8 @@ Implemented API capabilities include editable profile/preferences, finite introd
 
 Release metadata is deliberately narrow: mobile builds request no notification, vibration, overlay, local-network, Face ID, or external-storage capability; the resolved Android manifest retains only internet access and disables application backup, while iOS rejects arbitrary/local transport exceptions. The web app includes installable raster icons but no service worker that could cache private API responses.
 
+[`docs/PRODUCT_BOUNDARIES.json`](docs/PRODUCT_BOUNDARIES.json) makes absent and mission-forbidden capabilities machine-readable. The release tests reject direct advertising, engagement-analytics, push, contact, location, camera/photo, tracking, and related dependencies or application APIs instead of relying on policy prose alone.
+
 ## License
 
 Software is AGPL-3.0-or-later. Documentation and research materials are CC BY 4.0; see `LICENSE-DOCS`.

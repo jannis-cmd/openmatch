@@ -4,6 +4,8 @@
 
 Collect only what a current feature requires; state purpose before collection; separate public visibility from processing consent; use coarse location; encrypt in transit and at rest; short retention; audited access; easy export/deletion; no advertising identifiers, contact uploads, data brokers, or cross-service tracking.
 
+The executable release boundary is also published in `docs/PRODUCT_BOUNDARIES.json`. Automated tests reject direct application dependencies and source APIs for advertising, engagement analytics, push notifications, contact import, GPS, camera/photo access, tracking transparency, and service-worker persistence. This proves only that those named capabilities are absent from the current source and resolved permission surface; it does not replace dependency review, traffic inspection, or an independent privacy assessment.
+
 Gender discovery separates a person's public free-text description and
 self-selected routing groups from their private groups sought. Routing groups
 can overlap and are not treated as identity truth. The service never infers
