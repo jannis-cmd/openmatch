@@ -144,6 +144,7 @@ export default function PrivacyPage() {
       <footer className="document-footer">
         <a href="/">Home</a>
         <a href="/support">Support</a>
+        <a href="/delete-account">Delete account</a>
         <a href="https://github.com/jannis-cmd/openmatch">Source</a>
       </footer>
     </main>

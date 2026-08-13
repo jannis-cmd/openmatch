@@ -124,6 +124,29 @@ test("public privacy and support pages describe the real prototype", async ({
     ),
   ).toBe(true);
   await expectAccessible(page);
+
+  await page.goto("/delete-account");
+  await expect(
+    page.getByRole("heading", {
+      name: "Delete your account, not just hide it.",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      /Copies of your profile decisions, connection, and messages/,
+    ),
+  ).toBeVisible();
+  await expectAccessible(page);
+  await page
+    .getByRole("link", { name: "Sign in to delete my account" })
+    .click();
+  await expect(page).toHaveURL(/\/#delete-account$/);
+  await expect(
+    page.getByText("Sign in to open the permanent account-deletion control."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Welcome back." }),
+  ).toBeVisible();
 });
 
 test("first run through a persistent connection and safety action", async ({

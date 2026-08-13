@@ -5,6 +5,23 @@ import { promisify } from "node:util";
 import test from "node:test";
 
 const run = promisify(execFile);
+const workingGit = async () => {
+  const candidates = (process.env.PATH ?? "")
+    .split(":")
+    .filter(Boolean)
+    .map((directory) => `${directory}/git`);
+  for (const candidate of [...new Set(candidates)]) {
+    try {
+      await run(candidate, ["--version"]);
+      return candidate;
+    } catch {
+      // A developer-tool shim may exist but be unusable until host setup is complete.
+    }
+  }
+  throw new Error(
+    "No functioning Git executable is available for provenance checks",
+  );
+};
 const release = JSON.parse(
   await readFile(
     new URL("../../../docs/RELEASE_ARTIFACTS.json", import.meta.url),
@@ -13,6 +30,7 @@ const release = JSON.parse(
 );
 
 test("publishes complete immutable provenance for every mobile artifact", async () => {
+  const git = await workingGit();
   assert.equal(release.schemaVersion, "1.0.0");
   assert.match(release.reviewedAt, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(release.artifacts.length >= 3);
@@ -32,7 +50,7 @@ test("publishes complete immutable provenance for every mobile artifact", async 
       artifact.platform === "android" && artifact.kind === "apk",
     );
     await run(
-      "git",
+      git,
       ["merge-base", "--is-ancestor", artifact.sourceCommit, "HEAD"],
       {
         cwd: new URL("../../..", import.meta.url),

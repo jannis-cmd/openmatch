@@ -939,6 +939,40 @@ export class Store {
       throw error;
     }
   }
+  eraseDeletedAccount(profileId: string) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare(
+          "DELETE FROM messages WHERE sender_id=? OR connection_id IN (SELECT id FROM connections WHERE profile_id=?)",
+        )
+        .run(profileId, profileId);
+      this.db
+        .prepare(
+          "DELETE FROM connection_outcomes WHERE connection_id IN (SELECT id FROM connections WHERE profile_id=?)",
+        )
+        .run(profileId);
+      this.db
+        .prepare("DELETE FROM connections WHERE profile_id=?")
+        .run(profileId);
+      this.db
+        .prepare("DELETE FROM decisions WHERE profile_id=?")
+        .run(profileId);
+      this.db
+        .prepare("DELETE FROM preference_observations WHERE profile_id=?")
+        .run(profileId);
+      this.db.prepare("DELETE FROM blocks WHERE profile_id=?").run(profileId);
+      this.db.prepare("DELETE FROM reports WHERE profile_id=?").run(profileId);
+      this.db
+        .prepare("DELETE FROM saved_introductions WHERE profile_id=?")
+        .run(profileId);
+      this.clearIntroductionBatch();
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   close() {
     this.db.close();
   }

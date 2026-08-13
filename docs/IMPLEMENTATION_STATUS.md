@@ -8,6 +8,12 @@ Permanent credential deletion on web, iOS, and Android requires the active
 account session plus fresh verification of the current passphrase. A failed
 verification leaves the account and session intact, uses the shared
 authentication throttle, and produces an action-specific retry message.
+The public `/delete-account` route takes a person directly through web sign-in
+to that control. Successful deletion first erases the account's profile-linked
+decisions, connection copies, and delivered messages from every other local
+account store; integration coverage proves failed reauthentication preserves
+the account and successful deletion removes peer copies before revoking the
+session.
 
 | Requirement | Evidence |
 |---|---|

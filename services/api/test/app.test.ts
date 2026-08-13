@@ -1592,6 +1592,15 @@ test("authenticated accounts have hashed credentials and isolated application da
     assert.equal(deletionReceipt.credentialsDeleted, true);
     assert.equal(deletionReceipt.sessionsRevoked, true);
     assert.equal(deletionReceipt.applicationBackups, "none");
+    const secondExportAfterDeletion = secondStore.exportData();
+    assert.equal(secondExportAfterDeletion.connections.length, 0);
+    assert.equal(secondExportAfterDeletion.messages.length, 0);
+    assert.equal(
+      secondExportAfterDeletion.decisions.some(
+        ({ profileId }) => profileId === firstId,
+      ),
+      false,
+    );
     assert.equal(
       (await fetch(base + "/v1/me", { headers: auth(first.body.token!) }))
         .status,

@@ -765,6 +765,11 @@ export class Accounts {
       .get(accountId) as AccountRow | undefined;
     if (!account || !this.passwordMatches(account, currentPasswordValue))
       throw new AccountError("invalid_current_password", 400);
+    const peerAccountIds = this.db
+      .prepare("SELECT id FROM accounts WHERE id<>? ORDER BY id")
+      .all(accountId) as Array<{ id: string }>;
+    for (const { id } of peerAccountIds)
+      this.store(id).eraseDeletedAccount(accountId);
     const store = this.store(accountId);
     store.reset();
     store.close();

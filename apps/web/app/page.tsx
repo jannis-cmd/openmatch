@@ -91,9 +91,15 @@ export default function Home() {
   useEffect(() => {
     const storedToken = window.sessionStorage.getItem("openmatch-auth-token");
     const storedDemo = window.sessionStorage.getItem("openmatch-demo-session");
+    const deletionRequested = window.location.hash === "#delete-account";
     if (demoConfiguration.url && storedToken) {
       setAuthToken(storedToken);
       setSiteView("app");
+    } else if (demoConfiguration.url && deletionRequested) {
+      setAccountEntryNotice(
+        "Sign in to open the permanent account-deletion control.",
+      );
+      setSiteView("sign-in");
     } else if (demoConfiguration.url && storedDemo === "active") {
       setSiteView("app");
     } else if (!demoConfiguration.url && (storedDemo || storedToken)) {
@@ -212,7 +218,11 @@ function AppExperience({
       }),
     [apiUrl, authToken, sessionEnded],
   );
-  const [view, setView] = useState<View>("today");
+  const [view, setView] = useState<View>(() =>
+    typeof window !== "undefined" && window.location.hash === "#delete-account"
+      ? "profile"
+      : "today",
+  );
   const [preferences, setPreferences] = useState<Preferences>(
     structuredClone(defaultPreferences),
   );
@@ -2019,6 +2029,7 @@ function LandingPage({
           <a href="#evidence">Research</a>
           <a href="/privacy">Privacy</a>
           <a href="/support">Support</a>
+          <a href="/delete-account">Delete account</a>
           <button onClick={signIn}>Sign in</button>
         </div>
       </footer>

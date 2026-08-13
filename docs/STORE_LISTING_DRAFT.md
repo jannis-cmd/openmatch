@@ -68,6 +68,7 @@ exists if one has not been formed.
 - Marketing: `[PUBLIC_HTTPS_ORIGIN]/`
 - Privacy: `[PUBLIC_HTTPS_ORIGIN]/privacy`
 - Support: `[PUBLIC_HTTPS_ORIGIN]/support`
+- Account deletion: `[PUBLIC_HTTPS_ORIGIN]/delete-account`
 - Source: `https://github.com/jannis-cmd/openmatch`
 
 The current tailnet URLs are acceptable only for owner/internal testing. Store
@@ -144,9 +145,10 @@ Review the final build, server, SMTP provider, Tailscale/public hosting,
 monitoring, and support vendors before answering the Play Console form.
 
 - Data is encrypted in transit: yes for distributed builds, using HTTPS.
-- Account deletion request: in-app synchronous deletion exists in the
-  prototype; a public web deletion path and operational verification may still
-  be required by current policy.
+- Account deletion request: in-app synchronous deletion and a prominent
+  `/delete-account` web initiation path exist. The store URL must use the future
+  public origin rather than the current private tailnet, and the distributed
+  erasure operation still requires production review.
 - Data sharing: public profile disclosure to mutually eligible users is an
   app-function disclosure authorized by separate directory consent; message
   delivery discloses deliberate text to the matched recipient. Vendor

@@ -1555,6 +1555,17 @@ textarea {
 .document-actions {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.document-primary-action {
+  display: block;
+  max-width: 420px;
+}
+.document-primary-action a {
+  display: block;
+  background: var(--landing-green);
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+}
 .document-actions a,
 .document-callouts a {
   border: 1px solid #d7dbd4;
