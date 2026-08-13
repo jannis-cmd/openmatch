@@ -12,6 +12,11 @@ jest.mock("../lib/secure-session", () => ({
   persistSessionToken: jest.fn(async () => undefined),
   clearSessionToken: jest.fn(async () => undefined),
 }));
+jest.mock("../lib/secure-message-attempts", () => ({
+  restorePendingMessageAttempts: jest.fn(async () => ({})),
+  persistPendingMessageAttempts: jest.fn(async () => undefined),
+  clearPendingMessageAttempts: jest.fn(async () => undefined),
+}));
 jest.mock("expo-crypto", () => ({
   randomUUID: () => "75afbb9f-60c8-49be-a8b9-4b3bb2fe6b3f",
 }));
@@ -21,6 +26,7 @@ import {
   persistSessionToken,
   restoreSessionToken,
 } from "../lib/secure-session";
+import { clearPendingMessageAttempts } from "../lib/secure-message-attempts";
 
 const response = (body: unknown, status = 200) =>
   ({
@@ -714,9 +720,17 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByLabelText("Passphrase"),
     "a native test passphrase",
   );
+  (clearPendingMessageAttempts as jest.Mock).mockClear();
+  (persistSessionToken as jest.Mock).mockClear();
   await fireEvent.press(screen.getByText("Create account"));
   await waitFor(() => expect(accountRequests).toBe(1));
   expect(persistSessionToken).toHaveBeenCalledWith("a".repeat(43));
+  expect(clearPendingMessageAttempts).toHaveBeenCalled();
+  expect(
+    (clearPendingMessageAttempts as jest.Mock).mock.invocationCallOrder[0],
+  ).toBeLessThan(
+    (persistSessionToken as jest.Mock).mock.invocationCallOrder[0],
+  );
   await waitFor(() =>
     expect(screen.getByText("Set your boundaries.")).toBeTruthy(),
   );

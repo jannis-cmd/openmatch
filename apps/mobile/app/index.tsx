@@ -134,6 +134,7 @@ export default function App() {
           onTokenChange: (token) => {
             if (token !== null) return;
             void clearSessionToken().catch(() => undefined);
+            void clearPendingMessageAttempts().catch(() => undefined);
             setAuthToken(null);
             if (accessMode === "account") {
               setAccessMode("signed-out");
@@ -617,6 +618,7 @@ export default function App() {
         api={api}
         notice={sessionNotice}
         onAuthenticated={async (token, notification) => {
+          await clearPendingMessageAttempts().catch(() => undefined);
           await persistSessionToken(token);
           setAuthToken(token);
           if (notification)
@@ -2678,6 +2680,7 @@ export default function App() {
                   onPress={() =>
                     void api.signOut().finally(() => {
                       void clearSessionToken().catch(() => undefined);
+                      void clearPendingMessageAttempts().catch(() => undefined);
                       setAuthToken(null);
                       setAccessMode("signed-out");
                       setConnections([]);
@@ -2702,6 +2705,9 @@ export default function App() {
                             onPress: () =>
                               void api.deleteAccount().then(async () => {
                                 await clearSessionToken().catch(
+                                  () => undefined,
+                                );
+                                await clearPendingMessageAttempts().catch(
                                   () => undefined,
                                 );
                                 setAuthToken(null);
