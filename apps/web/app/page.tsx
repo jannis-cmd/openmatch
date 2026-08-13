@@ -211,6 +211,13 @@ function AppExperience({
   const [preferences, setPreferences] = useState<Preferences>(
     structuredClone(defaultPreferences),
   );
+  const [preferencesDraft, setPreferencesDraft] = useState<Preferences | null>(
+    null,
+  );
+  const [preferencesSaving, setPreferencesSaving] = useState(false);
+  const [preferencesSaveError, setPreferencesSaveError] = useState<
+    string | null
+  >(null);
   const [profile, setProfile] = useState<Profile>(demoUser);
   const [introductions, setIntroductions] = useState<Introduction[]>([]);
   const [nextBatchAt, setNextBatchAt] = useState<string | null>(null);
@@ -485,16 +492,33 @@ function AppExperience({
       window.clearInterval(timer);
     };
   }, [api, selectedConnection?.id]);
-  const savePreferences = async (next: Preferences) => {
-    setPreferences(next);
+  const savePreferences = async () => {
+    if (!preferencesDraft) return;
+    setPreferencesSaving(true);
+    setPreferencesSaveError(null);
     try {
-      await api.updatePreferences(next);
-      setIntroductions((await api.introductions()).items);
-      const nextSuggestions = await api.preferenceSuggestions();
-      setSuggestions(nextSuggestions.items);
-      setPreferenceObservationCount(nextSuggestions.observationCount);
+      const saved = await api.updatePreferences(preferencesDraft);
+      setPreferences(saved);
+      setPreferencesDraft(null);
+      try {
+        const [nextIntroductions, nextSuggestions] = await Promise.all([
+          api.introductions(),
+          api.preferenceSuggestions(),
+        ]);
+        setIntroductions(nextIntroductions.items);
+        setSuggestions(nextSuggestions.items);
+        setPreferenceObservationCount(nextSuggestions.observationCount);
+      } catch {
+        setNotice(
+          "Preferences were saved, but introductions could not refresh. Check again shortly.",
+        );
+      }
     } catch {
-      setError("Preferences could not be saved.");
+      setPreferencesSaveError(
+        "Your preference changes were not saved. They remain here so you can retry or cancel.",
+      );
+    } finally {
+      setPreferencesSaving(false);
     }
   };
 
@@ -1040,7 +1064,7 @@ function AppExperience({
               )}
               {view === "preferences" && (
                 <PreferencesView
-                  value={preferences}
+                  value={preferencesDraft ?? preferences}
                   delivery={delivery}
                   setBatchSize={async (batchSize) => {
                     const next = await api.updateDeliverySettings(batchSize);
@@ -1069,7 +1093,18 @@ function AppExperience({
                       setError("Learning examples could not be cleared.");
                     }
                   }}
-                  onChange={(next) => void savePreferences(next)}
+                  onChange={(next) => {
+                    setPreferencesDraft(next);
+                    setPreferencesSaveError(null);
+                  }}
+                  pendingChanges={preferencesDraft !== null}
+                  saving={preferencesSaving}
+                  saveError={preferencesSaveError}
+                  save={() => void savePreferences()}
+                  cancel={() => {
+                    setPreferencesDraft(null);
+                    setPreferencesSaveError(null);
+                  }}
                 />
               )}
               {view === "connections" && (
@@ -2533,6 +2568,11 @@ function PreferencesView({
   observationCount,
   clearObservations,
   onChange,
+  pendingChanges,
+  saving,
+  saveError,
+  save,
+  cancel,
 }: {
   value: Preferences;
   delivery: DeliverySettings;
@@ -2541,6 +2581,11 @@ function PreferencesView({
   observationCount: number;
   clearObservations: () => Promise<void>;
   onChange: (value: Preferences) => void;
+  pendingChanges: boolean;
+  saving: boolean;
+  saveError: string | null;
+  save: () => void;
+  cancel: () => void;
 }) {
   const setWeight = (key: keyof Preferences["weights"], weight: number) =>
     onChange({ ...value, weights: { ...value.weights, [key]: weight } });
@@ -2552,178 +2597,202 @@ function PreferencesView({
         Hard boundaries filter first. Priorities only order people who are
         mutually eligible. Every change is yours.
       </p>
-      <section className="settings-card">
-        <h2>Finite batch size</h2>
-        <p>
-          Choose up to how many mutually eligible people appear at once. One to
-          five is a product hypothesis, not a scientifically optimal number.
-        </p>
-        <div className="decision-row" aria-label="Introductions per batch">
-          {([1, 2, 3, 4, 5] as const).map((size) => (
-            <button
-              key={size}
-              aria-pressed={delivery.batchSize === size}
-              className={delivery.batchSize === size ? "interest" : "pass"}
-              onClick={() => void setBatchSize(size)}
-            >
-              {size}
-            </button>
-          ))}
+      <div className="preference-save-bar" aria-live="polite">
+        <span>
+          {pendingChanges
+            ? "Unsaved preference changes"
+            : "Preferences match the saved version"}
+        </span>
+        <div className="inline-actions">
+          <button
+            className="text-button"
+            disabled={!pendingChanges || saving}
+            onClick={cancel}
+          >
+            Cancel changes
+          </button>
+          <button disabled={!pendingChanges || saving} onClick={save}>
+            {saving ? "Saving preferences…" : "Save preferences"}
+          </button>
         </div>
-        <p className="help">
-          Saved profiles are separate. Pause introductions any time from Your
-          profile.
-        </p>
-      </section>
-      <section className="settings-card">
-        <h2>Mutual boundaries</h2>
-        <label>
-          Youngest age <strong>{value.ageMin}</strong>
-          <input
-            type="range"
-            min="18"
-            max={value.ageMax}
-            value={value.ageMin}
-            onChange={(event) =>
-              onChange({ ...value, ageMin: Number(event.target.value) })
-            }
-          />
-        </label>
-        <label>
-          Oldest age <strong>{value.ageMax}</strong>
-          <input
-            type="range"
-            min={value.ageMin}
-            max="80"
-            value={value.ageMax}
-            onChange={(event) =>
-              onChange({ ...value, ageMax: Number(event.target.value) })
-            }
-          />
-        </label>
-        <BoundaryFields value={value} onChange={onChange} />
-      </section>
-      <section className="settings-card">
-        <h2>Distance</h2>
-        <label>
-          Ideal distance <strong>{value.idealDistanceKm} km</strong>
-          <input
-            type="range"
-            min="1"
-            max="30"
-            value={value.idealDistanceKm}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                idealDistanceKm: Number(event.target.value),
-              })
-            }
-          />
-        </label>
-        <label>
-          Maximum distance <strong>{value.maximumDistanceKm} km</strong>
-          <input
-            type="range"
-            min="15"
-            max="100"
-            value={value.maximumDistanceKm}
-            onChange={(event) =>
-              onChange({
-                ...value,
-                maximumDistanceKm: Number(event.target.value),
-              })
-            }
-          />
-        </label>
-        <p className="help">
-          Outside the maximum is a boundary. Inside it, nearer profiles receive
-          a simple visible proximity score.
-        </p>
-      </section>
-      <section className="settings-card">
-        <h2>How to order eligible people</h2>
-        {Object.entries(value.weights).map(([key, weight]) => {
-          const index = PRIORITY_LEVELS.reduce(
-            (best, level, i) =>
-              Math.abs(level - weight) <
-              Math.abs(PRIORITY_LEVELS[best] - weight)
-                ? i
-                : best,
-            0,
-          );
-          return (
-            <label key={key}>
-              <span className="capitalize">{key}</span>
-              <strong>{priorityLabel(weight)}</strong>
-              <input
-                type="range"
-                min="0"
-                max="3"
-                value={index}
-                onChange={(event) =>
-                  setWeight(
-                    key as keyof Preferences["weights"],
-                    PRIORITY_LEVELS[Number(event.target.value)],
-                  )
-                }
-              />
-            </label>
-          );
-        })}
-        <p className="help">
-          These are relative priorities, not judgments of anyone’s worth.
-        </p>
-      </section>
-      <section className="settings-card">
-        <h2>Preference suggestions</h2>
-        {suggestions.length === 0 ? (
+      </div>
+      {saveError && <p role="alert">{saveError}</p>}
+      <fieldset className="preferences-editor" disabled={saving}>
+        <section className="settings-card">
+          <h2>Finite batch size</h2>
           <p>
-            Nothing suggested yet. The transparent learner waits for at least 20
-            explicit decisions, including five Interested and five Pass choices.
+            Choose up to how many mutually eligible people appear at once. One
+            to five is a product hypothesis, not a scientifically optimal
+            number.
           </p>
-        ) : (
-          suggestions.map((suggestion) => (
-            <div className="suggestion" key={suggestion.factorId}>
-              <p>
-                <strong className="capitalize">{suggestion.factorId}</strong> ·{" "}
-                {priorityLabel(suggestion.currentWeight)} →{" "}
-                {priorityLabel(suggestion.suggestedWeight)} ·{" "}
-                {suggestion.sampleSize} decisions · {suggestion.confidence}{" "}
-                confidence
-              </p>
-              <p className="help">{suggestion.caveat}</p>
+          <div className="decision-row" aria-label="Introductions per batch">
+            {([1, 2, 3, 4, 5] as const).map((size) => (
               <button
-                onClick={() =>
-                  onChange({
-                    ...value,
-                    weights: {
-                      ...value.weights,
-                      [suggestion.factorId]: nearestPriority(
-                        suggestion.suggestedWeight,
-                      ),
-                    },
-                  })
-                }
+                key={size}
+                aria-pressed={delivery.batchSize === size}
+                className={delivery.batchSize === size ? "interest" : "pass"}
+                onClick={() => void setBatchSize(size)}
               >
-                Accept suggestion
+                {size}
               </button>
-            </div>
-          ))
-        )}
-        <p className="help">
-          Decisions only. Messages, dwell time, taps, and photos are never
-          learning inputs. Nothing changes automatically. {observationCount}{" "}
-          decision {observationCount === 1 ? "example is" : "examples are"}{" "}
-          currently stored for this purpose.
-        </p>
-        <button
-          className="danger-secondary"
-          disabled={observationCount === 0}
-          onClick={() => void clearObservations()}
-        >
-          Clear learning examples
-        </button>
-      </section>
+            ))}
+          </div>
+          <p className="help">
+            Saved profiles are separate. Pause introductions any time from Your
+            profile.
+          </p>
+        </section>
+        <section className="settings-card">
+          <h2>Mutual boundaries</h2>
+          <label>
+            Youngest age <strong>{value.ageMin}</strong>
+            <input
+              type="range"
+              min="18"
+              max={value.ageMax}
+              value={value.ageMin}
+              onChange={(event) =>
+                onChange({ ...value, ageMin: Number(event.target.value) })
+              }
+            />
+          </label>
+          <label>
+            Oldest age <strong>{value.ageMax}</strong>
+            <input
+              type="range"
+              min={value.ageMin}
+              max="80"
+              value={value.ageMax}
+              onChange={(event) =>
+                onChange({ ...value, ageMax: Number(event.target.value) })
+              }
+            />
+          </label>
+          <BoundaryFields value={value} onChange={onChange} />
+        </section>
+        <section className="settings-card">
+          <h2>Distance</h2>
+          <label>
+            Ideal distance <strong>{value.idealDistanceKm} km</strong>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              value={value.idealDistanceKm}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  idealDistanceKm: Number(event.target.value),
+                })
+              }
+            />
+          </label>
+          <label>
+            Maximum distance <strong>{value.maximumDistanceKm} km</strong>
+            <input
+              type="range"
+              min="15"
+              max="100"
+              value={value.maximumDistanceKm}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  maximumDistanceKm: Number(event.target.value),
+                })
+              }
+            />
+          </label>
+          <p className="help">
+            Outside the maximum is a boundary. Inside it, nearer profiles
+            receive a simple visible proximity score.
+          </p>
+        </section>
+        <section className="settings-card">
+          <h2>How to order eligible people</h2>
+          {Object.entries(value.weights).map(([key, weight]) => {
+            const index = PRIORITY_LEVELS.reduce(
+              (best, level, i) =>
+                Math.abs(level - weight) <
+                Math.abs(PRIORITY_LEVELS[best] - weight)
+                  ? i
+                  : best,
+              0,
+            );
+            return (
+              <label key={key}>
+                <span className="capitalize">{key}</span>
+                <strong>{priorityLabel(weight)}</strong>
+                <input
+                  type="range"
+                  min="0"
+                  max="3"
+                  value={index}
+                  onChange={(event) =>
+                    setWeight(
+                      key as keyof Preferences["weights"],
+                      PRIORITY_LEVELS[Number(event.target.value)],
+                    )
+                  }
+                />
+              </label>
+            );
+          })}
+          <p className="help">
+            These are relative priorities, not judgments of anyone’s worth.
+          </p>
+        </section>
+        <section className="settings-card">
+          <h2>Preference suggestions</h2>
+          {suggestions.length === 0 ? (
+            <p>
+              Nothing suggested yet. The transparent learner waits for at least
+              20 explicit decisions, including five Interested and five Pass
+              choices.
+            </p>
+          ) : (
+            suggestions.map((suggestion) => (
+              <div className="suggestion" key={suggestion.factorId}>
+                <p>
+                  <strong className="capitalize">{suggestion.factorId}</strong>{" "}
+                  · {priorityLabel(suggestion.currentWeight)} →{" "}
+                  {priorityLabel(suggestion.suggestedWeight)} ·{" "}
+                  {suggestion.sampleSize} decisions · {suggestion.confidence}{" "}
+                  confidence
+                </p>
+                <p className="help">{suggestion.caveat}</p>
+                <button
+                  onClick={() =>
+                    onChange({
+                      ...value,
+                      weights: {
+                        ...value.weights,
+                        [suggestion.factorId]: nearestPriority(
+                          suggestion.suggestedWeight,
+                        ),
+                      },
+                    })
+                  }
+                >
+                  Accept suggestion
+                </button>
+              </div>
+            ))
+          )}
+          <p className="help">
+            Decisions only. Messages, dwell time, taps, and photos are never
+            learning inputs. Nothing changes automatically. {observationCount}{" "}
+            decision {observationCount === 1 ? "example is" : "examples are"}{" "}
+            currently stored for this purpose.
+          </p>
+          <button
+            className="danger-secondary"
+            disabled={observationCount === 0}
+            onClick={() => void clearObservations()}
+          >
+            Clear learning examples
+          </button>
+        </section>
+      </fieldset>
     </div>
   );
 }

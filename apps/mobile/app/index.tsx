@@ -161,6 +161,13 @@ export default function App() {
   const [preferences, setPreferences] = useState<Preferences>(
     structuredClone(defaultPreferences),
   );
+  const [preferencesDraft, setPreferencesDraft] = useState<Preferences | null>(
+    null,
+  );
+  const [preferencesSaving, setPreferencesSaving] = useState(false);
+  const [preferencesSaveError, setPreferencesSaveError] = useState<
+    string | null
+  >(null);
   const [profile, setProfile] = useState<Profile>(demoUser);
   const [introductions, setIntroductions] = useState<Introduction[]>([]);
   const [nextBatchAt, setNextBatchAt] = useState<string | null>(null);
@@ -334,6 +341,9 @@ export default function App() {
     setProfileDraft(null);
     setProfileSaveError(null);
     setProfileSaving(false);
+    setPreferencesDraft(null);
+    setPreferencesSaveError(null);
+    setPreferencesSaving(false);
   }, [accessMode]);
   useEffect(() => {
     let active = true;
@@ -577,16 +587,33 @@ export default function App() {
     });
     return () => subscription.remove();
   }, [load]);
-  const savePreferences = async (next: Preferences) => {
-    setPreferences(next);
+  const savePreferences = async () => {
+    if (!preferencesDraft) return;
+    setPreferencesSaving(true);
+    setPreferencesSaveError(null);
     try {
-      await api.updatePreferences(next);
-      setIntroductions((await api.introductions()).items);
-      const nextSuggestions = await api.preferenceSuggestions();
-      setSuggestions(nextSuggestions.items);
-      setPreferenceObservationCount(nextSuggestions.observationCount);
+      const saved = await api.updatePreferences(preferencesDraft);
+      setPreferences(saved);
+      setPreferencesDraft(null);
+      try {
+        const [nextIntroductions, nextSuggestions] = await Promise.all([
+          api.introductions(),
+          api.preferenceSuggestions(),
+        ]);
+        setIntroductions(nextIntroductions.items);
+        setSuggestions(nextSuggestions.items);
+        setPreferenceObservationCount(nextSuggestions.observationCount);
+      } catch {
+        setSafetyNotice(
+          "Preferences were saved, but introductions could not refresh. Check again shortly.",
+        );
+      }
     } catch {
-      setError("Preferences could not be saved.");
+      setPreferencesSaveError(
+        "Your preference changes were not saved. They remain here so you can retry or cancel.",
+      );
+    } finally {
+      setPreferencesSaving(false);
     }
   };
   const handleDeliveryFailure = async (error: unknown, fallback: string) => {
@@ -1307,7 +1334,7 @@ export default function App() {
             ))}
           {tab === "Preferences" && (
             <PreferencesScreen
-              value={preferences}
+              value={preferencesDraft ?? preferences}
               suggestions={suggestions}
               observationCount={preferenceObservationCount}
               clearObservations={() =>
@@ -1349,7 +1376,18 @@ export default function App() {
                     setIntroductions((await api.introductions()).items);
                   })
               }
-              onChange={(next) => void savePreferences(next)}
+              onChange={(next) => {
+                setPreferencesDraft(next);
+                setPreferencesSaveError(null);
+              }}
+              pendingChanges={preferencesDraft !== null}
+              saving={preferencesSaving}
+              saveError={preferencesSaveError}
+              save={() => void savePreferences()}
+              cancel={() => {
+                setPreferencesDraft(null);
+                setPreferencesSaveError(null);
+              }}
             />
           )}
           {tab === "Connections" &&
@@ -3297,6 +3335,11 @@ function PreferencesScreen({
   clearObservations = () => undefined,
   delivery,
   setBatchSize,
+  pendingChanges = false,
+  saving = false,
+  saveError = null,
+  save = () => undefined,
+  cancel = () => undefined,
 }: {
   value: Preferences;
   onChange: (value: Preferences) => void;
@@ -3305,6 +3348,11 @@ function PreferencesScreen({
   clearObservations?: () => void;
   delivery?: DeliverySettings;
   setBatchSize?: (batchSize: DeliverySettings["batchSize"]) => void;
+  pendingChanges?: boolean;
+  saving?: boolean;
+  saveError?: string | null;
+  save?: () => void;
+  cancel?: () => void;
 }) {
   const bump = (key: keyof Preferences["weights"], delta: -1 | 1) => {
     const current = nearestPriority(value.weights[key]);
@@ -3322,317 +3370,355 @@ function PreferencesScreen({
       <Text style={styles.subtle}>
         Boundaries filter. Priorities order. Every change is yours.
       </Text>
-      {delivery && setBatchSize && (
-        <View style={styles.scoreCard}>
-          <Text style={styles.name}>Finite batch size</Text>
-          <Text style={styles.scoreNote}>
-            Choose up to how many mutually eligible people appear at once. One
-            to five is a product hypothesis, not a scientifically optimal
-            number.
-          </Text>
-          <View style={styles.adjust}>
-            {([1, 2, 3, 4, 5] as const).map((size) => (
-              <Pressable
-                key={size}
-                accessibilityRole="button"
-                accessibilityState={{ selected: delivery.batchSize === size }}
-                accessibilityLabel={`${size} introductions per batch`}
-                style={[
-                  styles.smallButton,
-                  delivery.batchSize === size && styles.selectedButton,
-                ]}
-                onPress={() => setBatchSize(size)}
-              >
-                <Text>{size}</Text>
-              </Pressable>
-            ))}
+      {(pendingChanges || saveError) && (
+        <View style={styles.statusBanner} accessibilityLiveRegion="polite">
+          <View style={styles.statusCopy}>
+            <Text style={styles.statusTitle}>Unsaved preference changes</Text>
+            <Text style={styles.mathNote}>
+              Changes affect matching only after OpenMatch confirms the complete
+              save.
+            </Text>
+            {saveError && (
+              <Text accessibilityRole="alert" style={styles.errorText}>
+                {saveError}
+              </Text>
+            )}
           </View>
-          <Text style={styles.mathNote}>
-            Saved profiles are separate. Pause introductions from Profile.
-          </Text>
+          <View style={styles.actions}>
+            <Action
+              label="Cancel preference changes"
+              secondary
+              disabled={saving}
+              onPress={cancel}
+            />
+            <Action
+              label={saving ? "Saving preferences…" : "Save preferences"}
+              disabled={!pendingChanges || saving}
+              onPress={save}
+            />
+          </View>
         </View>
       )}
-      <View style={styles.scoreCard}>
-        <Text style={styles.name}>Mutual boundaries</Text>
-        <Text style={styles.setting}>
-          Youngest age <Text style={styles.settingValue}>{value.ageMin}</Text>
-        </Text>
-        <View style={styles.adjust}>
-          <Action
-            label="−"
-            accessibilityLabel="Lower youngest age"
-            secondary
-            onPress={() =>
-              onChange({ ...value, ageMin: Math.max(18, value.ageMin - 1) })
-            }
-          />
-          <Action
-            label="+"
-            accessibilityLabel="Raise youngest age"
-            secondary
-            onPress={() =>
-              onChange({
-                ...value,
-                ageMin: Math.min(value.ageMax, value.ageMin + 1),
-              })
-            }
-          />
-        </View>
-        <Text style={styles.setting}>
-          Oldest age <Text style={styles.settingValue}>{value.ageMax}</Text>
-        </Text>
-        <View style={styles.adjust}>
-          <Action
-            label="−"
-            accessibilityLabel="Lower oldest age"
-            secondary
-            onPress={() =>
-              onChange({
-                ...value,
-                ageMax: Math.max(value.ageMin, value.ageMax - 1),
-              })
-            }
-          />
-          <Action
-            label="+"
-            accessibilityLabel="Raise oldest age"
-            secondary
-            onPress={() =>
-              onChange({ ...value, ageMax: Math.min(120, value.ageMax + 1) })
-            }
-          />
-        </View>
-        <Text style={styles.setting}>People you are open to meeting</Text>
-        {GENDER_DISCOVERY_GROUPS.map((group) => {
-          const checked = value.genderGroups.includes(group);
-          return (
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked }}
-              style={styles.radioRow}
+      <View
+        pointerEvents={saving ? "none" : "auto"}
+        style={saving ? styles.disabledEditor : undefined}
+      >
+        {delivery && setBatchSize && (
+          <View style={styles.scoreCard}>
+            <Text style={styles.name}>Finite batch size</Text>
+            <Text style={styles.scoreNote}>
+              Choose up to how many mutually eligible people appear at once. One
+              to five is a product hypothesis, not a scientifically optimal
+              number.
+            </Text>
+            <View style={styles.adjust}>
+              {([1, 2, 3, 4, 5] as const).map((size) => (
+                <Pressable
+                  key={size}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: delivery.batchSize === size }}
+                  accessibilityLabel={`${size} introductions per batch`}
+                  style={[
+                    styles.smallButton,
+                    delivery.batchSize === size && styles.selectedButton,
+                  ]}
+                  onPress={() => setBatchSize(size)}
+                >
+                  <Text>{size}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.mathNote}>
+              Saved profiles are separate. Pause introductions from Profile.
+            </Text>
+          </View>
+        )}
+        <View style={styles.scoreCard}>
+          <Text style={styles.name}>Mutual boundaries</Text>
+          <Text style={styles.setting}>
+            Youngest age <Text style={styles.settingValue}>{value.ageMin}</Text>
+          </Text>
+          <View style={styles.adjust}>
+            <Action
+              label="−"
+              accessibilityLabel="Lower youngest age"
+              secondary
+              onPress={() =>
+                onChange({ ...value, ageMin: Math.max(18, value.ageMin - 1) })
+              }
+            />
+            <Action
+              label="+"
+              accessibilityLabel="Raise youngest age"
+              secondary
               onPress={() =>
                 onChange({
                   ...value,
-                  genderGroups: checked
-                    ? value.genderGroups.filter((item) => item !== group)
-                    : [...value.genderGroups, group],
+                  ageMin: Math.min(value.ageMax, value.ageMin + 1),
                 })
               }
-              key={group}
-            >
-              <Text style={styles.radioMark}>{checked ? "☑" : "☐"}</Text>
-              <Text style={styles.radioLabel}>{genderGroupLabel(group)}</Text>
-            </Pressable>
-          );
-        })}
-        <Text style={styles.mathNote}>
-          Private boundary. An introduction appears only when both people’s
-          discovery choices include one another.
-        </Text>
-        <Text style={styles.setting}>
-          Relationship intentions you are open to
-        </Text>
-        {(
-          [
-            "Long-term relationship",
-            "Long-term, open to short",
-            "Still figuring it out",
-          ] as Profile["intent"][]
-        ).map((intent) => {
-          const checked = value.intents.includes(intent);
-          return (
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked }}
-              style={styles.radioRow}
-              onPress={() => {
-                const next = checked
-                  ? value.intents.filter((item) => item !== intent)
-                  : [...value.intents, intent];
-                if (next.length) onChange({ ...value, intents: next });
-              }}
-              key={intent}
-            >
-              <Text style={styles.radioMark}>{checked ? "☑" : "☐"}</Text>
-              <Text style={styles.radioLabel}>{intent}</Text>
-            </Pressable>
-          );
-        })}
-        <Text style={styles.setting}>Smoking boundary</Text>
-        <ChoiceRows
-          value={value.smoking}
-          options={[
-            ["no", "Non-smoking only"],
-            ["any", "No boundary"],
-          ]}
-          onChange={(smoking) => onChange({ ...value, smoking })}
-        />
-        <Text style={styles.setting}>Children boundary</Text>
-        <ChoiceRows
-          value={value.children}
-          options={[
-            ["want", "Wants children"],
-            ["open", "Open to children"],
-            ["do not want", "Does not want children"],
-            ["any", "No boundary"],
-          ]}
-          onChange={(children) => onChange({ ...value, children })}
-        />
-        <Text style={styles.mathNote}>
-          A person is introduced only when both people’s stated boundaries are
-          satisfied.
-        </Text>
-      </View>
-      <View style={styles.scoreCard}>
-        <Text style={styles.name}>Distance</Text>
-        <Text style={styles.setting}>
-          Ideal{" "}
-          <Text style={styles.settingValue}>{value.idealDistanceKm} km</Text>
-        </Text>
-        <View style={styles.adjust}>
-          <Action
-            label="−"
-            accessibilityLabel="Lower ideal distance"
-            secondary
-            onPress={() =>
-              onChange({
-                ...value,
-                idealDistanceKm: Math.max(1, value.idealDistanceKm - 5),
-              })
-            }
-          />
-          <Action
-            label="+"
-            accessibilityLabel="Raise ideal distance"
-            secondary
-            onPress={() =>
-              onChange({
-                ...value,
-                idealDistanceKm: Math.min(
-                  value.maximumDistanceKm,
-                  value.idealDistanceKm + 5,
-                ),
-              })
-            }
-          />
-        </View>
-        <Text style={styles.setting}>
-          Maximum{" "}
-          <Text style={styles.settingValue}>{value.maximumDistanceKm} km</Text>
-        </Text>
-        <View style={styles.adjust}>
-          <Action
-            label="−"
-            accessibilityLabel="Lower maximum distance"
-            secondary
-            onPress={() =>
-              onChange({
-                ...value,
-                maximumDistanceKm: Math.max(
-                  value.idealDistanceKm,
-                  value.maximumDistanceKm - 5,
-                ),
-              })
-            }
-          />
-          <Action
-            label="+"
-            accessibilityLabel="Raise maximum distance"
-            secondary
-            onPress={() =>
-              onChange({
-                ...value,
-                maximumDistanceKm: Math.min(100, value.maximumDistanceKm + 5),
-              })
-            }
-          />
-        </View>
-      </View>
-      {suggestions && (
-        <View style={styles.scoreCard}>
-          <Text style={styles.name}>Preference suggestions</Text>
-          {suggestions.length === 0 ? (
-            <Text style={styles.scoreNote}>
-              Nothing suggested yet. The learner waits for at least 20 explicit
-              decisions, including five Interested and five Pass choices.
-            </Text>
-          ) : (
-            suggestions.map((suggestion) => (
-              <View style={styles.weightRow} key={suggestion.factorId}>
-                <View style={styles.methodText}>
-                  <Text style={styles.capitalize}>{suggestion.factorId}</Text>
-                  <Text style={styles.scoreNote}>
-                    {priorityLabel(suggestion.currentWeight)} →{" "}
-                    {priorityLabel(suggestion.suggestedWeight)} ·{" "}
-                    {suggestion.sampleSize} decisions · {suggestion.confidence}
-                  </Text>
-                  <Text style={styles.mathNote}>{suggestion.caveat}</Text>
-                  <Action
-                    label="Accept suggestion"
-                    secondary
-                    onPress={() =>
-                      onChange({
-                        ...value,
-                        weights: {
-                          ...value.weights,
-                          [suggestion.factorId]: nearestPriority(
-                            suggestion.suggestedWeight,
-                          ),
-                        },
-                      })
-                    }
-                  />
-                </View>
-              </View>
-            ))
-          )}
-          <Text
-            style={styles.mathNote}
-            accessibilityLabel={`${observationCount} decision ${observationCount === 1 ? "example is" : "examples are"} currently stored for preference suggestions`}
-          >
-            Decisions only. Messages, dwell time, taps, and photos are never
-            learning inputs. Nothing changes automatically. {observationCount}{" "}
-            decision {observationCount === 1 ? "example is" : "examples are"}{" "}
-            currently stored for this purpose.
-          </Text>
-          <Action
-            label="Clear learning examples"
-            secondary
-            disabled={observationCount === 0}
-            onPress={clearObservations}
-          />
-        </View>
-      )}
-      <View style={styles.scoreCard}>
-        <Text style={styles.name}>Order eligible people</Text>
-        {Object.entries(value.weights).map(([key, weight]) => (
-          <View style={styles.weightRow} key={key}>
-            <View>
-              <Text style={styles.capitalize}>{key}</Text>
-              <Text style={styles.settingValue}>{priorityLabel(weight)}</Text>
-            </View>
-            <View style={styles.adjustSmall}>
-              <Pressable
-                accessibilityLabel={`Lower ${key} priority`}
-                style={styles.smallButton}
-                onPress={() => bump(key as keyof Preferences["weights"], -1)}
-              >
-                <Text>−</Text>
-              </Pressable>
-              <Pressable
-                accessibilityLabel={`Raise ${key} priority`}
-                style={styles.smallButton}
-                onPress={() => bump(key as keyof Preferences["weights"], 1)}
-              >
-                <Text>+</Text>
-              </Pressable>
-            </View>
+            />
           </View>
-        ))}
-        <Text style={styles.mathNote}>
-          Off, Low, Medium, or High—relative priorities, not judgments of
-          anyone’s worth.
-        </Text>
+          <Text style={styles.setting}>
+            Oldest age <Text style={styles.settingValue}>{value.ageMax}</Text>
+          </Text>
+          <View style={styles.adjust}>
+            <Action
+              label="−"
+              accessibilityLabel="Lower oldest age"
+              secondary
+              onPress={() =>
+                onChange({
+                  ...value,
+                  ageMax: Math.max(value.ageMin, value.ageMax - 1),
+                })
+              }
+            />
+            <Action
+              label="+"
+              accessibilityLabel="Raise oldest age"
+              secondary
+              onPress={() =>
+                onChange({ ...value, ageMax: Math.min(120, value.ageMax + 1) })
+              }
+            />
+          </View>
+          <Text style={styles.setting}>People you are open to meeting</Text>
+          {GENDER_DISCOVERY_GROUPS.map((group) => {
+            const checked = value.genderGroups.includes(group);
+            return (
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked }}
+                style={styles.radioRow}
+                onPress={() =>
+                  onChange({
+                    ...value,
+                    genderGroups: checked
+                      ? value.genderGroups.filter((item) => item !== group)
+                      : [...value.genderGroups, group],
+                  })
+                }
+                key={group}
+              >
+                <Text style={styles.radioMark}>{checked ? "☑" : "☐"}</Text>
+                <Text style={styles.radioLabel}>{genderGroupLabel(group)}</Text>
+              </Pressable>
+            );
+          })}
+          <Text style={styles.mathNote}>
+            Private boundary. An introduction appears only when both people’s
+            discovery choices include one another.
+          </Text>
+          <Text style={styles.setting}>
+            Relationship intentions you are open to
+          </Text>
+          {(
+            [
+              "Long-term relationship",
+              "Long-term, open to short",
+              "Still figuring it out",
+            ] as Profile["intent"][]
+          ).map((intent) => {
+            const checked = value.intents.includes(intent);
+            return (
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked }}
+                style={styles.radioRow}
+                onPress={() => {
+                  const next = checked
+                    ? value.intents.filter((item) => item !== intent)
+                    : [...value.intents, intent];
+                  if (next.length) onChange({ ...value, intents: next });
+                }}
+                key={intent}
+              >
+                <Text style={styles.radioMark}>{checked ? "☑" : "☐"}</Text>
+                <Text style={styles.radioLabel}>{intent}</Text>
+              </Pressable>
+            );
+          })}
+          <Text style={styles.setting}>Smoking boundary</Text>
+          <ChoiceRows
+            value={value.smoking}
+            options={[
+              ["no", "Non-smoking only"],
+              ["any", "No boundary"],
+            ]}
+            onChange={(smoking) => onChange({ ...value, smoking })}
+          />
+          <Text style={styles.setting}>Children boundary</Text>
+          <ChoiceRows
+            value={value.children}
+            options={[
+              ["want", "Wants children"],
+              ["open", "Open to children"],
+              ["do not want", "Does not want children"],
+              ["any", "No boundary"],
+            ]}
+            onChange={(children) => onChange({ ...value, children })}
+          />
+          <Text style={styles.mathNote}>
+            A person is introduced only when both people’s stated boundaries are
+            satisfied.
+          </Text>
+        </View>
+        <View style={styles.scoreCard}>
+          <Text style={styles.name}>Distance</Text>
+          <Text style={styles.setting}>
+            Ideal{" "}
+            <Text style={styles.settingValue}>{value.idealDistanceKm} km</Text>
+          </Text>
+          <View style={styles.adjust}>
+            <Action
+              label="−"
+              accessibilityLabel="Lower ideal distance"
+              secondary
+              onPress={() =>
+                onChange({
+                  ...value,
+                  idealDistanceKm: Math.max(1, value.idealDistanceKm - 5),
+                })
+              }
+            />
+            <Action
+              label="+"
+              accessibilityLabel="Raise ideal distance"
+              secondary
+              onPress={() =>
+                onChange({
+                  ...value,
+                  idealDistanceKm: Math.min(
+                    value.maximumDistanceKm,
+                    value.idealDistanceKm + 5,
+                  ),
+                })
+              }
+            />
+          </View>
+          <Text style={styles.setting}>
+            Maximum{" "}
+            <Text style={styles.settingValue}>
+              {value.maximumDistanceKm} km
+            </Text>
+          </Text>
+          <View style={styles.adjust}>
+            <Action
+              label="−"
+              accessibilityLabel="Lower maximum distance"
+              secondary
+              onPress={() =>
+                onChange({
+                  ...value,
+                  maximumDistanceKm: Math.max(
+                    value.idealDistanceKm,
+                    value.maximumDistanceKm - 5,
+                  ),
+                })
+              }
+            />
+            <Action
+              label="+"
+              accessibilityLabel="Raise maximum distance"
+              secondary
+              onPress={() =>
+                onChange({
+                  ...value,
+                  maximumDistanceKm: Math.min(100, value.maximumDistanceKm + 5),
+                })
+              }
+            />
+          </View>
+        </View>
+        {suggestions && (
+          <View style={styles.scoreCard}>
+            <Text style={styles.name}>Preference suggestions</Text>
+            {suggestions.length === 0 ? (
+              <Text style={styles.scoreNote}>
+                Nothing suggested yet. The learner waits for at least 20
+                explicit decisions, including five Interested and five Pass
+                choices.
+              </Text>
+            ) : (
+              suggestions.map((suggestion) => (
+                <View style={styles.weightRow} key={suggestion.factorId}>
+                  <View style={styles.methodText}>
+                    <Text style={styles.capitalize}>{suggestion.factorId}</Text>
+                    <Text style={styles.scoreNote}>
+                      {priorityLabel(suggestion.currentWeight)} →{" "}
+                      {priorityLabel(suggestion.suggestedWeight)} ·{" "}
+                      {suggestion.sampleSize} decisions ·{" "}
+                      {suggestion.confidence}
+                    </Text>
+                    <Text style={styles.mathNote}>{suggestion.caveat}</Text>
+                    <Action
+                      label="Accept suggestion"
+                      secondary
+                      onPress={() =>
+                        onChange({
+                          ...value,
+                          weights: {
+                            ...value.weights,
+                            [suggestion.factorId]: nearestPriority(
+                              suggestion.suggestedWeight,
+                            ),
+                          },
+                        })
+                      }
+                    />
+                  </View>
+                </View>
+              ))
+            )}
+            <Text
+              style={styles.mathNote}
+              accessibilityLabel={`${observationCount} decision ${observationCount === 1 ? "example is" : "examples are"} currently stored for preference suggestions`}
+            >
+              Decisions only. Messages, dwell time, taps, and photos are never
+              learning inputs. Nothing changes automatically. {observationCount}{" "}
+              decision {observationCount === 1 ? "example is" : "examples are"}{" "}
+              currently stored for this purpose.
+            </Text>
+            <Action
+              label="Clear learning examples"
+              secondary
+              disabled={observationCount === 0}
+              onPress={clearObservations}
+            />
+          </View>
+        )}
+        <View style={styles.scoreCard}>
+          <Text style={styles.name}>Order eligible people</Text>
+          {Object.entries(value.weights).map(([key, weight]) => (
+            <View style={styles.weightRow} key={key}>
+              <View>
+                <Text style={styles.capitalize}>{key}</Text>
+                <Text style={styles.settingValue}>{priorityLabel(weight)}</Text>
+              </View>
+              <View style={styles.adjustSmall}>
+                <Pressable
+                  accessibilityLabel={`Lower ${key} priority`}
+                  style={styles.smallButton}
+                  onPress={() => bump(key as keyof Preferences["weights"], -1)}
+                >
+                  <Text>−</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={`Raise ${key} priority`}
+                  style={styles.smallButton}
+                  onPress={() => bump(key as keyof Preferences["weights"], 1)}
+                >
+                  <Text>+</Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+          <Text style={styles.mathNote}>
+            Off, Low, Medium, or High—relative priorities, not judgments of
+            anyone’s worth.
+          </Text>
+        </View>
       </View>
     </>
   );
@@ -4304,6 +4390,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: "#E1E4DE",
   },
+  disabledEditor: { opacity: 0.68 },
   scoreCard: {
     backgroundColor: "#FFF",
     borderRadius: 22,

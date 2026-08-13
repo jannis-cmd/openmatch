@@ -844,6 +844,30 @@ textarea {
   align-items: center;
   gap: 10px;
 }
+.preference-save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid #d7ddd4;
+  border-radius: 16px;
+  background: #f7faf6;
+}
+.preference-save-bar > span {
+  color: #425148;
+  font-weight: 650;
+}
+.preferences-editor {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.preferences-editor:disabled {
+  opacity: 0.68;
+}
 .connection-picker {
   display: flex;
   gap: 8px;

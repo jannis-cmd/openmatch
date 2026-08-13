@@ -696,6 +696,40 @@ test("first run through a persistent connection and safety action", async ({
   await page
     .getByRole("combobox", { name: "Smoking boundary" })
     .selectOption("any");
+  await expect(page.getByText("Unsaved preference changes")).toBeVisible();
+  await page.route(
+    "**/v1/preferences",
+    (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "simulated_preferences_write_failure" }),
+      }),
+    { times: 1 },
+  );
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Your preference changes were not saved" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Smoking boundary" }),
+  ).toHaveValue("any");
+  await page.getByRole("button", { name: "Cancel changes" }).click();
+  await expect(
+    page.getByRole("combobox", { name: "Smoking boundary" }),
+  ).toHaveValue("no");
+  await expect(
+    page.getByText("Preferences match the saved version"),
+  ).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "Smoking boundary" })
+    .selectOption("any");
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await expect(
+    page.getByText("Preferences match the saved version"),
+  ).toBeVisible();
   await expect(
     page.getByRole("combobox", { name: "Smoking boundary" }),
   ).toHaveValue("any");

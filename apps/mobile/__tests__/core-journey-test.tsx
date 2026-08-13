@@ -62,6 +62,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let recoveryCodesGenerated = false;
   let emailVerified = false;
   let failNextProfileSave = false;
+  let failNextPreferencesSave = false;
   let sentMessageBody: Record<string, unknown> | null = null;
   const reportRecords: Array<Record<string, unknown>> = [];
   global.fetch = jest.fn(async (input, init = {}) => {
@@ -198,7 +199,11 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       return response((profile = { ...profile, ...body, id: "me" }));
     }
     if (path === "/v1/me") return response(profile);
-    if (path === "/v1/preferences" && init.method === "PATCH")
+    if (path === "/v1/preferences" && init.method === "PATCH") {
+      if (failNextPreferencesSave) {
+        failNextPreferencesSave = false;
+        return response({ error: "simulated_preferences_write_failure" }, 503);
+      }
       return response(
         (preferences = {
           ...preferences,
@@ -206,6 +211,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
           weights: { ...preferences.weights, ...body.weights },
         }),
       );
+    }
     if (path === "/v1/preferences/suggestions" && init.method === "DELETE")
       return response({
         cleared: preferenceObservationCount,
@@ -639,8 +645,22 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByLabelText("1 introductions per batch"));
   await waitFor(() => expect(batchSize).toBe(1));
   await fireEvent.press(screen.getByLabelText("Lower youngest age"));
+  expect(preferences.ageMin).toBe(27);
+  expect(screen.getByText("Unsaved preference changes")).toBeTruthy();
+  failNextPreferencesSave = true;
+  await fireEvent.press(screen.getByText("Save preferences"));
+  await waitFor(() =>
+    expect(
+      screen.getByText(
+        "Your preference changes were not saved. They remain here so you can retry or cancel.",
+      ),
+    ).toBeTruthy(),
+  );
+  expect(preferences.ageMin).toBe(27);
+  await fireEvent.press(screen.getByText("Save preferences"));
   await waitFor(() => expect(preferences.ageMin).toBe(26));
   await fireEvent.press(screen.getByText("Still figuring it out"));
+  await fireEvent.press(screen.getByText("Save preferences"));
   await waitFor(() =>
     expect(preferences.intents).toContain("Still figuring it out"),
   );
