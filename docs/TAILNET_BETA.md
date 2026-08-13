@@ -32,6 +32,11 @@ After a verified code change:
 1. Run the complete repository release gate.
 2. Build the API and web app. The web build must receive the tailnet API URL as
    `NEXT_PUBLIC_OPENMATCH_API_URL`.
+   This host keeps that public value in ignored
+   `apps/web/.env.production.local`. The web LaunchAgent sets
+   `OPENMATCH_EXPECTED_WEB_API_ORIGIN`; startup fails instead of silently
+   serving an unconfigured account/demo bundle when the expected origin is not
+   embedded in the production client chunks.
 3. Update `OPENMATCH_COMMIT_SHA` in the API LaunchAgent to the reviewed commit.
 4. restart both LaunchAgents;
 5. verify local and tailnet `/health`, the web title, and the allowed CORS origin;
