@@ -4,6 +4,11 @@ This repository is a verified pre-alpha development foundation, not a deployable
 
 ## Implemented and verified
 
+Permanent credential deletion on web, iOS, and Android requires the active
+account session plus fresh verification of the current passphrase. A failed
+verification leaves the account and session intact, uses the shared
+authentication throttle, and produces an action-specific retry message.
+
 | Requirement | Evidence |
 |---|---|
 | Web, iOS, and Android clients | Next.js production build plus Expo iOS and Android exports |

@@ -1185,6 +1185,22 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   ).toBeTruthy();
   expect(screen.getByText("Active sessions")).toBeTruthy();
   expect(screen.getByText("Email for account messages")).toBeTruthy();
+  const permanentDelete = screen.getByRole("button", {
+    name: "Delete account permanently",
+  });
+  expect(permanentDelete.props.accessibilityState.disabled).toBe(true);
+  await fireEvent.changeText(
+    screen.getByLabelText("Current passphrase to delete account"),
+    "a native test passphrase",
+  );
+  expect(
+    screen.getByRole("button", { name: "Delete account permanently" }).props
+      .accessibilityState.disabled,
+  ).toBe(false);
+  await fireEvent.changeText(
+    screen.getByLabelText("Current passphrase to delete account"),
+    "",
+  );
   await fireEvent.changeText(
     screen.getByLabelText("Email confirmation code"),
     "12345678",

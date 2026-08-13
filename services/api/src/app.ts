@@ -1046,14 +1046,30 @@ export function createApp(
           return send(response, 409, {
             error: "authenticated_account_required",
           });
-        accounts.deleteAccount(accountSession.accountId);
-        return send(response, 200, {
-          deleted: true,
-          completedAt: new Date().toISOString(),
-          credentialsDeleted: true,
-          sessionsRevoked: true,
-          applicationBackups: "none",
-        });
+        if (!consumeAuthenticationAttempt(key, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          currentPassword?: unknown;
+        };
+        try {
+          accounts.deleteAccount(
+            accountSession.accountId,
+            body.currentPassword,
+          );
+          return send(response, 200, {
+            deleted: true,
+            completedAt: new Date().toISOString(),
+            credentialsDeleted: true,
+            sessionsRevoked: true,
+            applicationBackups: "none",
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
       }
       if (
         request.method === "PATCH" &&

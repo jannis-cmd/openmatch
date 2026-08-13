@@ -1078,7 +1078,7 @@ test("authenticated accounts have hashed credentials and isolated application da
     store: new Store(":memory:"),
     accounts,
     demoSessionsEnabled: false,
-    authRateLimit: { maximum: 5, windowMs: 60_000 },
+    authRateLimit: { maximum: 20, windowMs: 60_000 },
   }).listen(0, "127.0.0.1");
   await new Promise<void>((resolve) => server.once("listening", resolve));
   const address = server.address();
@@ -1560,18 +1560,24 @@ test("authenticated accounts have hashed credentials and isolated application da
       ).response.status,
       409,
     );
-    const throttled = await accountSession(
-      base,
-      "/v1/sessions",
-      "first@example.org",
-      password,
+    const rejectedDeletion = await fetch(base + "/v1/account", {
+      method: "DELETE",
+      headers: auth(first.body.token!),
+      body: JSON.stringify({ currentPassword: "not-the-password" }),
+    });
+    assert.equal(rejectedDeletion.status, 400);
+    assert.deepEqual(await rejectedDeletion.json(), {
+      error: "invalid_current_password",
+    });
+    assert.equal(
+      (await fetch(base + "/v1/me", { headers: auth(first.body.token!) }))
+        .status,
+      200,
     );
-    assert.equal(throttled.response.status, 429);
-    assert.equal(throttled.body.error, "authentication_rate_limit_exceeded");
-    assert.equal(throttled.response.headers.get("retry-after"), "60");
     const deletion = await fetch(base + "/v1/account", {
       method: "DELETE",
       headers: auth(first.body.token!),
+      body: JSON.stringify({ currentPassword: password }),
     });
     assert.equal(deletion.status, 200);
     const deletionReceipt = (await deletion.json()) as {

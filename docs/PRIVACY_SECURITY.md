@@ -57,6 +57,12 @@ Demo candidate generation uses an internal distance estimate between coarse prof
 
 ## Development-service boundary
 
+Permanent account deletion requires both the active session and fresh
+current-passphrase verification. This follows OWASP guidance to reauthenticate
+sensitive features and NIST SP 800-63-4's session/reauthentication model;
+failed attempts share the authentication throttle. The passphrase is checked
+in memory against the existing salted hash and is never stored or logged.
+
 Voluntary connection outcomes are stored only in the reporting person's isolated application database as four separate milestones. They are not copied to the connected person, inferred from messages, treated as proof, or fed automatically into matching. A person can inspect and correct the journal after a connection closes while messaging remains closed, export every confirmed entry, or erase all entries through synchronous data/account deletion. Any research aggregation requires separate research consent, preregistration, missingness disclosure, minimum-cell protections, and governance approval; the executable prototype performs no such aggregation.
 
 The unauthenticated health response reports only whether each delivery subsystem is clear or retrying—never counts, addresses, event categories, account identifiers, or peer details—so operators can detect degradation without turning the endpoint into an activity side channel.

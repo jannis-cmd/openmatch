@@ -243,6 +243,7 @@ export default function App() {
     "export" | "reset" | "delete-account" | null
   >(null);
   const [dataActionError, setDataActionError] = useState<string | null>(null);
+  const [deletionPassword, setDeletionPassword] = useState("");
   const [accountDeliveryStatus, setAccountDeliveryStatus] =
     useState<AccountDeliveryStatus | null>(null);
   const [securityNotificationDelivery, setSecurityNotificationDelivery] =
@@ -3575,50 +3576,75 @@ export default function App() {
                   }
                 />
                 {accessMode === "account" && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: dataAction !== null }}
-                    disabled={dataAction !== null}
-                    onPress={() =>
-                      Alert.alert(
-                        "Delete account permanently?",
-                        "This removes credentials, sessions, and all OpenMatch application data. It cannot be undone.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Delete account",
-                            style: "destructive",
-                            onPress: () => {
-                              setDataAction("delete-account");
-                              setDataActionError(null);
-                              void api
-                                .deleteAccount()
-                                .then(async () => {
-                                  await clearSessionToken().catch(
-                                    () => undefined,
-                                  );
-                                  await clearPendingMessageAttempts().catch(
-                                    () => undefined,
-                                  );
-                                  setAuthToken(null);
-                                  setAccessMode("signed-out");
-                                })
-                                .catch(() =>
-                                  setDataActionError(
-                                    "The account was not deleted. You remain signed in and can retry when ready.",
-                                  ),
-                                )
-                                .finally(() => setDataAction(null));
-                            },
-                          },
-                        ],
-                      )
-                    }
-                  >
-                    <Text style={styles.safetyLink}>
-                      Delete account permanently
+                  <View style={styles.scoreCard}>
+                    <Text style={styles.name}>Permanent account deletion</Text>
+                    <Text style={styles.scoreNote}>
+                      Re-enter your passphrase first. This protects against
+                      deletion from a borrowed or hijacked signed-in device.
                     </Text>
-                  </Pressable>
+                    <TextInput
+                      accessibilityLabel="Current passphrase to delete account"
+                      autoCapitalize="none"
+                      autoComplete="current-password"
+                      secureTextEntry
+                      value={deletionPassword}
+                      maxLength={128}
+                      editable={dataAction === null}
+                      onChangeText={setDeletionPassword}
+                      style={styles.textField}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{
+                        disabled: dataAction !== null || !deletionPassword,
+                      }}
+                      disabled={dataAction !== null || !deletionPassword}
+                      onPress={() =>
+                        Alert.alert(
+                          "Delete account permanently?",
+                          "This removes credentials, sessions, and all OpenMatch application data. It cannot be undone.",
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Delete account",
+                              style: "destructive",
+                              onPress: () => {
+                                setDataAction("delete-account");
+                                setDataActionError(null);
+                                void api
+                                  .deleteAccount(deletionPassword)
+                                  .then(async () => {
+                                    await clearSessionToken().catch(
+                                      () => undefined,
+                                    );
+                                    await clearPendingMessageAttempts().catch(
+                                      () => undefined,
+                                    );
+                                    setDeletionPassword("");
+                                    setAuthToken(null);
+                                    setAccessMode("signed-out");
+                                  })
+                                  .catch((error) =>
+                                    setDataActionError(
+                                      error instanceof ApiError &&
+                                        error.code ===
+                                          "invalid_current_password"
+                                        ? "The current passphrase was not accepted. The account was not deleted."
+                                        : "The account was not deleted. You remain signed in and can retry when ready.",
+                                    ),
+                                  )
+                                  .finally(() => setDataAction(null));
+                              },
+                            },
+                          ],
+                        )
+                      }
+                    >
+                      <Text style={styles.safetyLink}>
+                        Delete account permanently
+                      </Text>
+                    </Pressable>
+                  </View>
                 )}
                 {dataAction && (
                   <Text

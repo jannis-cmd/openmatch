@@ -5,7 +5,7 @@
   "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
-    "accountDeletion": "DELETE /v1/me synchronously resets only the current account's application data. For an authenticated account, DELETE /v1/account synchronously removes credentials, recovery-code hashes, all sessions, and its application-data file. Neither path retains a server-side receipt.",
+    "accountDeletion": "DELETE /v1/me synchronously resets only the current account's application data. For an authenticated account, DELETE /v1/account requires fresh current-passphrase verification and synchronously removes credentials, recovery-code hashes, all sessions, and its application-data file. The submitted passphrase is verified in memory and never stored or logged. Neither path retains a server-side receipt.",
     "backups": "The prototype does not create application-managed backups. Host-level backups are outside this prototype and must be resolved before a pilot."
   },
   "accessRoles": {

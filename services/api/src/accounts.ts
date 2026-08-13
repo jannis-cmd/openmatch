@@ -757,7 +757,14 @@ export class Accounts {
     };
   }
 
-  deleteAccount(accountId: string) {
+  deleteAccount(accountId: string, currentPasswordValue: unknown) {
+    const account = this.db
+      .prepare(
+        "SELECT id,email,password_hash,password_salt,created_at FROM accounts WHERE id=?",
+      )
+      .get(accountId) as AccountRow | undefined;
+    if (!account || !this.passwordMatches(account, currentPasswordValue))
+      throw new AccountError("invalid_current_password", 400);
     const store = this.store(accountId);
     store.reset();
     store.close();

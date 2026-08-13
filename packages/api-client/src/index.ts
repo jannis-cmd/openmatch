@@ -471,8 +471,11 @@ export function createApiClient(
       request<Profile>("/v1/me", json("PATCH", patch)),
     exportData: () => request<DataExport>("/v1/me/export"),
     deleteAccountData: () => request<DeletionReceipt>("/v1/me", json("DELETE")),
-    deleteAccount: () =>
-      request<AccountDeletionReceipt>("/v1/account", json("DELETE")),
+    deleteAccount: (currentPassword: string) =>
+      request<AccountDeletionReceipt>(
+        "/v1/account",
+        json("DELETE", { currentPassword }),
+      ),
     preferences: () => request<Preferences>("/v1/preferences"),
     updatePreferences: (patch: Partial<Preferences>) =>
       request<Preferences>("/v1/preferences", json("PATCH", patch)),

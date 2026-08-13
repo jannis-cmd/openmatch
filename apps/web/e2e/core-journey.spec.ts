@@ -436,6 +436,15 @@ test("first run through a persistent connection and safety action", async ({
     page.getByText(/sign-in email changes are unavailable/),
   ).toBeVisible();
   await expect(page.getByText("Web browser · This session")).toBeVisible();
+  const permanentDelete = page.getByRole("button", {
+    name: "Delete account permanently",
+  });
+  await expect(permanentDelete).toBeDisabled();
+  await page
+    .getByLabel("Current passphrase to delete account")
+    .fill("a repeatable browser test passphrase");
+  await expect(permanentDelete).toBeEnabled();
+  await page.getByLabel("Current passphrase to delete account").fill("");
   await expect(
     page.getByRole("button", { name: /Revoke Web browser session/ }),
   ).toHaveCount(0);

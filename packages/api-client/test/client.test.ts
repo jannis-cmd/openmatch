@@ -707,6 +707,38 @@ test("returns the server-confirmed deletion receipt", async () => {
   assert.equal(receipt.applicationBackups, "none");
 });
 
+test("reauthenticates permanent account deletion with the current passphrase", async () => {
+  let received: { url?: string; method?: string; body?: unknown } = {};
+  const client = createApiClient(
+    "https://api.example.test",
+    (async (url, init) => {
+      received = {
+        url: String(url),
+        method: init?.method,
+        body: JSON.parse(String(init?.body)),
+      };
+      return new Response(
+        JSON.stringify({
+          deleted: true,
+          completedAt: "2026-08-13T12:00:00.000Z",
+          credentialsDeleted: true,
+          sessionsRevoked: true,
+          applicationBackups: "none",
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch,
+    { initialToken: demoToken, demoSessions: false },
+  );
+  const receipt = await client.deleteAccount("the current long passphrase");
+  assert.deepEqual(received, {
+    url: "https://api.example.test/v1/account",
+    method: "DELETE",
+    body: { currentPassword: "the current long passphrase" },
+  });
+  assert.equal(receipt.deleted, true);
+});
+
 test("updates a reversible meeting-planning preference", async () => {
   let received: { url?: string; body?: unknown } = {};
   const client = createApiClient(

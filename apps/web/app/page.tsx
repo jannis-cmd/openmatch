@@ -1641,13 +1641,13 @@ function AppExperience({
                   }}
                   deleteAccount={
                     authToken
-                      ? async () => {
+                      ? async (currentPassword) => {
                           if (
                             window.confirm(
                               "Delete this OpenMatch account, credentials, sessions, and all application data? This cannot be undone.",
                             )
                           ) {
-                            await api.deleteAccount();
+                            await api.deleteAccount(currentPassword);
                             exit();
                           }
                         }
@@ -3307,7 +3307,7 @@ function ProfileView({
   setAccountStatus: (status: AccountStatus) => Promise<void>;
   exportData: () => Promise<void>;
   deleteData: () => Promise<void>;
-  deleteAccount?: () => Promise<void>;
+  deleteAccount?: (currentPassword: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -3329,6 +3329,7 @@ function ProfileView({
     "export" | "reset" | "delete-account" | null
   >(null);
   const [dataActionError, setDataActionError] = useState<string | null>(null);
+  const [deletionPassword, setDeletionPassword] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -4563,25 +4564,46 @@ function ProfileView({
             Delete local data
           </button>
           {deleteAccount && (
-            <button
-              className="danger"
-              disabled={dataAction !== null}
-              onClick={async () => {
-                setDataAction("delete-account");
-                setDataActionError(null);
-                try {
-                  await deleteAccount();
-                } catch {
-                  setDataActionError(
-                    "The account was not deleted. You remain signed in and can retry when ready.",
-                  );
-                } finally {
-                  setDataAction(null);
-                }
-              }}
-            >
-              Delete account permanently
-            </button>
+            <div className="form-stack">
+              <label>
+                Current passphrase to delete account
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  maxLength={128}
+                  value={deletionPassword}
+                  disabled={dataAction !== null}
+                  onChange={(event) => setDeletionPassword(event.target.value)}
+                />
+              </label>
+              <p className="fine-print">
+                Permanent deletion is a sensitive action. Re-entering your
+                passphrase protects against deletion from a borrowed or hijacked
+                signed-in device.
+              </p>
+              <button
+                className="danger"
+                disabled={dataAction !== null || !deletionPassword}
+                onClick={async () => {
+                  setDataAction("delete-account");
+                  setDataActionError(null);
+                  try {
+                    await deleteAccount(deletionPassword);
+                  } catch (error) {
+                    setDataActionError(
+                      error instanceof ApiError &&
+                        error.code === "invalid_current_password"
+                        ? "The current passphrase was not accepted. The account was not deleted."
+                        : "The account was not deleted. You remain signed in and can retry when ready.",
+                    );
+                  } finally {
+                    setDataAction(null);
+                  }
+                }}
+              >
+                Delete account permanently
+              </button>
+            </div>
           )}
         </div>
         {dataAction && (
