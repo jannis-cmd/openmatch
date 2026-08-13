@@ -2235,8 +2235,10 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
         meetingPreference: string;
         outcomes: Array<{ kind: string }>;
       }>;
+      pastItems: unknown[];
     };
     assert.equal(connections.items.length, 1);
+    assert.deepEqual(connections.pastItems, []);
     assert.equal(connections.items[0].muted, false);
     assert.equal(connections.items[0].meetingPreference, "not_asked");
     assert.deepEqual(connections.items[0].outcomes, []);
@@ -2476,6 +2478,50 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
         }
       ).items.length,
       0,
+    );
+    const closedConnections = (await (
+      await request("/v1/connections")
+    ).json()) as {
+      items: unknown[];
+      pastItems: Array<{
+        id: string;
+        closedAt: string | null;
+        outcomes: Array<{ kind: string }>;
+      }>;
+    };
+    assert.equal(closedConnections.pastItems.length, 1);
+    assert.equal(closedConnections.pastItems[0].id, id);
+    assert.equal(
+      Number.isNaN(Date.parse(closedConnections.pastItems[0].closedAt ?? "")),
+      false,
+    );
+    assert.deepEqual(
+      closedConnections.pastItems[0].outcomes.map(({ kind }) => kind),
+      ["met_in_person"],
+    );
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/outcomes/met_in_person`, {
+          method: "PATCH",
+          body: JSON.stringify({ recorded: false }),
+        })
+      ).status,
+      200,
+    );
+    const correctedPastConnections = (await (
+      await request("/v1/connections")
+    ).json()) as {
+      pastItems: Array<{ outcomes: Array<{ kind: string }> }>;
+    };
+    assert.deepEqual(correctedPastConnections.pastItems[0].outcomes, []);
+    assert.equal(
+      (
+        await request(`/v1/connections/${id}/outcomes/met_in_person`, {
+          method: "PATCH",
+          body: JSON.stringify({ recorded: true }),
+        })
+      ).status,
+      200,
     );
     assert.equal(
       (

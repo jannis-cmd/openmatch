@@ -57,7 +57,7 @@ Demo candidate generation uses an internal distance estimate between coarse prof
 
 ## Development-service boundary
 
-Voluntary connection outcomes are stored only in the reporting person's isolated application database as four separate milestones. They are not copied to the connected person, inferred from messages, treated as proof, or fed automatically into matching. A person can remove a milestone while the connection is open, export every confirmed entry, or erase all entries through synchronous data/account deletion. Any research aggregation requires separate research consent, preregistration, missingness disclosure, minimum-cell protections, and governance approval; the executable prototype performs no such aggregation.
+Voluntary connection outcomes are stored only in the reporting person's isolated application database as four separate milestones. They are not copied to the connected person, inferred from messages, treated as proof, or fed automatically into matching. A person can inspect and correct the journal after a connection closes while messaging remains closed, export every confirmed entry, or erase all entries through synchronous data/account deletion. Any research aggregation requires separate research consent, preregistration, missingness disclosure, minimum-cell protections, and governance approval; the executable prototype performs no such aggregation.
 
 The unauthenticated health response reports only whether each delivery subsystem is clear or retrying—never counts, addresses, event categories, account identifiers, or peer details—so operators can detect degradation without turning the endpoint into an activity side channel.
 

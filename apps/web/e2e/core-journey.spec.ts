@@ -756,6 +756,10 @@ test("first run through a persistent connection and safety action", async ({
   await expect(page.getByLabel("Mara: Hello back from Mara")).toBeVisible({
     timeout: 7_000,
   });
+  await page.getByRole("button", { name: "Relationship ended" }).click();
+  await expect(
+    page.getByRole("button", { name: "Relationship ended" }),
+  ).toHaveAttribute("aria-pressed", "true");
   await expectAccessible(page);
 
   await page.getByText("Safety").click();
@@ -796,8 +800,21 @@ test("first run through a persistent connection and safety action", async ({
     ).status(),
   ).toBe(204);
   await expect(
-    page.getByRole("heading", { name: "No connections yet" }),
+    page.getByRole("heading", { name: "No open connections" }),
   ).toBeVisible({ timeout: 12_000 });
+  await expect(
+    page.getByRole("heading", { name: "Closed conversations" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Messaging stays closed.", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Relationship ended" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Relationship ended" }).click();
+  await expect(
+    page.getByRole("button", { name: "Relationship ended" }),
+  ).toHaveAttribute("aria-pressed", "false");
   await page.getByRole("button", { name: "Today" }).click();
   const caughtUp = page.getByRole("heading", {
     name: "That’s the whole set.",

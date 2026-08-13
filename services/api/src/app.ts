@@ -1406,6 +1406,10 @@ export function createApp(
             ...connection,
             profile: publicCandidateProfile(connection.profileId),
           })),
+          pastItems: store.pastConnections().map((connection) => ({
+            ...connection,
+            profile: publicCandidateProfile(connection.profileId),
+          })),
         });
       const messages = url.pathname.match(
         /^\/v1\/connections\/([^/]+)\/messages$/,

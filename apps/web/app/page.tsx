@@ -232,6 +232,7 @@ function AppExperience({
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [pastConnections, setPastConnections] = useState<Connection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<
     string | null
   >(null);
@@ -367,6 +368,7 @@ function AppExperience({
       setNextBatchAt(nextIntroductions.nextBatchAt);
       setSavedIntroductions(nextSavedIntroductions.items);
       setConnections(nextConnections.items);
+      setPastConnections(nextConnections.pastItems);
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
       setPreferenceObservationCount(nextSuggestions.observationCount);
@@ -419,8 +421,11 @@ function AppExperience({
       if (requestRunning || document.visibilityState === "hidden") return;
       requestRunning = true;
       try {
-        const { items } = await api.connections();
-        if (active) setConnections(items);
+        const { items, pastItems } = await api.connections();
+        if (active) {
+          setConnections(items);
+          setPastConnections(pastItems);
+        }
       } catch {
         // The full load path owns visible connection errors. Background
         // reconciliation stays quiet and tries again only while visible.
@@ -1268,6 +1273,7 @@ function AppExperience({
               {view === "connections" && (
                 <ConnectionsView
                   connections={connections}
+                  pastConnections={pastConnections}
                   connection={selectedConnection}
                   selectConnection={setSelectedConnectionId}
                   messages={messages}
@@ -1386,6 +1392,20 @@ function AppExperience({
                     setConnections((current) =>
                       current.map((item) =>
                         item.id === selectedConnection.id
+                          ? { ...item, outcomes: result.outcomes }
+                          : item,
+                      ),
+                    );
+                  }}
+                  setPastOutcome={async (connectionId, kind, recorded) => {
+                    const result = await api.updateConnectionOutcome(
+                      connectionId,
+                      kind,
+                      recorded,
+                    );
+                    setPastConnections((current) =>
+                      current.map((item) =>
+                        item.id === connectionId
                           ? { ...item, outcomes: result.outcomes }
                           : item,
                       ),
@@ -4399,6 +4419,7 @@ function CandidateSafety({
 
 function ConnectionsView({
   connections,
+  pastConnections,
   connection,
   selectConnection,
   messages,
@@ -4411,10 +4432,12 @@ function ConnectionsView({
   setMuted,
   setMeetingPreference,
   setOutcome,
+  setPastOutcome,
   block,
   report,
 }: {
   connections: Connection[];
+  pastConnections: Connection[];
   connection?: Connection;
   selectConnection: (connectionId: string) => void;
   messages: Message[];
@@ -4429,6 +4452,11 @@ function ConnectionsView({
     value: "not_asked" | "not_yet" | "open_to_plan",
   ) => Promise<void>;
   setOutcome: (kind: ConnectionOutcomeKind, recorded: boolean) => Promise<void>;
+  setPastOutcome: (
+    connectionId: string,
+    kind: ConnectionOutcomeKind,
+    recorded: boolean,
+  ) => Promise<void>;
   block: () => Promise<void>;
   report: (reason: ReportReason, details: string) => Promise<void>;
 }) {
@@ -4449,10 +4477,16 @@ function ConnectionsView({
   }, [connection?.id]);
   if (!connection)
     return (
-      <div className="empty">
-        <div className="empty-mark">○</div>
-        <h2>No connections yet</h2>
-        <p>A connection appears only after mutual interest.</p>
+      <div className="narrow">
+        <div className="empty">
+          <div className="empty-mark">○</div>
+          <h2>No open connections</h2>
+          <p>A connection appears only after mutual interest.</p>
+        </div>
+        <PastConnectionsView
+          connections={pastConnections}
+          setOutcome={setPastOutcome}
+        />
       </div>
     );
   const name = connection.profile?.name ?? "Connection";
@@ -4784,7 +4818,87 @@ function ConnectionsView({
           <button onClick={() => void send()}>Send</button>
         </div>
       </section>
+      <PastConnectionsView
+        connections={pastConnections}
+        setOutcome={setPastOutcome}
+      />
     </div>
+  );
+}
+
+function PastConnectionsView({
+  connections,
+  setOutcome,
+}: {
+  connections: Connection[];
+  setOutcome: (
+    connectionId: string,
+    kind: ConnectionOutcomeKind,
+    recorded: boolean,
+  ) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  if (!connections.length) return null;
+  return (
+    <section className="settings-card meeting-card">
+      <p className="eyebrow">Past connections</p>
+      <h2>Closed conversations</h2>
+      <p>
+        Messaging stays closed. Your private milestone journal remains
+        inspectable and correctable until you delete it or your OpenMatch data.
+      </p>
+      {connections.map((connection) => (
+        <div className="suggestion" key={connection.id}>
+          <h3>{connection.profile?.name ?? "Past connection"}</h3>
+          <p className="help">
+            Closed {new Date(connection.closedAt!).toLocaleDateString()}
+          </p>
+          <div
+            className="setting-actions"
+            aria-label={`Private outcomes for ${connection.profile?.name ?? "past connection"}`}
+          >
+            {(
+              [
+                ["met_in_person", "Met in person"],
+                ["wanted_second_date", "Wanted another date"],
+                ["relationship_started", "Started a relationship"],
+                ["relationship_ended", "Relationship ended"],
+              ] as const
+            ).map(([kind, label]) => {
+              const recorded = connection.outcomes.some(
+                (outcome) => outcome.kind === kind,
+              );
+              const key = `${connection.id}:${kind}`;
+              return (
+                <button
+                  key={kind}
+                  aria-pressed={recorded}
+                  disabled={saving !== null}
+                  onClick={async () => {
+                    setSaving(key);
+                    setError(null);
+                    try {
+                      await setOutcome(connection.id, kind, !recorded);
+                    } catch {
+                      setError(
+                        "The past outcome was not changed. The previous confirmed journal remains available.",
+                      );
+                    } finally {
+                      setSaving(null);
+                    }
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {saving && <p role="status">Saving past outcome…</p>}
+      {error && <p role="alert">{error}</p>}
+    </section>
   );
 }
 

@@ -49,6 +49,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   const savedIds = new Set<string>();
   let reportPayload: { reason?: string; details?: string } | null = null;
   let connectionActive = false;
+  let pastConnection = false;
   let meetingPreference = "not_asked";
   let connectionOutcomes: Array<{ kind: string; recordedAt: string }> = [];
   let muted = false;
@@ -476,6 +477,14 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         : connectionOutcomes.filter((item) => item.kind !== kind);
       return response({ outcomes: connectionOutcomes });
     }
+    if (
+      path === "/v1/connections/connection-mara" &&
+      init.method === "DELETE"
+    ) {
+      connectionActive = false;
+      pastConnection = true;
+      return response(null, 204);
+    }
     if (path === "/v1/connections")
       return response({
         items: connectionActive
@@ -499,6 +508,20 @@ test("first run uses explicit accessible controls and opens introductions", asyn
                 meetingPreference: "not_asked",
                 outcomes: [],
                 profile: toPublicProfile(demoCandidates[1].profile),
+              },
+            ]
+          : [],
+        pastItems: pastConnection
+          ? [
+              {
+                id: "connection-mara",
+                profileId: "mara",
+                createdAt: "2026-08-12T12:00:00.000Z",
+                closedAt: "2026-08-13T12:00:00.000Z",
+                muted,
+                meetingPreference,
+                outcomes: connectionOutcomes,
+                profile: toPublicProfile(demoCandidates[0].profile),
               },
             ]
           : [],
@@ -858,6 +881,26 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   expect(screen.getByLabelText("You: See https://example.com")).toBeTruthy();
   warningSpy.mockRestore();
+  const unmatchSpy = jest.spyOn(Alert, "alert");
+  await fireEvent.press(screen.getByText("Unmatch"));
+  const unmatchCall = unmatchSpy.mock.calls.find(
+    ([title]) => title === "Unmatch?",
+  );
+  await act(async () => {
+    unmatchCall?.[2]?.[1].onPress?.();
+  });
+  await waitFor(() => expect(pastConnection).toBe(true));
+  expect(await screen.findByText("Closed conversations")).toBeTruthy();
+  expect(
+    screen.getByText("Messaging stays closed.", { exact: false }),
+  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Met in person" })).toHaveProp(
+    "accessibilityState",
+    { selected: true, disabled: false },
+  );
+  await fireEvent.press(screen.getByText("Met in person"));
+  await waitFor(() => expect(connectionOutcomes).toEqual([]));
+  unmatchSpy.mockRestore();
   expect(profile.name).toBe("Taylor");
   expect(profile.city).toBe("Winterthur");
   expect(profile.readiness).toBe("Ready to meet in person");

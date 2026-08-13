@@ -191,6 +191,7 @@ export default function App() {
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [showMath, setShowMath] = useState(false);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [pastConnections, setPastConnections] = useState<Connection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<
     string | null
   >(null);
@@ -499,6 +500,7 @@ export default function App() {
       setNextBatchAt(nextIntroductions.nextBatchAt);
       setSavedIntroductions(nextSavedIntroductions.items);
       setConnections(nextConnections.items);
+      setPastConnections(nextConnections.pastItems);
       setOnboarded(onboarding.complete);
       setSuggestions(nextSuggestions.items);
       setPreferenceObservationCount(nextSuggestions.observationCount);
@@ -531,8 +533,11 @@ export default function App() {
       if (requestRunning || AppState.currentState !== "active") return;
       requestRunning = true;
       try {
-        const { items } = await api.connections();
-        if (active) setConnections(items);
+        const { items, pastItems } = await api.connections();
+        if (active) {
+          setConnections(items);
+          setPastConnections(pastItems);
+        }
       } catch {
         // The full load path owns visible connection errors. Background
         // reconciliation stays quiet and pauses with the app.
@@ -1630,504 +1635,533 @@ export default function App() {
               }}
             />
           )}
-          {tab === "Connections" &&
-            (connection ? (
-              <>
-                <Text style={styles.eyebrow}>Connection</Text>
-                <Text style={styles.title}>
-                  {connection.profile?.name ?? "Connection"}
-                </Text>
-                <Text style={styles.subtle}>
-                  You both expressed interest. Text only, with no read receipts.
-                </Text>
-                {connections.length > 1 && (
-                  <View
-                    style={styles.connectionPicker}
-                    accessibilityRole="radiogroup"
-                    accessibilityLabel="Choose a connection"
-                  >
-                    {connections.map((item) => (
-                      <Pressable
-                        accessibilityRole="radio"
-                        accessibilityState={{
-                          checked: item.id === connection.id,
-                          disabled: connectionPreferenceAction !== null,
-                        }}
-                        disabled={connectionPreferenceAction !== null}
-                        style={[
-                          styles.connectionChoice,
-                          item.id === connection.id &&
-                            styles.connectionChoiceSelected,
-                        ]}
-                        onPress={() => {
-                          setConnectionPreferenceError(null);
-                          setSelectedConnectionId(item.id);
-                        }}
-                        key={item.id}
-                      >
-                        <Text
-                          style={
-                            item.id === connection.id
-                              ? styles.connectionChoiceTextSelected
-                              : styles.connectionChoiceText
-                          }
+          {tab === "Connections" && (
+            <>
+              {connection ? (
+                <>
+                  <Text style={styles.eyebrow}>Connection</Text>
+                  <Text style={styles.title}>
+                    {connection.profile?.name ?? "Connection"}
+                  </Text>
+                  <Text style={styles.subtle}>
+                    You both expressed interest. Text only, with no read
+                    receipts.
+                  </Text>
+                  {connections.length > 1 && (
+                    <View
+                      style={styles.connectionPicker}
+                      accessibilityRole="radiogroup"
+                      accessibilityLabel="Choose a connection"
+                    >
+                      {connections.map((item) => (
+                        <Pressable
+                          accessibilityRole="radio"
+                          accessibilityState={{
+                            checked: item.id === connection.id,
+                            disabled: connectionPreferenceAction !== null,
+                          }}
+                          disabled={connectionPreferenceAction !== null}
+                          style={[
+                            styles.connectionChoice,
+                            item.id === connection.id &&
+                              styles.connectionChoiceSelected,
+                          ]}
+                          onPress={() => {
+                            setConnectionPreferenceError(null);
+                            setSelectedConnectionId(item.id);
+                          }}
+                          key={item.id}
                         >
-                          {item.profile?.name ?? "Connection"}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-                <Action
-                  label="Close politely with a standard message"
-                  secondary
-                  onPress={() =>
-                    Alert.alert("Send and close?", POLITE_CLOSE_MESSAGE, [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Send and close",
-                        onPress: () =>
-                          void runCrossAccountAction(
-                            () => api.closePolitely(connection.id),
-                            "The polite close could not be delivered.",
+                          <Text
+                            style={
+                              item.id === connection.id
+                                ? styles.connectionChoiceTextSelected
+                                : styles.connectionChoiceText
+                            }
+                          >
+                            {item.profile?.name ?? "Connection"}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                  <Action
+                    label="Close politely with a standard message"
+                    secondary
+                    onPress={() =>
+                      Alert.alert("Send and close?", POLITE_CLOSE_MESSAGE, [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Send and close",
+                          onPress: () =>
+                            void runCrossAccountAction(
+                              () => api.closePolitely(connection.id),
+                              "The polite close could not be delivered.",
+                            ),
+                        },
+                      ])
+                    }
+                  />
+                  <Action
+                    label={
+                      connection.muted
+                        ? "Unmute conversation"
+                        : "Mute conversation"
+                    }
+                    secondary
+                    disabled={connectionPreferenceAction !== null}
+                    onPress={() => {
+                      setConnectionPreferenceAction("mute");
+                      setConnectionPreferenceError(null);
+                      void api
+                        .updateConnectionMute(connection.id, !connection.muted)
+                        .then(load)
+                        .catch(() =>
+                          setConnectionPreferenceError(
+                            "Mute preference was not saved. The previous confirmed state is still active; retry when ready.",
                           ),
-                      },
-                    ])
-                  }
-                />
-                <Action
-                  label={
-                    connection.muted
-                      ? "Unmute conversation"
-                      : "Mute conversation"
-                  }
-                  secondary
-                  disabled={connectionPreferenceAction !== null}
-                  onPress={() => {
-                    setConnectionPreferenceAction("mute");
-                    setConnectionPreferenceError(null);
-                    void api
-                      .updateConnectionMute(connection.id, !connection.muted)
-                      .then(load)
-                      .catch(() =>
-                        setConnectionPreferenceError(
-                          "Mute preference was not saved. The previous confirmed state is still active; retry when ready.",
-                        ),
-                      )
-                      .finally(() => setConnectionPreferenceAction(null));
-                  }}
-                />
-                <Text style={styles.mathNote}>
-                  {connection.muted
-                    ? "Muted. Future message notifications would be suppressed. Messages remain available."
-                    : "This prototype sends no notifications yet; the preference is stored for future delivery."}
-                </Text>
-                {connectionPreferenceAction === "mute" && (
-                  <Text
-                    accessibilityLiveRegion="polite"
-                    style={styles.mathNote}
-                  >
-                    Saving mute…
+                        )
+                        .finally(() => setConnectionPreferenceAction(null));
+                    }}
+                  />
+                  <Text style={styles.mathNote}>
+                    {connection.muted
+                      ? "Muted. Future message notifications would be suppressed. Messages remain available."
+                      : "This prototype sends no notifications yet; the preference is stored for future delivery."}
                   </Text>
-                )}
-                {connectionPreferenceError && (
-                  <Text accessibilityRole="alert" style={styles.errorText}>
-                    {connectionPreferenceError}
-                  </Text>
-                )}
-                <View style={styles.scoreCard}>
-                  <Text style={styles.eyebrow}>Optional next step</Text>
-                  <Text style={styles.name}>
-                    Would you like to plan a first meeting?
-                  </Text>
-                  <Text style={styles.scoreNote}>
-                    This private, reversible preference does not affect matching
-                    and is not a claim that a date happened. The prototype does
-                    not send it to the other person.
-                  </Text>
-                  <View style={styles.adjust}>
-                    <Action
-                      label="Not yet"
-                      secondary={connection.meetingPreference !== "not_yet"}
-                      selected={connection.meetingPreference === "not_yet"}
-                      disabled={connectionPreferenceAction !== null}
-                      onPress={() => {
-                        setConnectionPreferenceAction("meeting");
-                        setConnectionPreferenceError(null);
-                        void api
-                          .updateMeetingPreference(connection.id, "not_yet")
-                          .then(load)
-                          .catch(() =>
-                            setConnectionPreferenceError(
-                              "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
-                            ),
-                          )
-                          .finally(() => setConnectionPreferenceAction(null));
-                      }}
-                    />
-                    <Action
-                      label="Open to planning"
-                      secondary={
-                        connection.meetingPreference !== "open_to_plan"
-                      }
-                      selected={connection.meetingPreference === "open_to_plan"}
-                      disabled={connectionPreferenceAction !== null}
-                      onPress={() => {
-                        setConnectionPreferenceAction("meeting");
-                        setConnectionPreferenceError(null);
-                        void api
-                          .updateMeetingPreference(
-                            connection.id,
-                            "open_to_plan",
-                          )
-                          .then(load)
-                          .catch(() =>
-                            setConnectionPreferenceError(
-                              "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
-                            ),
-                          )
-                          .finally(() => setConnectionPreferenceAction(null));
-                      }}
-                    />
-                  </View>
-                  {connectionPreferenceAction === "meeting" && (
+                  {connectionPreferenceAction === "mute" && (
                     <Text
                       accessibilityLiveRegion="polite"
                       style={styles.mathNote}
                     >
-                      Saving meeting preference…
+                      Saving mute…
                     </Text>
                   )}
-                  {connection.meetingPreference !== "not_asked" && (
-                    <Text
-                      accessibilityLiveRegion="polite"
-                      style={styles.mathNote}
-                    >
-                      {connection.meetingPreference === "open_to_plan"
-                        ? "Saved privately: open to planning."
-                        : "Saved privately: not yet."}
+                  {connectionPreferenceError && (
+                    <Text accessibilityRole="alert" style={styles.errorText}>
+                      {connectionPreferenceError}
                     </Text>
                   )}
-                  <Text style={styles.reason}>
-                    ✓ Choose a busy public place.
-                  </Text>
-                  <Text style={styles.reason}>
-                    ✓ Keep control of your transport and exact location.
-                  </Text>
-                  <Text style={styles.reason}>
-                    ✓ Tell someone you trust where you are going.
-                  </Text>
-                </View>
-                <View style={styles.scoreCard}>
-                  <Text style={styles.eyebrow}>Private outcome journal</Text>
-                  <Text style={styles.name}>
-                    What happened after this introduction?
-                  </Text>
-                  <Text style={styles.scoreNote}>
-                    Optional self-report only. Each stage stays separate, is
-                    never shown to the other person, and does not change
-                    matching automatically. You can remove any entry.
-                  </Text>
-                  {CONNECTION_OUTCOME_OPTIONS.map(([kind, label]) => {
-                    const recorded = connection.outcomes.some(
-                      (outcome) => outcome.kind === kind,
-                    );
-                    return (
+                  <View style={styles.scoreCard}>
+                    <Text style={styles.eyebrow}>Optional next step</Text>
+                    <Text style={styles.name}>
+                      Would you like to plan a first meeting?
+                    </Text>
+                    <Text style={styles.scoreNote}>
+                      This private, reversible preference does not affect
+                      matching and is not a claim that a date happened. The
+                      prototype does not send it to the other person.
+                    </Text>
+                    <View style={styles.adjust}>
                       <Action
-                        key={kind}
-                        label={label}
-                        secondary={!recorded}
-                        selected={recorded}
+                        label="Not yet"
+                        secondary={connection.meetingPreference !== "not_yet"}
+                        selected={connection.meetingPreference === "not_yet"}
                         disabled={connectionPreferenceAction !== null}
                         onPress={() => {
-                          setConnectionPreferenceAction("outcome");
+                          setConnectionPreferenceAction("meeting");
                           setConnectionPreferenceError(null);
                           void api
-                            .updateConnectionOutcome(
-                              connection.id,
-                              kind,
-                              !recorded,
-                            )
-                            .then((result) =>
-                              setConnections((current) =>
-                                current.map((item) =>
-                                  item.id === connection.id
-                                    ? { ...item, outcomes: result.outcomes }
-                                    : item,
-                                ),
-                              ),
-                            )
+                            .updateMeetingPreference(connection.id, "not_yet")
+                            .then(load)
                             .catch(() =>
                               setConnectionPreferenceError(
-                                "The private outcome was not changed. The previous confirmed journal is still active; retry when ready.",
+                                "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
                               ),
                             )
                             .finally(() => setConnectionPreferenceAction(null));
                         }}
                       />
-                    );
-                  })}
-                  {connectionPreferenceAction === "outcome" && (
-                    <Text
-                      accessibilityLiveRegion="polite"
-                      style={styles.mathNote}
-                    >
-                      Saving private outcome…
-                    </Text>
-                  )}
-                  <Text style={styles.mathNote}>
-                    These milestones are not a satisfaction scale, proof, or a
-                    statement from both people. OpenMatch keeps them distinct
-                    rather than turning them into one engagement score.
-                  </Text>
-                </View>
-                <View style={styles.scoreCard}>
-                  {safetyNotice && (
-                    <Text
-                      accessibilityLiveRegion="polite"
-                      style={styles.scoreNote}
-                    >
-                      {safetyNotice}
-                    </Text>
-                  )}
-                  {messages.length === 0 ? (
-                    <Text style={styles.scoreNote}>
-                      Start with something from their profile—not a generated
-                      line.
-                    </Text>
-                  ) : (
-                    messages.map((message) => {
-                      const sent = message.senderId === "me";
-                      const author = sent
-                        ? "You"
-                        : (connection.profile?.name ?? "Connection");
-                      return (
-                        <View
-                          accessible
-                          accessibilityLabel={author + ": " + message.text}
-                          style={[
-                            styles.mobileBubble,
-                            sent
-                              ? styles.mobileBubbleSent
-                              : styles.mobileBubbleReceived,
-                          ]}
-                          key={message.id}
-                        >
-                          <Text style={styles.mobileBubbleAuthor}>
-                            {author}
-                          </Text>
-                          <Text>{message.text}</Text>
-                        </View>
-                      );
-                    })
-                  )}
-                  {connection.profile && (
-                    <>
                       <Action
-                        label="Start from their profile"
-                        secondary
+                        label="Open to planning"
+                        secondary={
+                          connection.meetingPreference !== "open_to_plan"
+                        }
+                        selected={
+                          connection.meetingPreference === "open_to_plan"
+                        }
+                        disabled={connectionPreferenceAction !== null}
                         onPress={() => {
+                          setConnectionPreferenceAction("meeting");
+                          setConnectionPreferenceError(null);
+                          void api
+                            .updateMeetingPreference(
+                              connection.id,
+                              "open_to_plan",
+                            )
+                            .then(load)
+                            .catch(() =>
+                              setConnectionPreferenceError(
+                                "Meeting preference was not saved. The previous confirmed choice is still active; retry when ready.",
+                              ),
+                            )
+                            .finally(() => setConnectionPreferenceAction(null));
+                        }}
+                      />
+                    </View>
+                    {connectionPreferenceAction === "meeting" && (
+                      <Text
+                        accessibilityLiveRegion="polite"
+                        style={styles.mathNote}
+                      >
+                        Saving meeting preference…
+                      </Text>
+                    )}
+                    {connection.meetingPreference !== "not_asked" && (
+                      <Text
+                        accessibilityLiveRegion="polite"
+                        style={styles.mathNote}
+                      >
+                        {connection.meetingPreference === "open_to_plan"
+                          ? "Saved privately: open to planning."
+                          : "Saved privately: not yet."}
+                      </Text>
+                    )}
+                    <Text style={styles.reason}>
+                      ✓ Choose a busy public place.
+                    </Text>
+                    <Text style={styles.reason}>
+                      ✓ Keep control of your transport and exact location.
+                    </Text>
+                    <Text style={styles.reason}>
+                      ✓ Tell someone you trust where you are going.
+                    </Text>
+                  </View>
+                  <View style={styles.scoreCard}>
+                    <Text style={styles.eyebrow}>Private outcome journal</Text>
+                    <Text style={styles.name}>
+                      What happened after this introduction?
+                    </Text>
+                    <Text style={styles.scoreNote}>
+                      Optional self-report only. Each stage stays separate, is
+                      never shown to the other person, and does not change
+                      matching automatically. You can remove any entry.
+                    </Text>
+                    {CONNECTION_OUTCOME_OPTIONS.map(([kind, label]) => {
+                      const recorded = connection.outcomes.some(
+                        (outcome) => outcome.kind === kind,
+                      );
+                      return (
+                        <Action
+                          key={kind}
+                          label={label}
+                          secondary={!recorded}
+                          selected={recorded}
+                          disabled={connectionPreferenceAction !== null}
+                          onPress={() => {
+                            setConnectionPreferenceAction("outcome");
+                            setConnectionPreferenceError(null);
+                            void api
+                              .updateConnectionOutcome(
+                                connection.id,
+                                kind,
+                                !recorded,
+                              )
+                              .then((result) =>
+                                setConnections((current) =>
+                                  current.map((item) =>
+                                    item.id === connection.id
+                                      ? { ...item, outcomes: result.outcomes }
+                                      : item,
+                                  ),
+                                ),
+                              )
+                              .catch(() =>
+                                setConnectionPreferenceError(
+                                  "The private outcome was not changed. The previous confirmed journal is still active; retry when ready.",
+                                ),
+                              )
+                              .finally(() =>
+                                setConnectionPreferenceAction(null),
+                              );
+                          }}
+                        />
+                      );
+                    })}
+                    {connectionPreferenceAction === "outcome" && (
+                      <Text
+                        accessibilityLiveRegion="polite"
+                        style={styles.mathNote}
+                      >
+                        Saving private outcome…
+                      </Text>
+                    )}
+                    <Text style={styles.mathNote}>
+                      These milestones are not a satisfaction scale, proof, or a
+                      statement from both people. OpenMatch keeps them distinct
+                      rather than turning them into one engagement score.
+                    </Text>
+                  </View>
+                  <View style={styles.scoreCard}>
+                    {safetyNotice && (
+                      <Text
+                        accessibilityLiveRegion="polite"
+                        style={styles.scoreNote}
+                      >
+                        {safetyNotice}
+                      </Text>
+                    )}
+                    {messages.length === 0 ? (
+                      <Text style={styles.scoreNote}>
+                        Start with something from their profile—not a generated
+                        line.
+                      </Text>
+                    ) : (
+                      messages.map((message) => {
+                        const sent = message.senderId === "me";
+                        const author = sent
+                          ? "You"
+                          : (connection.profile?.name ?? "Connection");
+                        return (
+                          <View
+                            accessible
+                            accessibilityLabel={author + ": " + message.text}
+                            style={[
+                              styles.mobileBubble,
+                              sent
+                                ? styles.mobileBubbleSent
+                                : styles.mobileBubbleReceived,
+                            ]}
+                            key={message.id}
+                          >
+                            <Text style={styles.mobileBubbleAuthor}>
+                              {author}
+                            </Text>
+                            <Text>{message.text}</Text>
+                          </View>
+                        );
+                      })
+                    )}
+                    {connection.profile && (
+                      <>
+                        <Action
+                          label="Start from their profile"
+                          secondary
+                          onPress={() => {
+                            setPendingMessageAttempts((current) => {
+                              const next = { ...current };
+                              delete next[connection.id];
+                              return next;
+                            });
+                            setDraft(conversationStarter(connection.profile!));
+                          }}
+                        />
+                        <Text style={styles.mathNote}>
+                          Copies a simple profile-specific draft. Review and
+                          edit it yourself before sending.
+                        </Text>
+                      </>
+                    )}
+                    <TextInput
+                      accessibilityLabel={`Message ${connection.profile?.name ?? "connection"}`}
+                      value={draft}
+                      onChangeText={(value) => {
+                        setDraft(value);
+                        if (pendingMessageAttempt?.text !== value)
                           setPendingMessageAttempts((current) => {
                             const next = { ...current };
                             delete next[connection.id];
                             return next;
                           });
-                          setDraft(conversationStarter(connection.profile!));
-                        }}
-                      />
-                      <Text style={styles.mathNote}>
-                        Copies a simple profile-specific draft. Review and edit
-                        it yourself before sending.
-                      </Text>
-                    </>
-                  )}
-                  <TextInput
-                    accessibilityLabel={`Message ${connection.profile?.name ?? "connection"}`}
-                    value={draft}
-                    onChangeText={(value) => {
-                      setDraft(value);
-                      if (pendingMessageAttempt?.text !== value)
-                        setPendingMessageAttempts((current) => {
-                          const next = { ...current };
-                          delete next[connection.id];
-                          return next;
-                        });
-                    }}
-                    maxLength={1000}
-                    multiline
-                    placeholder="Write a message"
-                    style={styles.messageInput}
-                  />
-                  <Action
-                    label="Send"
-                    disabled={!draft.trim()}
-                    onPress={() => {
-                      const text = draft.trim();
-                      if (!text) return;
-                      const safetyFlags = messageSafetyFlags(text);
-                      const sendMessage = async (
-                        safetyAcknowledged = false,
-                      ) => {
-                        const messageAttempt =
-                          pendingMessageAttempt?.text === text
-                            ? pendingMessageAttempt
-                            : {
-                                text,
-                                requestId: Crypto.randomUUID(),
-                              };
-                        const nextAttempts = {
-                          ...pendingMessageAttempts,
-                          [connection.id]: messageAttempt,
+                      }}
+                      maxLength={1000}
+                      multiline
+                      placeholder="Write a message"
+                      style={styles.messageInput}
+                    />
+                    <Action
+                      label="Send"
+                      disabled={!draft.trim()}
+                      onPress={() => {
+                        const text = draft.trim();
+                        if (!text) return;
+                        const safetyFlags = messageSafetyFlags(text);
+                        const sendMessage = async (
+                          safetyAcknowledged = false,
+                        ) => {
+                          const messageAttempt =
+                            pendingMessageAttempt?.text === text
+                              ? pendingMessageAttempt
+                              : {
+                                  text,
+                                  requestId: Crypto.randomUUID(),
+                                };
+                          const nextAttempts = {
+                            ...pendingMessageAttempts,
+                            [connection.id]: messageAttempt,
+                          };
+                          setPendingMessageAttempts(nextAttempts);
+                          await persistPendingMessageAttempts(
+                            nextAttempts,
+                          ).catch(() => undefined);
+                          return api
+                            .sendMessage(
+                              connection.id,
+                              text,
+                              safetyAcknowledged,
+                              messageAttempt.requestId,
+                            )
+                            .then((message) => {
+                              setMessages((previous) => [...previous, message]);
+                              setConversationDrafts((current) => {
+                                const next = { ...current };
+                                delete next[connection.id];
+                                return next;
+                              });
+                              setPendingMessageAttempts((current) => {
+                                const next = { ...current };
+                                delete next[connection.id];
+                                void persistPendingMessageAttempts(next).catch(
+                                  () => undefined,
+                                );
+                                return next;
+                              });
+                            })
+                            .catch((error) =>
+                              handleDeliveryFailure(
+                                error,
+                                "Message could not be sent. Retry.",
+                              ),
+                            );
                         };
-                        setPendingMessageAttempts(nextAttempts);
-                        await persistPendingMessageAttempts(nextAttempts).catch(
-                          () => undefined,
-                        );
-                        return api
-                          .sendMessage(
-                            connection.id,
-                            text,
-                            safetyAcknowledged,
-                            messageAttempt.requestId,
-                          )
-                          .then((message) => {
-                            setMessages((previous) => [...previous, message]);
-                            setConversationDrafts((current) => {
-                              const next = { ...current };
-                              delete next[connection.id];
-                              return next;
-                            });
-                            setPendingMessageAttempts((current) => {
-                              const next = { ...current };
-                              delete next[connection.id];
-                              void persistPendingMessageAttempts(next).catch(
-                                () => undefined,
-                              );
-                              return next;
-                            });
-                          })
-                          .catch((error) =>
-                            handleDeliveryFailure(
-                              error,
-                              "Message could not be sent. Retry.",
-                            ),
+                        if (safetyFlags.length === 0) void sendMessage();
+                        else
+                          Alert.alert(
+                            "Pause before sending",
+                            `${safetyFlags
+                              .map(
+                                (flag) => `${flag.label}: ${flag.explanation}`,
+                              )
+                              .join(
+                                "\n\n",
+                              )}\n\nThese simple rules can be wrong.`,
+                            [
+                              { text: "Go back", style: "cancel" },
+                              {
+                                text: "Send anyway",
+                                onPress: () => void sendMessage(true),
+                              },
+                            ],
                           );
-                      };
-                      if (safetyFlags.length === 0) void sendMessage();
-                      else
-                        Alert.alert(
-                          "Pause before sending",
-                          `${safetyFlags
-                            .map((flag) => `${flag.label}: ${flag.explanation}`)
-                            .join("\n\n")}\n\nThese simple rules can be wrong.`,
-                          [
-                            { text: "Go back", style: "cancel" },
-                            {
-                              text: "Send anyway",
-                              onPress: () => void sendMessage(true),
-                            },
-                          ],
-                        );
-                    }}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() =>
-                      Alert.alert(
-                        "Unmatch?",
-                        "This closes the conversation for both people.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Unmatch",
-                            style: "destructive",
-                            onPress: () =>
-                              void runCrossAccountAction(
-                                () => api.unmatch(connection.id),
-                                "The conversation could not be closed.",
-                              ),
-                          },
-                        ],
-                      )
-                    }
-                  >
-                    <Text style={styles.safetyLink}>Unmatch</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() =>
-                      Alert.alert(
-                        "Block this person?",
-                        "They will be removed from your introductions and connections.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Block",
-                            style: "destructive",
-                            onPress: () =>
-                              void runCrossAccountAction(
-                                () => api.block(connection.profileId),
-                                "The block could not be completed.",
-                              ),
-                          },
-                        ],
-                      )
-                    }
-                  >
-                    <Text style={styles.safetyLink}>Block</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setConnectionReportOpen(true)}
-                  >
-                    <Text style={styles.safetyLink}>Report</Text>
-                  </Pressable>
-                  {connectionReportOpen && (
-                    <MobileReportForm
-                      name={connection.profile?.name ?? "this person"}
-                      cancel={() => setConnectionReportOpen(false)}
-                      submit={async (reason, details) => {
-                        const reportedProfileId = connection.profileId;
-                        const result = await api.report(
-                          reportedProfileId,
-                          reason,
-                          details,
-                        );
-                        setSafetyNotice(
-                          `Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: ${result.status}.`,
-                        );
-                        setIntroductions((items) =>
-                          items.filter(
-                            (item) => item.profile.id !== reportedProfileId,
-                          ),
-                        );
-                        setSavedIntroductions((items) =>
-                          items.filter(
-                            (item) => item.profile.id !== reportedProfileId,
-                          ),
-                        );
-                        setConnectionReportOpen(false);
-                        try {
-                          setReports((await api.reports()).items);
-                        } catch {
-                          setSafetyNotice(
-                            `Report received with status ${result.status}, but report history could not refresh. Check again shortly.`,
-                          );
-                        }
                       }}
                     />
-                  )}
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() =>
+                        Alert.alert(
+                          "Unmatch?",
+                          "This closes the conversation for both people.",
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Unmatch",
+                              style: "destructive",
+                              onPress: () =>
+                                void runCrossAccountAction(
+                                  () => api.unmatch(connection.id),
+                                  "The conversation could not be closed.",
+                                ),
+                            },
+                          ],
+                        )
+                      }
+                    >
+                      <Text style={styles.safetyLink}>Unmatch</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() =>
+                        Alert.alert(
+                          "Block this person?",
+                          "They will be removed from your introductions and connections.",
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Block",
+                              style: "destructive",
+                              onPress: () =>
+                                void runCrossAccountAction(
+                                  () => api.block(connection.profileId),
+                                  "The block could not be completed.",
+                                ),
+                            },
+                          ],
+                        )
+                      }
+                    >
+                      <Text style={styles.safetyLink}>Block</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setConnectionReportOpen(true)}
+                    >
+                      <Text style={styles.safetyLink}>Report</Text>
+                    </Pressable>
+                    {connectionReportOpen && (
+                      <MobileReportForm
+                        name={connection.profile?.name ?? "this person"}
+                        cancel={() => setConnectionReportOpen(false)}
+                        submit={async (reason, details) => {
+                          const reportedProfileId = connection.profileId;
+                          const result = await api.report(
+                            reportedProfileId,
+                            reason,
+                            details,
+                          );
+                          setSafetyNotice(
+                            `Report received. This profile is concealed from future introductions; this conversation remains available until you unmatch or block. Reference status: ${result.status}.`,
+                          );
+                          setIntroductions((items) =>
+                            items.filter(
+                              (item) => item.profile.id !== reportedProfileId,
+                            ),
+                          );
+                          setSavedIntroductions((items) =>
+                            items.filter(
+                              (item) => item.profile.id !== reportedProfileId,
+                            ),
+                          );
+                          setConnectionReportOpen(false);
+                          try {
+                            setReports((await api.reports()).items);
+                          } catch {
+                            setSafetyNotice(
+                              `Report received with status ${result.status}, but report history could not refresh. Check again shortly.`,
+                            );
+                          }
+                        }}
+                      />
+                    )}
+                  </View>
+                </>
+              ) : (
+                <View style={styles.empty}>
+                  <Text style={styles.check}>○</Text>
+                  <Text style={styles.name}>No connections yet</Text>
+                  <Text style={styles.subtle}>
+                    Connections appear only after mutual interest.
+                  </Text>
                 </View>
-              </>
-            ) : (
-              <View style={styles.empty}>
-                <Text style={styles.check}>○</Text>
-                <Text style={styles.name}>No connections yet</Text>
-                <Text style={styles.subtle}>
-                  Connections appear only after mutual interest.
-                </Text>
-              </View>
-            ))}
+              )}
+              <PastConnectionsJournal
+                connections={pastConnections}
+                setOutcome={async (connectionId, kind, recorded) => {
+                  const result = await api.updateConnectionOutcome(
+                    connectionId,
+                    kind,
+                    recorded,
+                  );
+                  setPastConnections((current) =>
+                    current.map((item) =>
+                      item.id === connectionId
+                        ? { ...item, outcomes: result.outcomes }
+                        : item,
+                    ),
+                  );
+                }}
+              />
+            </>
+          )}
           {tab === "Profile" && (
             <>
               <Text style={styles.eyebrow}>Your profile</Text>
@@ -3821,6 +3855,77 @@ function MobileAuthentication({
         </Text>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function PastConnectionsJournal({
+  connections,
+  setOutcome,
+}: {
+  connections: Connection[];
+  setOutcome: (
+    connectionId: string,
+    kind: ConnectionOutcomeKind,
+    recorded: boolean,
+  ) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  if (!connections.length) return null;
+  return (
+    <View style={styles.scoreCard}>
+      <Text style={styles.eyebrow}>Past connections</Text>
+      <Text style={styles.name}>Closed conversations</Text>
+      <Text style={styles.scoreNote}>
+        Messaging stays closed. Your private milestone journal remains
+        inspectable and correctable until you delete it or your OpenMatch data.
+      </Text>
+      {connections.map((connection) => (
+        <View style={styles.prototypeConsent} key={connection.id}>
+          <Text style={styles.name}>
+            {connection.profile?.name ?? "Past connection"}
+          </Text>
+          <Text style={styles.mathNote}>
+            Closed {new Date(connection.closedAt!).toLocaleDateString()}
+          </Text>
+          {CONNECTION_OUTCOME_OPTIONS.map(([kind, label]) => {
+            const recorded = connection.outcomes.some(
+              (outcome) => outcome.kind === kind,
+            );
+            return (
+              <Action
+                key={kind}
+                label={label}
+                secondary={!recorded}
+                selected={recorded}
+                disabled={saving !== null}
+                onPress={() => {
+                  setSaving(`${connection.id}:${kind}`);
+                  setError(null);
+                  void setOutcome(connection.id, kind, !recorded)
+                    .catch(() =>
+                      setError(
+                        "The past outcome was not changed. The previous confirmed journal remains available.",
+                      ),
+                    )
+                    .finally(() => setSaving(null));
+                }}
+              />
+            );
+          })}
+        </View>
+      ))}
+      {saving && (
+        <Text accessibilityLiveRegion="polite" style={styles.mathNote}>
+          Saving past outcome…
+        </Text>
+      )}
+      {error && (
+        <Text accessibilityRole="alert" style={styles.errorText}>
+          {error}
+        </Text>
+      )}
+    </View>
   );
 }
 

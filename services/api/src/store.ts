@@ -597,6 +597,25 @@ export class Store {
       outcomes: this.connectionOutcomes(connection.id),
     }));
   }
+  pastConnections() {
+    return (
+      this.db
+        .prepare(
+          "SELECT id,profile_id AS profileId,created_at AS createdAt,closed_at AS closedAt,muted,meeting_preference AS meetingPreference FROM connections WHERE closed_at IS NOT NULL ORDER BY closed_at DESC",
+        )
+        .all() as unknown as Array<
+        Omit<Connection, "muted" | "outcomes"> & { muted: number }
+      >
+    ).map((connection) => ({
+      ...connection,
+      muted: connection.muted === 1,
+      outcomes: this.connectionOutcomes(connection.id),
+    }));
+  }
+  private connectionRecord(id: string) {
+    return this.db.prepare("SELECT id FROM connections WHERE id=?").get(id) as
+      { id: string } | undefined;
+  }
   connection(id: string) {
     const connection = this.db
       .prepare(
@@ -627,7 +646,7 @@ export class Store {
     kind: ConnectionOutcomeKind,
     recorded: boolean,
   ) {
-    if (!this.connection(connectionId)) return undefined;
+    if (!this.connectionRecord(connectionId)) return undefined;
     if (recorded)
       this.db
         .prepare(

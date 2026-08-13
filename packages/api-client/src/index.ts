@@ -558,7 +558,10 @@ export function createApiClient(
         `/v1/introductions/${encodeURIComponent(profileId)}/decision`,
         json("POST", { decision }),
       ),
-    connections: () => request<{ items: Connection[] }>("/v1/connections"),
+    connections: () =>
+      request<{ items: Connection[]; pastItems: Connection[] }>(
+        "/v1/connections",
+      ),
     messages: (connectionId: string) =>
       request<{ items: Message[] }>(
         `/v1/connections/${encodeURIComponent(connectionId)}/messages`,
