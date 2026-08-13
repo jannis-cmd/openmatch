@@ -12,7 +12,8 @@
       [
         "expo-secure-store",
         {
-          "configureAndroidBackup": true
+          "configureAndroidBackup": false,
+          "faceIDPermission": false
         }
       ]
     ],
@@ -33,6 +34,7 @@
     },
     "android": {
       "package": "org.openmatch.app",
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FAFAF7"

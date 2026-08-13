@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import test from "node:test";
+import { promisify } from "node:util";
+
+const run = promisify(execFile);
+const require = createRequire(import.meta.url);
 
 const appJson = JSON.parse(
   await readFile(new URL("../app.json", import.meta.url), "utf8"),
@@ -32,6 +38,14 @@ test("uses stable production identities without development network exceptions",
     NSExceptionDomains: {},
   });
   assert.deepEqual(appJson.android.permissions, []);
+  assert.equal(appJson.android.allowBackup, false);
+  const secureStorePlugin = appJson.plugins.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-secure-store",
+  );
+  assert.deepEqual(secureStorePlugin?.[1], {
+    configureAndroidBackup: false,
+    faceIDPermission: false,
+  });
   assert.deepEqual(appJson.android.blockedPermissions.sort(), [
     "android.permission.READ_EXTERNAL_STORAGE",
     "android.permission.SYSTEM_ALERT_WINDOW",
@@ -53,4 +67,33 @@ test("ships a full store icon and a transparent adaptive foreground", async () =
     colorType: 6,
   });
   assert.equal(appJson.android.adaptiveIcon.backgroundColor, "#FAFAF7");
+});
+
+test("resolves to strict iOS transport and internet-only Android access", async () => {
+  const expoCli = require.resolve("expo/bin/cli");
+  const { stdout } = await run(
+    process.execPath,
+    [expoCli, "config", "--type", "introspect", "--json"],
+    {
+      cwd: new URL("..", import.meta.url),
+      maxBuffer: 10 * 1024 * 1024,
+    },
+  );
+  const resolved = JSON.parse(stdout)._internal.modResults;
+  assert.equal("NSFaceIDUsageDescription" in resolved.ios.infoPlist, false);
+  assert.deepEqual(resolved.ios.infoPlist.NSAppTransportSecurity, {
+    NSAllowsArbitraryLoads: false,
+    NSAllowsLocalNetworking: false,
+    NSExceptionDomains: {},
+  });
+
+  const manifest = resolved.android.manifest.manifest;
+  const retainedPermissions = manifest["uses-permission"]
+    .filter((entry) => entry.$["tools:node"] !== "remove")
+    .map((entry) => entry.$["android:name"]);
+  assert.deepEqual(retainedPermissions, ["android.permission.INTERNET"]);
+  const application = manifest.application[0].$;
+  assert.equal(application["android:allowBackup"], "false");
+  assert.equal(application["android:fullBackupContent"], undefined);
+  assert.equal(application["android:dataExtractionRules"], undefined);
 });
