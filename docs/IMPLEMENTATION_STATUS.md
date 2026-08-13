@@ -84,6 +84,13 @@ license, followed by any CocoaPods/toolchain prerequisites reported by the
 local builder. Automation does not accept legal agreements on the owner's
 behalf.
 
+Android release profiles now explicitly produce an installable APK for preview
+and an AAB for production, and EAS refuses release work from an uncommitted
+source tree. Local EAS can bypass the hosted Android quota as well, but this Mac
+does not yet have Java or the Android SDK. The account owner must review and
+accept Google's SDK agreement while installing that toolchain; automation does
+not accept it for them.
+
 ## Deliberately not claimed
 
 Before any real-user pilot, the project still requires a deployed HTTPS service, verified production authentication and authorization, a transactional multi-user datastore and migrations, privacy-reviewed coarse location, identity/inclusion research, photo storage and processing, staffed moderation and appeals, rate limiting beyond the local boundary, encryption and secret management, notification design, deletion/backup drills, device-level assistive-technology testing, security review, legal/DPIA review, and a geographically viable safety program.

@@ -113,6 +113,11 @@ eas build --profile preview --platform android
 Open the resulting EAS install URL on an Android device in the same tailnet.
 Android may require explicit permission to install an app from the browser.
 
+The `preview` profile explicitly produces an APK; it does not rely on an
+implicit default. The `production` profile explicitly produces an Android App
+Bundle. EAS CLI also requires a clean Git commit before either release build so
+the embedded source revision can identify all application source.
+
 For a Play Store Android App Bundle:
 
 ```bash
@@ -124,6 +129,40 @@ An AAB cannot be installed directly. Upload it to a Play Console internal test
 track after the store listing, tester access, app-content declarations, data
 safety form, and privacy-policy URL have been reviewed against the deployed
 service.
+
+## Quota-free local Android build
+
+Expo supports the same local EAS path for Android, but the current Mac has no
+Java runtime or Android SDK. The account owner must first review and accept
+Google's Android SDK license while installing Android Studio or the official
+command-line SDK tools; automation must not accept that agreement on their
+behalf. Install the SDK packages requested by Expo/Gradle and a compatible JDK,
+then verify them without exposing credentials:
+
+```bash
+java -version
+sdkmanager --version
+adb version
+```
+
+With the production HTTPS environment available locally, build an installable
+owner-test APK without consuming hosted quota:
+
+```bash
+cd apps/mobile
+npx eas-cli@latest env:pull --environment preview --path .env.preview.local
+export EAS_BUILD_GIT_COMMIT_HASH="$(git rev-parse HEAD)"
+npx eas-cli@latest build --local --profile preview --platform android \
+  --output ./openmatch-preview.apk
+rm .env.preview.local
+```
+
+For a Play Console artifact, replace `preview` with `production` and output an
+`.aab`. Local EAS still authenticates with Expo and may download the existing
+managed Android keystore, but compilation happens on this Mac. Inspect the
+resolved manifest, verify the embedded revision and HTTPS origins, test the APK
+on a real Android device, and record its digest before treating it as a current
+artifact.
 
 ## TestFlight production build
 

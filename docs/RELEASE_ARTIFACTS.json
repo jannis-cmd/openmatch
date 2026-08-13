@@ -56,7 +56,7 @@
     }
   ],
   "buildAvailability": {
-    "android": "A newer cloud build is blocked by the included EAS Android quota until September 1, 2026.",
+    "android": "A newer hosted build is blocked by the included EAS Android quota until September 1, 2026. The project now pins preview to APK, production to AAB, and requires a clean commit. A quota-free local build remains gated by owner acceptance of Google's SDK license plus installation of Java and the Android SDK.",
     "ios": "Apple Developer membership and App Store signing/submission credentials are active. Full Xcode 26.6 is installed on the build Mac. A physical-device or TestFlight archive can use a quota-free local EAS build after the account owner reviews and accepts Apple's Xcode license; the hosted EAS build quota remains unavailable."
   }
 }

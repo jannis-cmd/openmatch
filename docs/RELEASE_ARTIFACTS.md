@@ -64,6 +64,10 @@ availability, file-based data export, current accessibility changes, or native
 source-revision disclosure. Expo rejected Android build 11 before compilation
 because the account's included Android build quota is exhausted until September
 1, 2026.
+The repository now explicitly pins preview builds to APK and production builds
+to AAB and requires a clean Git commit. A quota-free local EAS build is ready at
+the project level but still needs a compatible JDK and owner-licensed Android
+SDK on this Mac.
 
 ### Android Play App Bundle — build 10
 

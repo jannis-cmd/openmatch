@@ -11,6 +11,9 @@ const require = createRequire(import.meta.url);
 const appJson = JSON.parse(
   await readFile(new URL("../app.json", import.meta.url), "utf8"),
 ).expo;
+const easJson = JSON.parse(
+  await readFile(new URL("../eas.json", import.meta.url), "utf8"),
+);
 
 const pngMetadata = async (relativePath) => {
   const bytes = await readFile(new URL(`../${relativePath}`, import.meta.url));
@@ -52,6 +55,14 @@ test("uses stable production identities without development network exceptions",
     "android.permission.VIBRATE",
     "android.permission.WRITE_EXTERNAL_STORAGE",
   ]);
+});
+
+test("makes release artifact formats and clean-source provenance explicit", () => {
+  assert.equal(easJson.cli.requireCommit, true);
+  assert.equal(easJson.cli.appVersionSource, "remote");
+  assert.equal(easJson.build.preview.distribution, "internal");
+  assert.equal(easJson.build.preview.android.buildType, "apk");
+  assert.equal(easJson.build.production.android.buildType, "app-bundle");
 });
 
 test("ships a full store icon and a transparent adaptive foreground", async () => {
