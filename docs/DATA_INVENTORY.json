@@ -97,6 +97,15 @@
       "disclosure": "Stored device-only and readable only while the device is unlocked. It is not migrated in device backups. If secure storage is unavailable or malformed, the client uses no token and requires sign-in. The token is excluded from export."
     },
     {
+      "id": "clientPendingMessageAttempts",
+      "storage": "Web sessionStorage under openmatch.pending-message-attempts.v1 for the current tab; Expo SecureStore under the same versioned key on iOS and Android",
+      "purpose": "Retry one submitted message with the identical unpredictable request identifier after a lost response, browser reload, or native app-process restart so the service can return the original result instead of storing a duplicate.",
+      "retention": "Only from the first send attempt until successful delivery, text editing, connection closure, sign-out, account replacement, account deletion, or session rejection. Closing the browser tab clears the web copy. Android app removal clears the mobile copy; iOS Keychain state may survive uninstall until the app can reject or replace it.",
+      "access": ["person", "deviceClient"],
+      "fields": ["connectionId", "exactPendingMessageText", "randomClientRequestId"],
+      "disclosure": "The web copy is scoped to one tab rather than persistent browser storage. The native copy uses device-only storage readable only while unlocked and is not migrated in backups. Invalid UUIDs, empty or over-1,000-character text, overlong connection identifiers, malformed JSON, and entries beyond 50 are discarded. Ordinary drafts that have not been submitted are not persisted. The record is local operational state, is never used for matching or learning, and is excluded from personal export."
+    },
+    {
       "id": "accountRecoveryCodes",
       "storage": "account_recovery_codes table in the authentication SQLite database",
       "purpose": "Let a person who previously saved a code replace a forgotten passphrase without relying on an unverified email inbox.",

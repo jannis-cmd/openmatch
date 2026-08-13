@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --test ./lib/api-configuration.test.mjs && playwright test"
+    "test": "node --test ./lib/*.test.mjs && playwright test"
   },
   "dependencies": {
     "@openmatch/api-client": "workspace:*",

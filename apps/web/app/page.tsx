@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { resolveWebApiConfiguration } from "../lib/api-configuration.mjs";
 import {
+  clearPendingMessageAttempts,
+  persistPendingMessageAttempts,
+  restorePendingMessageAttempts,
+} from "../lib/pending-message-attempts.mjs";
+import {
   ApiError,
   createApiClient,
   type AccountStatus,
@@ -87,11 +92,13 @@ export default function Home() {
 
   const openApp = () => {
     if (!demoConfiguration.url) return;
+    clearPendingMessageAttempts(window.sessionStorage);
     window.sessionStorage.setItem("openmatch-demo-session", "active");
     setSiteView("app");
   };
 
   const exitApp = () => {
+    clearPendingMessageAttempts(window.sessionStorage);
     window.sessionStorage.removeItem("openmatch-demo-session");
     window.sessionStorage.removeItem("openmatch-auth-token");
     setAuthToken(null);
@@ -99,6 +106,7 @@ export default function Home() {
     setSiteView("landing");
   };
   const endAccountSession = () => {
+    clearPendingMessageAttempts(window.sessionStorage);
     window.sessionStorage.removeItem("openmatch-demo-session");
     window.sessionStorage.removeItem("openmatch-auth-token");
     setAuthToken(null);
@@ -110,6 +118,7 @@ export default function Home() {
     token: string,
     notification?: SecurityNotificationStatus,
   ) => {
+    clearPendingMessageAttempts(window.sessionStorage);
     window.sessionStorage.removeItem("openmatch-demo-session");
     window.sessionStorage.setItem("openmatch-auth-token", token);
     setAuthToken(token);
@@ -214,6 +223,7 @@ function AppExperience({
   const [pendingMessageAttempts, setPendingMessageAttempts] = useState<
     Record<string, { text: string; requestId: string }>
   >({});
+  const [messageAttemptsRestored, setMessageAttemptsRestored] = useState(false);
   const [loading, setLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -260,6 +270,26 @@ function AppExperience({
       [selectedConnection.id]: value,
     }));
   };
+  useEffect(() => {
+    const restored = restorePendingMessageAttempts(
+      window.sessionStorage,
+    ) as Record<string, { text: string; requestId: string }>;
+    setPendingMessageAttempts(restored);
+    setConversationDrafts((current) => ({
+      ...Object.fromEntries(
+        Object.entries(restored).map(([id, attempt]) => [id, attempt.text]),
+      ),
+      ...current,
+    }));
+    setMessageAttemptsRestored(true);
+  }, []);
+  useEffect(() => {
+    if (!messageAttemptsRestored) return;
+    persistPendingMessageAttempts(
+      window.sessionStorage,
+      pendingMessageAttempts,
+    );
+  }, [messageAttemptsRestored, pendingMessageAttempts]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -333,6 +363,7 @@ function AppExperience({
     }
   }, [api]);
   useEffect(() => {
+    if (loading || !messageAttemptsRestored) return;
     const activeIds = new Set(connections.map(({ id }) => id));
     setConversationDrafts((current) => {
       const next = Object.fromEntries(
@@ -350,7 +381,7 @@ function AppExperience({
         ? current
         : next;
     });
-  }, [connections]);
+  }, [connections, loading, messageAttemptsRestored]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -1042,6 +1073,10 @@ function AppExperience({
                             text,
                             requestId: globalThis.crypto.randomUUID(),
                           };
+                    persistPendingMessageAttempts(window.sessionStorage, {
+                      ...pendingMessageAttempts,
+                      [selectedConnection.id]: messageAttempt,
+                    });
                     setPendingMessageAttempts((current) => ({
                       ...current,
                       [selectedConnection.id]: messageAttempt,
@@ -1062,6 +1097,10 @@ function AppExperience({
                       setPendingMessageAttempts((current) => {
                         const next = { ...current };
                         delete next[selectedConnection.id];
+                        persistPendingMessageAttempts(
+                          window.sessionStorage,
+                          next,
+                        );
                         return next;
                       });
                     } catch (error) {

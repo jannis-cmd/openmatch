@@ -22,6 +22,11 @@ import {
   restoreSessionToken,
 } from "../lib/secure-session";
 import {
+  clearPendingMessageAttempts,
+  persistPendingMessageAttempts,
+  restorePendingMessageAttempts,
+} from "../lib/secure-message-attempts";
+import {
   ApiError,
   createApiClient,
   type AccountSession,
@@ -194,6 +199,7 @@ export default function App() {
   const [pendingMessageAttempts, setPendingMessageAttempts] = useState<
     Record<string, { text: string; requestId: string }>
   >({});
+  const [messageAttemptsRestored, setMessageAttemptsRestored] = useState(false);
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const [directoryAccepted, setDirectoryAccepted] = useState(false);
@@ -238,6 +244,54 @@ export default function App() {
       [connection.id]: value,
     }));
   };
+  useEffect(() => {
+    if (!sessionRestored) return;
+    let active = true;
+    if (accessMode !== "account") {
+      setPendingMessageAttempts({});
+      setConversationDrafts({});
+      setMessageAttemptsRestored(true);
+      void clearPendingMessageAttempts().catch(() => undefined);
+      return () => {
+        active = false;
+      };
+    }
+    setMessageAttemptsRestored(false);
+    void restorePendingMessageAttempts()
+      .then((restored) => {
+        if (!active) return;
+        setPendingMessageAttempts(restored);
+        setConversationDrafts((current) => ({
+          ...Object.fromEntries(
+            Object.entries(restored).map(([id, attempt]) => [id, attempt.text]),
+          ),
+          ...current,
+        }));
+        setMessageAttemptsRestored(true);
+      })
+      .catch(() => {
+        if (active) setMessageAttemptsRestored(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [accessMode, sessionRestored]);
+  useEffect(() => {
+    if (
+      !sessionRestored ||
+      !messageAttemptsRestored ||
+      accessMode !== "account"
+    )
+      return;
+    void persistPendingMessageAttempts(pendingMessageAttempts).catch(
+      () => undefined,
+    );
+  }, [
+    accessMode,
+    messageAttemptsRestored,
+    pendingMessageAttempts,
+    sessionRestored,
+  ]);
   useEffect(() => {
     if (tab === "Profile" && accessMode === "account") return;
     setRecoveryCodes([]);
@@ -389,6 +443,7 @@ export default function App() {
     };
   }, [api]);
   useEffect(() => {
+    if (loading || !messageAttemptsRestored) return;
     const activeIds = new Set(connections.map(({ id }) => id));
     setConversationDrafts((current) => {
       const next = Object.fromEntries(
@@ -406,7 +461,7 @@ export default function App() {
         ? current
         : next;
     });
-  }, [connections]);
+  }, [connections, loading, messageAttemptsRestored]);
   useEffect(() => {
     if (
       accountDeliveryStatus?.state !== "retrying" &&
@@ -1448,7 +1503,9 @@ export default function App() {
                       const text = draft.trim();
                       if (!text) return;
                       const safetyFlags = messageSafetyFlags(text);
-                      const sendMessage = (safetyAcknowledged = false) => {
+                      const sendMessage = async (
+                        safetyAcknowledged = false,
+                      ) => {
                         const messageAttempt =
                           pendingMessageAttempt?.text === text
                             ? pendingMessageAttempt
@@ -1456,11 +1513,15 @@ export default function App() {
                                 text,
                                 requestId: Crypto.randomUUID(),
                               };
-                        setPendingMessageAttempts((current) => ({
-                          ...current,
+                        const nextAttempts = {
+                          ...pendingMessageAttempts,
                           [connection.id]: messageAttempt,
-                        }));
-                        void api
+                        };
+                        setPendingMessageAttempts(nextAttempts);
+                        await persistPendingMessageAttempts(nextAttempts).catch(
+                          () => undefined,
+                        );
+                        return api
                           .sendMessage(
                             connection.id,
                             text,
@@ -1477,6 +1538,9 @@ export default function App() {
                             setPendingMessageAttempts((current) => {
                               const next = { ...current };
                               delete next[connection.id];
+                              void persistPendingMessageAttempts(next).catch(
+                                () => undefined,
+                              );
                               return next;
                             });
                           })
@@ -1487,7 +1551,7 @@ export default function App() {
                             ),
                           );
                       };
-                      if (safetyFlags.length === 0) sendMessage();
+                      if (safetyFlags.length === 0) void sendMessage();
                       else
                         Alert.alert(
                           "Pause before sending",
@@ -1498,7 +1562,7 @@ export default function App() {
                             { text: "Go back", style: "cancel" },
                             {
                               text: "Send anyway",
-                              onPress: () => sendMessage(true),
+                              onPress: () => void sendMessage(true),
                             },
                           ],
                         );

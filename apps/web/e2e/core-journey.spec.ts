@@ -439,23 +439,54 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Start from their profile" }).click();
   await expect(composer).toHaveValue(/You mentioned/);
   await composer.fill("Hello from the repeatable journey");
-  let messageClientRequestId = "";
+  const messageClientRequestIds: string[] = [];
+  let interruptFirstSend = true;
+  await page.route("**/v1/connections/*/messages", async (route) => {
+    if (interruptFirstSend) {
+      interruptFirstSend = false;
+      await route.abort("connectionfailed");
+      return;
+    }
+    await route.continue();
+  });
   page.on("request", (request) => {
     if (
       request.method() === "POST" &&
       /\/v1\/connections\/[^/]+\/messages$/.test(request.url())
     )
-      messageClientRequestId = String(
-        (request.postDataJSON() as { clientRequestId?: unknown })
-          .clientRequestId ?? "",
+      messageClientRequestIds.push(
+        String(
+          (request.postDataJSON() as { clientRequestId?: unknown })
+            .clientRequestId ?? "",
+        ),
       );
   });
   await page.getByRole("button", { name: "Send" }).click();
   await expect
-    .poll(() => messageClientRequestId)
+    .poll(() => messageClientRequestIds[0] ?? "")
     .toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
     );
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.sessionStorage.getItem("openmatch.pending-message-attempts.v1"),
+      ),
+    )
+    .toContain("Hello from the repeatable journey");
+  await page.reload();
+  await page.getByRole("button", { name: /Connections · 1/ }).click();
+  await expect(composer).toHaveValue("Hello from the repeatable journey");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect.poll(() => messageClientRequestIds.length).toBe(2);
+  expect(messageClientRequestIds[1]).toBe(messageClientRequestIds[0]);
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.sessionStorage.getItem("openmatch.pending-message-attempts.v1"),
+      ),
+    )
+    .toBeNull();
   const maraConnections = (await (
     await request.get(apiBase + "/v1/connections", {
       headers: maraAccount.headers,
@@ -508,9 +539,13 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("heading", { name: "No connections yet" }),
   ).toBeVisible({ timeout: 12_000 });
   await page.getByRole("button", { name: "Today" }).click();
-  for (let remaining = 0; remaining < 3; remaining += 1) {
+  const caughtUp = page.getByRole("heading", {
+    name: "That’s the whole set.",
+  });
+  for (let remaining = 0; remaining < 50; remaining += 1) {
+    if (await caughtUp.isVisible()) break;
     const visibleCard = page.locator(".profile-card h2");
-    if (!(await visibleCard.isVisible())) break;
+    await expect(visibleCard).toBeVisible();
     const previousName = await visibleCard.textContent();
     await page.getByRole("button", { name: "Pass" }).click();
     if (previousName)
@@ -518,9 +553,7 @@ test("first run through a persistent connection and safety action", async ({
         page.getByRole("heading", { name: previousName }),
       ).not.toBeVisible();
   }
-  await expect(
-    page.getByRole("heading", { name: "That’s the whole set." }),
-  ).toBeVisible();
+  await expect(caughtUp).toBeVisible();
   await expect(page.getByText(/no recycling decisions/i)).toBeVisible();
   await expect(
     page.getByText(/Only newly eligible profiles may appear/),
