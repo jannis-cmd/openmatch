@@ -17,7 +17,7 @@ jobs:
       NODE_ENV: production
     steps:
       - name: Check out the exact source revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -25,19 +25,22 @@ jobs:
           version: 10.14.0
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
 
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Expose Android command-line tools
+        run: echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
 
       - name: Verify and build shared packages
         run: |
@@ -53,7 +56,7 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload immutable APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: openmatch-android-${{ github.sha }}
           path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
