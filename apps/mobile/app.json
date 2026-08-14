@@ -43,6 +43,7 @@
     },
     "android": {
       "package": "org.openmatch.app",
+      "versionCode": 11,
       "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
