@@ -9,18 +9,19 @@ claim of production readiness. The same facts are published in
 
 ## OpenMatch 0.1.0
 
-### Signed iOS IPA — build 6
+### Signed iOS IPA — build 8
 
 - Purpose: internal TestFlight owner testing
-- Source commit: `d6272cfd989d8d5497844dcce11d714fd2b5abb3`
+- Source commit: `99d587d80ef4ad9d9da6b3890d3c994ab59d5e83`
 - Bundle identifier: `org.openmatch.app`
-- Version: `0.1.0` (`CFBundleVersion` 6)
+- Version: `0.1.0` (`CFBundleVersion` 8)
 - App Store Connect app ID: `6801267398`
-- EAS submission: `d1e64e78-b1d2-4d63-b65e-755fb7aa9aba`
-- Size: 16,036,226 bytes
-- SHA-256: `665066d8f43129cb16b9963dfe0eb8a2c044ed10581728ed4f57b586d8f89fe1`
-- Availability: retained on the owner build Mac and queued with EAS Submit for
-  App Store Connect upload; it is not a public direct download
+- EAS submission: `c85855b2-aab6-475c-99de-f0d096790fde`
+- Size: 16,954,673 bytes
+- SHA-256: `ea281e4244a7035527409e529c2e4a043c39f8d6f0fa0882258b61488dd759fb`
+- Availability: retained on the owner build Mac and available to the internal
+  TestFlight group (`VALID`, `IN_BETA_TESTING`); it is not a public direct
+  download
 - Verification: the archive exported successfully with active App Store
   distribution signing and provisioning; deep strict code-signature checks
   passed; the application is an `arm64` device binary; the embedded Expo
@@ -29,9 +30,10 @@ claim of production readiness. The same facts are published in
   exception; `ITSAppUsesNonExemptEncryption=false`; and privacy manifests are
   present in the app and relevant dependencies.
 
-Apple still controls upload processing and TestFlight availability. This
-record proves what was built and queued; it does not claim App Store review,
-public release, production-service readiness, or scientific effectiveness.
+Apple still controls TestFlight and App Store availability. This record proves
+what was built, uploaded, processed, and made available internally; it does not
+claim App Store review, public release, production-service readiness, or
+scientific effectiveness.
 
 ### Current iOS Simulator archive — build ff567a6f
 
@@ -54,7 +56,7 @@ public release, production-service readiness, or scientific effectiveness.
 
 This archive cannot run on an iPhone and is not TestFlight-signed. It requires
 Xcode's iOS Simulator on a Mac. It is retained as an older independently
-inspectable compilation artifact; signed device build 6 now supersedes it for
+inspectable compilation artifact; signed device build 8 now supersedes it for
 TestFlight owner testing.
 
 ### Android direct-install APK — build 10
@@ -133,8 +135,8 @@ data-safety declarations, tester setup, and submission have not been performed.
   `ITSAppUsesNonExemptEncryption` is false
 
 This archive cannot run on an iPhone and is not TestFlight-signed. It is an
-older source snapshot retained for provenance; current signed device build 6
-was compiled and queued for App Store Connect upload separately.
+older source snapshot retained for provenance; current signed device build 8
+is available to the internal TestFlight group.
 
 ## Common limits
 

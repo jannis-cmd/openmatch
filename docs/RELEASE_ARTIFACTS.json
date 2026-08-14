@@ -1,21 +1,21 @@
 {
   "schemaVersion": "1.0.0",
-  "reviewedAt": "2026-08-13",
+  "reviewedAt": "2026-08-14",
   "verifiedLocalArtifacts": [
     {
-      "id": "ios-ipa-build-6",
+      "id": "ios-ipa-build-8",
       "platform": "ios",
       "kind": "ipa",
       "version": "0.1.0",
-      "buildNumber": "6",
-      "sourceCommit": "d6272cfd989d8d5497844dcce11d714fd2b5abb3",
-      "status": "queued-for-app-store-connect-upload",
+      "buildNumber": "8",
+      "sourceCommit": "99d587d80ef4ad9d9da6b3890d3c994ab59d5e83",
+      "status": "available-in-internal-testflight",
       "publiclyDownloadable": false,
-      "sizeBytes": 16036226,
-      "sha256": "665066d8f43129cb16b9963dfe0eb8a2c044ed10581728ed4f57b586d8f89fe1",
+      "sizeBytes": 16954673,
+      "sha256": "ea281e4244a7035527409e529c2e4a043c39f8d6f0fa0882258b61488dd759fb",
       "bundleIdentifier": "org.openmatch.app",
       "ascAppId": "6801267398",
-      "submissionId": "d1e64e78-b1d2-4d63-b65e-755fb7aa9aba"
+      "submissionId": "c85855b2-aab6-475c-99de-f0d096790fde"
     }
   ],
   "artifacts": [
@@ -74,6 +74,6 @@
   ],
   "buildAvailability": {
     "android": "A newer hosted build is blocked by the included EAS Android quota until September 1, 2026. The project now pins preview to APK, production to AAB, and requires a clean commit. A quota-free local build remains gated by owner acceptance of Google's SDK license plus installation of Java and the Android SDK.",
-    "ios": "Signed iOS IPA build 6 was produced locally from commit d6272cf, verified, and queued with EAS Submit for upload to App Store Connect. The build used active Apple distribution credentials and did not consume hosted EAS build quota. It is not a public App Store release."
+    "ios": "Signed iOS IPA build 8 was produced locally from commit 99d587d, verified, uploaded to App Store Connect, and is VALID and IN_BETA_TESTING for the internal TestFlight group. The build used active Apple distribution credentials and did not consume hosted EAS build quota. It is not a public App Store release."
   }
 }

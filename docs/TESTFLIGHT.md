@@ -23,10 +23,10 @@ contains no endpoint. EAS injects the selected HTTPS origin at build time.
   this listing name can be revised independently of the installed app name.
 - Full Xcode 26.6, its owner-accepted license and first-launch components,
   CocoaPods, and Fastlane are ready on the build Mac.
-- Local EAS produced signed IPA build 6 from commit `d6272cf` without consuming
-  hosted build quota. It was queued with EAS Submit for upload to App Store
-  Connect and internal TestFlight processing under submission
-  `d1e64e78-b1d2-4d63-b65e-755fb7aa9aba`.
+- Local EAS produced signed IPA build 8 from commit `99d587d` without consuming
+  hosted build quota. EAS submission
+  `c85855b2-aab6-475c-99de-f0d096790fde` completed; App Store Connect reports
+  the build `VALID` and `IN_BETA_TESTING`.
 - The internal TestFlight group is `Team (Expo)` and includes the owner account.
 - The tailnet beta exposes a prototype privacy notice at
   `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/privacy` and support

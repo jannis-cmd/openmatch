@@ -63,8 +63,8 @@ test("records the current signed iOS artifact without implying public availabili
   const git = await workingGit();
   assert.equal(release.verifiedLocalArtifacts.length, 1);
   const ios = release.verifiedLocalArtifacts[0];
-  assert.equal(ios.id, "ios-ipa-build-6");
-  assert.equal(ios.status, "queued-for-app-store-connect-upload");
+  assert.equal(ios.id, "ios-ipa-build-8");
+  assert.equal(ios.status, "available-in-internal-testflight");
   assert.equal(ios.publiclyDownloadable, false);
   assert.equal(ios.ascAppId, "6801267398");
   assert.match(ios.sourceCommit, /^[0-9a-f]{40}$/);
@@ -73,7 +73,7 @@ test("records the current signed iOS artifact without implying public availabili
     cwd: new URL("../../..", import.meta.url),
   });
   assert.match(release.buildAvailability.android, /quota.*September 1, 2026/i);
-  assert.match(release.buildAvailability.ios, /Signed iOS IPA build 6/i);
+  assert.match(release.buildAvailability.ios, /Signed iOS IPA build 8/i);
   assert.match(release.buildAvailability.ios, /App Store Connect/i);
   assert.match(
     release.buildAvailability.ios,

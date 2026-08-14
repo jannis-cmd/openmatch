@@ -65,6 +65,7 @@ type SiteView = "landing" | "sign-in" | "app";
 const archivedAndroidApk = releaseArtifacts.artifacts.find(
   ({ id }) => id === "android-apk-build-10",
 )!;
+const currentIosIpa = releaseArtifacts.verifiedLocalArtifacts[0]!;
 const currentIosSimulator = releaseArtifacts.artifacts.find(
   ({ id }) => id === "ios-simulator-build-ff567a6f",
 )!;
@@ -1986,19 +1987,20 @@ function LandingPage({
             <p className="help">{releaseArtifacts.buildAvailability.android}</p>
           </article>
           <article>
-            <span className="download-platform">iPhone and iPad</span>
-            <h3>TestFlight build 6 queued</h3>
+            <span className="download-platform">iPhone</span>
+            <h3>TestFlight build {currentIosIpa.buildNumber} available</h3>
             <p>
-              A signed iPhone and iPad archive was built and verified from
-              commit{" "}
-              <a href="https://github.com/jannis-cmd/openmatch/commit/d6272cfd989d8d5497844dcce11d714fd2b5abb3">
-                d6272cf
+              A signed iPhone archive was built and verified from commit{" "}
+              <a
+                href={`https://github.com/jannis-cmd/openmatch/commit/${currentIosIpa.sourceCommit}`}
+              >
+                {currentIosIpa.sourceCommit.slice(0, 7)}
               </a>
-              . Build 6 is queued with EAS Submit for upload to App Store
-              Connect and internal TestFlight processing. Apple controls later
-              processing and tester availability; this is not a public App Store
-              release. The older unsigned archive below remains available for
-              Mac Simulator testing.
+              . Build {currentIosIpa.buildNumber} is valid and available to the
+              internal TestFlight group. Apple still controls TestFlight and App
+              Store availability; this is not a public App Store release. The
+              older unsigned archive below remains available for Mac Simulator
+              testing.
             </p>
             <a
               className="primary-action download-action"
@@ -2007,7 +2009,7 @@ function LandingPage({
               Download iOS Simulator archive
             </a>
             <span className="pending-action" role="status">
-              Signed and verified · upload queued
+              Valid · internal TestFlight
             </span>
             <p className="help">{releaseArtifacts.buildAvailability.ios}</p>
           </article>

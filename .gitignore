@@ -13,4 +13,6 @@ test-results
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+apps/mobile/credentials.json
+apps/mobile/credentials/
 .DS_Store
