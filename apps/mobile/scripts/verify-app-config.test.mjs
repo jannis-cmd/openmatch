@@ -28,7 +28,7 @@ const pngMetadata = async (relativePath) => {
 test("uses stable production identities without development network exceptions", () => {
   assert.equal(appJson.ios.bundleIdentifier, "org.openmatch.app");
   assert.equal(appJson.android.package, "org.openmatch.app");
-  assert.equal(appJson.android.versionCode, 11);
+  assert.equal(appJson.android.versionCode, 12);
   assert.equal(appJson.scheme, "openmatch");
   assert.equal(appJson.userInterfaceStyle, "light");
   assert.match(appJson.description, /nonprofit, open-source/);

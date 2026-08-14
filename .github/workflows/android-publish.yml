@@ -50,39 +50,45 @@ jobs:
           test -n "$KEYSTORE_BASE64"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/openmatch-upload.jks"
 
-      - name: Align and sign build 11
+      - name: Align and sign build 12
         env:
           KEYSTORE_PASSWORD: ${{ secrets.OPENMATCH_ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.OPENMATCH_ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.OPENMATCH_ANDROID_KEY_PASSWORD }}
+          SOURCE_REVISION: ${{ inputs.source_revision }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
         run: |
           test -n "$KEYSTORE_PASSWORD"
           test -n "$KEY_ALIAS"
           test -n "$KEY_PASSWORD"
+          printf '%s' "$SOURCE_REVISION" | grep -Eq '^[0-9a-f]{40}$'
+          test "$ARTIFACT_NAME" = "openmatch-android-$SOURCE_REVISION"
           BUILD_TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
-          "$BUILD_TOOLS/zipalign" -p -f 4 incoming/app-release.apk openmatch-android-0.1.0-build-11.apk
+          "$BUILD_TOOLS/zipalign" -p -f 4 incoming/app-release.apk openmatch-android-0.1.0-build-12.apk
           "$BUILD_TOOLS/apksigner" sign \
             --ks "$RUNNER_TEMP/openmatch-upload.jks" \
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass "pass:$KEYSTORE_PASSWORD" \
             --key-pass "pass:$KEY_PASSWORD" \
-            openmatch-android-0.1.0-build-11.apk
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs openmatch-android-0.1.0-build-11.apk | tee signing-verification.txt
+            openmatch-android-0.1.0-build-12.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs openmatch-android-0.1.0-build-12.apk | tee signing-verification.txt
           grep -Fq 'c47346d5c2b975888c66a35f6204f918d91bb8c7729fb59f6ca6848d1a63f29d' signing-verification.txt
-          unzip -t openmatch-android-0.1.0-build-11.apk
-          unzip -l openmatch-android-0.1.0-build-11.apk | grep -F 'assets/index.android.bundle'
-          sha256sum openmatch-android-0.1.0-build-11.apk | tee openmatch-android-0.1.0-build-11.sha256
+          unzip -t openmatch-android-0.1.0-build-12.apk
+          unzip -l openmatch-android-0.1.0-build-12.apk | grep -F 'assets/index.android.bundle'
+          unzip -p openmatch-android-0.1.0-build-12.apk assets/app.config > app.config.json
+          jq -e --arg source "$SOURCE_REVISION" '.android.versionCode == 12 and .extra.sourceRevision == $source' app.config.json
+          sha256sum openmatch-android-0.1.0-build-12.apk | tee openmatch-android-0.1.0-build-12.sha256
 
       - name: Publish immutable owner-testing release
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_REVISION: ${{ inputs.source_revision }}
         run: |
-          test "$SOURCE_REVISION" = "be91af3e4a4ed47eebb430d52155a32c2ba181ab"
-          gh release create android-baseline-build-11 \
-            openmatch-android-0.1.0-build-11.apk \
-            openmatch-android-0.1.0-build-11.sha256 \
+          printf '%s' "$SOURCE_REVISION" | grep -Eq '^[0-9a-f]{40}$'
+          gh release create android-baseline-build-12 \
+            openmatch-android-0.1.0-build-12.apk \
+            openmatch-android-0.1.0-build-12.sha256 \
             signing-verification.txt \
             --target "$SOURCE_REVISION" \
-            --title "OpenMatch Android owner build 11" \
-            --notes "Standalone owner-testing APK built from $SOURCE_REVISION. It uses the stable EAS Android signing identity and connects only to the documented private tailnet service. This is not a Google Play release."
+            --title "OpenMatch Android owner build 12" \
+            --notes "Standalone Expo SDK 57 owner-testing APK built from $SOURCE_REVISION. It uses the stable EAS Android signing identity and connects only to the documented private tailnet service. This is not a Google Play release."
