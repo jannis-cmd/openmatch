@@ -86,10 +86,13 @@ not a public App Store release.
 
 Android release profiles now explicitly produce an installable APK for preview
 and an AAB for production, and EAS refuses release work from an uncommitted
-source tree. Local EAS can bypass the hosted Android quota as well, but this Mac
-does not yet have Java or the Android SDK. The account owner must review and
-accept Google's SDK agreement while installing that toolchain; automation does
-not accept it for them.
+source tree. Temurin Java 17 is installed on the build Mac. Current owner APK
+build 11 was compiled on GitHub's licensed Android runner, signed with the
+stable EAS identity from encrypted repository secrets, independently
+re-downloaded and verified, and published at the immutable
+`android-baseline-build-11` GitHub release. It remains a private-tailnet owner
+build, not a Google Play release; the production AAB, Play Console account and
+declarations, tester track, and store review are still outstanding.
 
 An executable local-release preflight checks both public HTTPS origins, the
 full embedded source revision, and platform tools before a build begins. The

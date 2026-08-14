@@ -1,13 +1,45 @@
 # Verified mobile artifacts
 
 This file records reproducible provenance for archived owner-testing artifacts.
-Every listed binary is an immutable source snapshot. The newest Simulator
-archive is built from the repository revision named below; older Android and
-iOS artifacts remain explicitly archived. None is an app-store approval or a
-claim of production readiness. The same facts are published in
+Every listed binary is an immutable source snapshot. Android build 11 and iOS
+build 8 are the current owner-testing baselines; older Android and iOS
+artifacts remain explicitly archived. Neither current build is an app-store
+approval or a claim of production readiness. The same facts are published in
 [`RELEASE_ARTIFACTS.json`](./RELEASE_ARTIFACTS.json) for machine verification.
 
 ## OpenMatch 0.1.0
+
+### Signed Android APK — build 11
+
+- Purpose: direct installation for private owner testing
+- Source commit: `be91af3e4a4ed47eebb430d52155a32c2ba181ab`
+- Package: `org.openmatch.app`
+- Version: `0.1.0` (`versionCode` 11)
+- Release: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-11>
+- APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-11/openmatch-android-0.1.0-build-11.apk>
+- Build workflow: <https://github.com/jannis-cmd/openmatch/actions/runs/31812993620>
+- Signing/release workflow: <https://github.com/jannis-cmd/openmatch/actions/runs/31816671556>
+- Size: 97,120,319 bytes
+- SHA-256: `ac49f3625c6ef66fd29aebb48f967e5100078eb2f601a2690550d8036d812a17`
+- Signing certificate SHA-256: `C4:73:46:D5:C2:B9:75:88:8C:66:A3:5F:62:04:F9:18:D9:1B:B8:C7:72:9F:B5:9F:6C:A6:84:8D:1A:63:F2:9D`
+- Availability: public direct download for owner testing; not Google Play
+
+GitHub's licensed Android toolchain built the standalone release APK from the
+exact named commit after the hosted EAS free-plan quota was exhausted. A
+separate least-privilege workflow restored the existing EAS Android signing
+identity from encrypted repository secrets, aligned and signed the APK,
+verified one signer with APK signature schemes v2 and v3, checked the complete
+ZIP archive and embedded JavaScript bundle, and published the APK, checksum,
+and signing report as one immutable release. Re-downloading the public asset
+produced the exact recorded size and checksum; `assets/app.config` records
+versionCode 11 and the complete source revision.
+
+The build includes the current structured profile and photo flow. It connects
+only to the documented private tailnet service, so the Android device must be a
+member of `cheetah-vernier`. Android may require explicit browser permission to
+install an APK. This is not a Google Play release: no production AAB from this
+revision, Play Console enrollment, data-safety declaration, tester track, or
+store review is claimed.
 
 ### Signed iOS IPA — build 8
 
@@ -59,7 +91,7 @@ Xcode's iOS Simulator on a Mac. It is retained as an older independently
 inspectable compilation artifact; signed device build 8 now supersedes it for
 TestFlight owner testing.
 
-### Android direct-install APK — build 10
+### Archived Android direct-install APK — build 10
 
 - Purpose: installation on an Android device for private tailnet testing
 - EAS build: `70822308-3d87-4088-9127-7c944e3f0f77`
@@ -77,21 +109,18 @@ TestFlight owner testing.
   control, and an explicit pending cross-account delivery warning
 
 Android may require permission to install an app delivered by the browser. The
-device must be a member of the `cheetah-vernier` tailnet. This Mac has no
-Android SDK, emulator, or connected Android device, so on-device installation
-and APK signature inspection remain separate validation steps.
+device must be a member of the `cheetah-vernier` tailnet. There was no connected
+Android device for an installation test. This artifact is superseded by
+stable-signed build 11 above.
 
 Build 10 shows durable pending-delivery state on load, manual refresh, and
 foreground return. It does not include later source work such as immediate
 queued-delivery feedback, account security refinements, expiring explicit
 availability, file-based data export, current accessibility changes, or native
-source-revision disclosure. Expo rejected Android build 11 before compilation
-because the account's included Android build quota is exhausted until September
-1, 2026.
-The repository now explicitly pins preview builds to APK and production builds
-to AAB and requires a clean Git commit. A quota-free local EAS build is ready at
-the project level but still needs a compatible JDK and owner-licensed Android
-SDK on this Mac.
+source-revision disclosure. Expo rejected an earlier hosted build-11 attempt
+before compilation because the account's included Android quota was exhausted
+until September 1, 2026. The verified GitHub build and signing path above
+completed build 11 without using that hosted quota.
 
 ### Android Play App Bundle — build 10
 

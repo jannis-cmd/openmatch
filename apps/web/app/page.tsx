@@ -62,8 +62,8 @@ import {
 type View = "today" | "connections" | "preferences" | "profile" | "about";
 type SiteView = "landing" | "sign-in" | "app";
 
-const archivedAndroidApk = releaseArtifacts.artifacts.find(
-  ({ id }) => id === "android-apk-build-10",
+const currentAndroidApk = releaseArtifacts.artifacts.find(
+  ({ id }) => id === "android-apk-build-11",
 )!;
 const currentIosIpa = releaseArtifacts.verifiedLocalArtifacts[0]!;
 const currentIosSimulator = releaseArtifacts.artifacts.find(
@@ -1965,25 +1965,28 @@ function LandingPage({
         <div className="download-grid">
           <article>
             <span className="download-platform">Android</span>
-            <h3>Archived APK · build {archivedAndroidApk.buildNumber}</h3>
+            <h3>Owner build {currentAndroidApk.buildNumber} available</h3>
             <p>
-              This owner-testing APK was built from source commit{" "}
+              This stable-signed APK was built from source commit{" "}
               <a
-                href={`https://github.com/jannis-cmd/openmatch/commit/${archivedAndroidApk.sourceCommit}`}
+                href={`https://github.com/jannis-cmd/openmatch/commit/${currentAndroidApk.sourceCommit}`}
               >
-                {archivedAndroidApk.sourceCommit.slice(0, 7)}
+                {currentAndroidApk.sourceCommit.slice(0, 7)}
               </a>
-              . It predates current availability, export, accessibility, and
-              deployment improvements. Install it only to inspect that older
-              snapshot. The phone must be signed into the{" "}
+              . It includes the current structured profile, profile-photo,
+              account, matching, connection, messaging, safety, export, and
+              transparency flows. The phone must be signed into the{" "}
               <code>cheetah-vernier</code> tailnet.
             </p>
             <a
               className="primary-action download-action"
-              href={archivedAndroidApk.url}
+              href={currentAndroidApk.url}
             >
-              Download archived Android APK
+              Download Android APK
             </a>
+            <span className="pending-action" role="status">
+              Verified · stable signed
+            </span>
             <p className="help">{releaseArtifacts.buildAvailability.android}</p>
           </article>
           <article>

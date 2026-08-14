@@ -43,8 +43,19 @@ test("publishes complete immutable provenance for every mobile artifact", async 
     assert.match(artifact.sha256, /^[0-9a-f]{64}$/);
     assert.ok(Number.isSafeInteger(artifact.sizeBytes));
     assert.ok(artifact.sizeBytes > 0);
-    assert.equal(artifact.status, "archived-source-snapshot");
-    assert.match(artifact.url, /^https:\/\/expo\.dev\/artifacts\/eas\//);
+    if (artifact.id === "android-apk-build-11") {
+      assert.equal(artifact.status, "current-owner-testing-baseline");
+      assert.match(
+        artifact.url,
+        /^https:\/\/github\.com\/jannis-cmd\/openmatch\/releases\/download\//,
+      );
+      assert.match(artifact.releaseUrl, /^https:\/\/github\.com\//);
+      assert.match(artifact.workflowRunUrl, /^https:\/\/github\.com\//);
+      assert.match(artifact.signingCertificateSha256, /^[0-9a-f]{64}$/);
+    } else {
+      assert.equal(artifact.status, "archived-source-snapshot");
+      assert.match(artifact.url, /^https:\/\/expo\.dev\/artifacts\/eas\//);
+    }
     assert.equal(
       artifact.directlyInstallable,
       artifact.platform === "android" && artifact.kind === "apk",
@@ -72,7 +83,8 @@ test("records the current signed iOS artifact without implying public availabili
   await run(git, ["merge-base", "--is-ancestor", ios.sourceCommit, "HEAD"], {
     cwd: new URL("../../..", import.meta.url),
   });
-  assert.match(release.buildAvailability.android, /quota.*September 1, 2026/i);
+  assert.match(release.buildAvailability.android, /Android APK build 11/i);
+  assert.match(release.buildAvailability.android, /not a Google Play release/i);
   assert.match(release.buildAvailability.ios, /Signed iOS IPA build 8/i);
   assert.match(release.buildAvailability.ios, /App Store Connect/i);
   assert.match(

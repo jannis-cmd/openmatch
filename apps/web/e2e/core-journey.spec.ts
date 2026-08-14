@@ -307,9 +307,12 @@ test("first run through a persistent connection and safety action", async ({
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Download archived Android APK" }),
-  ).toHaveAttribute("href", /QgNIPOR4gCsrI0iGhB8Y3wMNZeAWC5hjzdqQyXstxto\.apk/);
-  await expect(page.getByText(/predates current availability/)).toBeVisible();
+    page.getByRole("link", { name: "Download Android APK" }),
+  ).toHaveAttribute(
+    "href",
+    /android-baseline-build-11\/openmatch-android-0\.1\.0-build-11\.apk/,
+  );
+  await expect(page.getByText("Verified · stable signed")).toBeVisible();
   await expect(
     page.getByRole("link", { name: "machine-readable metadata ↗" }),
   ).toHaveAttribute("href", /RELEASE_ARTIFACTS\.json/);

@@ -20,6 +20,22 @@
   ],
   "artifacts": [
     {
+      "id": "android-apk-build-11",
+      "platform": "android",
+      "kind": "apk",
+      "version": "0.1.0",
+      "buildNumber": "11",
+      "sourceCommit": "be91af3e4a4ed47eebb430d52155a32c2ba181ab",
+      "status": "current-owner-testing-baseline",
+      "directlyInstallable": true,
+      "url": "https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-11/openmatch-android-0.1.0-build-11.apk",
+      "releaseUrl": "https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-11",
+      "workflowRunUrl": "https://github.com/jannis-cmd/openmatch/actions/runs/31816671556",
+      "sizeBytes": 97120319,
+      "sha256": "ac49f3625c6ef66fd29aebb48f967e5100078eb2f601a2690550d8036d812a17",
+      "signingCertificateSha256": "c47346d5c2b975888c66a35f6204f918d91bb8c7729fb59f6ca6848d1a63f29d"
+    },
+    {
       "id": "android-apk-build-10",
       "platform": "android",
       "kind": "apk",
@@ -73,7 +89,7 @@
     }
   ],
   "buildAvailability": {
-    "android": "A newer hosted build is blocked by the included EAS Android quota until September 1, 2026. The project now pins preview to APK, production to AAB, and requires a clean commit. A quota-free local build remains gated by owner acceptance of Google's SDK license plus installation of Java and the Android SDK.",
+    "android": "Stable-signed Android APK build 11 is publicly downloadable for private owner testing. It contains the current structured profile and photo flow, embeds its exact source revision, and connects only to the documented tailnet service. The APK is not a Google Play release; a production AAB, Play Console setup, store review, and public service remain outstanding.",
     "ios": "Signed iOS IPA build 8 was produced locally from commit 99d587d, verified, uploaded to App Store Connect, and is VALID and IN_BETA_TESTING for the internal TestFlight group. The build used active Apple distribution credentials and did not consume hosted EAS build quota. It is not a public App Store release."
   }
 }

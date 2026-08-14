@@ -108,13 +108,20 @@ Use this internal build for a small, consented pilot before App Store review.
 
 For an installable Android APK:
 
+- Current owner build: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-11>
+- Direct APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-11/openmatch-android-0.1.0-build-11.apk>
+
+Build 11 is the current stable-signed baseline. Open the APK link on an Android
+device in the same tailnet; Android may require explicit browser permission to
+install it. Its public checksum, signing report, exact source revision, and
+verification record are in [`RELEASE_ARTIFACTS.md`](./RELEASE_ARTIFACTS.md).
+
+For a future hosted preview build, when quota is available:
+
 ```bash
 cd apps/mobile
 eas build --profile preview --platform android
 ```
-
-Open the resulting EAS install URL on an Android device in the same tailnet.
-Android may require explicit permission to install an app from the browser.
 
 The `preview` profile explicitly produces an APK; it does not rely on an
 implicit default. The `production` profile explicitly produces an Android App
@@ -135,12 +142,11 @@ service.
 
 ## Quota-free local Android build
 
-Expo supports the same local EAS path for Android, but the current Mac has no
-Java runtime or Android SDK. The account owner must first review and accept
-Google's Android SDK license while installing Android Studio or the official
-command-line SDK tools; automation must not accept that agreement on their
-behalf. Install the SDK packages requested by Expo/Gradle and a compatible JDK,
-then verify them without exposing credentials:
+Temurin Java 17 is installed on the current Mac. Local EAS additionally needs
+an Android SDK whose license the account owner has reviewed and accepted while
+installing Android Studio or Google's command-line tools. After installing the
+SDK packages requested by Expo/Gradle, verify them without exposing
+credentials:
 
 ```bash
 java -version
@@ -176,6 +182,12 @@ managed Android keystore, but compilation happens on this Mac. Inspect the
 resolved manifest, verify the embedded revision and HTTPS origins, test the APK
 on a real Android device, and record its digest before treating it as a current
 artifact.
+
+Build 11 used an alternative quota-free GitHub path: a licensed hosted runner
+compiled the exact committed source, then a separate workflow restored the
+stable EAS signing identity from encrypted repository secrets, signed and
+verified the APK, and published the immutable release. The secrets remain
+outside Git and are not present in workflow logs or artifacts.
 
 ## TestFlight production build
 
