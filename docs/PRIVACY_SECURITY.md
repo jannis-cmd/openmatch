@@ -4,11 +4,12 @@
 
 Collect only what a current feature requires; state purpose before collection; separate public visibility from processing consent; use coarse location; encrypt in transit and at rest; short retention; audited access; easy export/deletion; no advertising identifiers, contact uploads, data brokers, or cross-service tracking.
 
-The executable release boundary is also published in `docs/PRODUCT_BOUNDARIES.json`. Automated tests reject direct application dependencies and source APIs for advertising, engagement analytics, push notifications, contact import, GPS, camera/photo access, tracking transparency, and service-worker persistence. This proves only that those named capabilities are absent from the current source and resolved permission surface; it does not replace dependency review, traffic inspection, or an independent privacy assessment.
+The executable release boundary is also published in `docs/PRODUCT_BOUNDARIES.json`. Automated tests reject direct application dependencies and source APIs for advertising, engagement analytics, push notifications, contact import, GPS, camera capture, tracking transparency, and service-worker persistence. The sole media exception is the system photo picker used for one optional, client-compressed profile image; microphone, camera, broad legacy external-storage access, image analysis, and photo-based scoring remain absent. This proves only the named source and permission boundaries; it does not replace dependency review, traffic inspection, media abuse review, or an independent privacy assessment.
 
-Gender discovery separates a person's public free-text description and
-self-selected routing groups from their private groups sought. Routing groups
-can overlap and are not treated as identity truth. The service never infers
+Gender discovery separates a person's public structured, multi-select identity
+and optional self-description from self-selected routing groups and private
+groups sought. Routing groups can overlap and are not treated as identity truth.
+The service never infers
 gender or orientation from a name, photo, pronouns, behavior, or another field,
 and never requests sex assigned at birth for matching. New and migrated account
 profiles remain excluded from the directory until the person explicitly

@@ -49,6 +49,15 @@ test("uses stable production identities without development network exceptions",
     configureAndroidBackup: false,
     faceIDPermission: false,
   });
+  const imagePickerPlugin = appJson.plugins.find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-image-picker",
+  );
+  assert.deepEqual(imagePickerPlugin?.[1], {
+    photosPermission:
+      "OpenMatch accesses only the photo you choose for your dating profile.",
+    cameraPermission: false,
+    microphonePermission: false,
+  });
   assert.deepEqual(appJson.android.blockedPermissions.sort(), [
     "android.permission.READ_EXTERNAL_STORAGE",
     "android.permission.SYSTEM_ALERT_WINDOW",

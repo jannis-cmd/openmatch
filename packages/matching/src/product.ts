@@ -19,6 +19,81 @@ export const GENDER_DISCOVERY_GROUPS = [
 ] as const;
 export type GenderDiscoveryGroup = (typeof GENDER_DISCOVERY_GROUPS)[number];
 
+export const GENDER_IDENTITIES = [
+  "woman",
+  "man",
+  "nonbinary",
+  "agender",
+  "genderfluid",
+  "questioning",
+  "self_described",
+] as const;
+export type GenderIdentity = (typeof GENDER_IDENTITIES)[number];
+
+export const PROFILE_VALUES = [
+  "Kindness",
+  "Curiosity",
+  "Community",
+  "Creativity",
+  "Nature",
+  "Independence",
+  "Family",
+  "Growth",
+  "Stability",
+  "Adventure",
+  "Humor",
+  "Care",
+] as const;
+export type ProfileValue = (typeof PROFILE_VALUES)[number];
+
+export const PROFILE_PROMPTS = [
+  "A good Sunday looks like",
+  "Something I care about",
+  "I feel most myself when",
+  "A small thing that matters",
+  "My ideal first meeting",
+  "I’m currently excited about",
+] as const;
+export type ProfilePrompt = (typeof PROFILE_PROMPTS)[number];
+
+export type ProfilePhoto = {
+  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  /** Base64 only. Clients add the data URL prefix when rendering. */
+  data: string;
+};
+
+export const genderIdentityLabel = (identity: GenderIdentity) =>
+  ({
+    woman: "Woman",
+    man: "Man",
+    nonbinary: "Nonbinary",
+    agender: "Agender",
+    genderfluid: "Genderfluid",
+    questioning: "Questioning",
+    self_described: "Self-described",
+  })[identity];
+
+export const profileGenderLabel = (
+  profile: Pick<
+    Profile,
+    "gender" | "genderIdentities" | "genderSelfDescription"
+  >,
+) => {
+  const labels = profile.genderIdentities.map(genderIdentityLabel);
+  if (
+    profile.genderIdentities.includes("self_described") &&
+    profile.genderSelfDescription.trim()
+  )
+    return labels
+      .filter((label) => label !== "Self-described")
+      .concat(profile.genderSelfDescription.trim())
+      .join(", ");
+  return labels.join(", ") || profile.gender;
+};
+
+export const profilePhotoDataUrl = (photo: ProfilePhoto | null | undefined) =>
+  photo ? `data:${photo.mimeType};base64,${photo.data}` : null;
+
 export const POLITE_CLOSE_MESSAGE =
   "Thank you for talking with me. I don’t think this is the connection I’m looking for, so I’m going to close this conversation. I wish you well.";
 
@@ -75,19 +150,23 @@ export type Profile = {
   city: string;
   distanceKm: number;
   pronouns: string;
+  /** Deprecated display fallback retained for build-6 wire compatibility. */
   gender: string;
+  genderIdentities: GenderIdentity[];
+  genderSelfDescription: string;
   genderGroups: GenderDiscoveryGroup[];
   intent: RelationshipIntent;
   readiness: "Ready to meet in person" | "Prefer to chat first";
   bio: string;
   prompt: string;
   promptAnswer: string;
-  values: string[];
+  values: ProfileValue[];
   lifestyle: {
     smoking: "no" | "sometimes";
     children: "want" | "open" | "do not want";
     schedule: "early" | "flexible" | "late";
   };
+  photo: ProfilePhoto | null;
   color: string;
 };
 
@@ -169,6 +248,8 @@ export const demoUser: Profile = {
   distanceKm: 0,
   pronouns: "they/them",
   gender: "Nonbinary",
+  genderIdentities: ["nonbinary"],
+  genderSelfDescription: "",
   genderGroups: ["nonbinary_people"],
   intent: "Long-term relationship",
   readiness: "Prefer to chat first",
@@ -177,6 +258,7 @@ export const demoUser: Profile = {
   promptAnswer: "A long walk, cooking for friends, and nowhere urgent to be.",
   values: ["Kindness", "Curiosity", "Community"],
   lifestyle: { smoking: "no", children: "open", schedule: "early" },
+  photo: null,
   color: "#A8C3B5",
 };
 
@@ -196,7 +278,18 @@ export function validateProfile(value: Profile): Profile {
     typeof value.pronouns !== "string" ||
     value.pronouns.length > 50 ||
     typeof value.gender !== "string" ||
-    value.gender.length > 50 ||
+    value.gender.length > 100 ||
+    !Array.isArray(value.genderIdentities) ||
+    value.genderIdentities.length < 1 ||
+    value.genderIdentities.length > GENDER_IDENTITIES.length ||
+    value.genderIdentities.some(
+      (identity) => !GENDER_IDENTITIES.includes(identity),
+    ) ||
+    new Set(value.genderIdentities).size !== value.genderIdentities.length ||
+    typeof value.genderSelfDescription !== "string" ||
+    value.genderSelfDescription.length > 50 ||
+    (value.genderIdentities.includes("self_described") &&
+      !value.genderSelfDescription.trim()) ||
     !Array.isArray(value.genderGroups) ||
     value.genderGroups.length > GENDER_DISCOVERY_GROUPS.length ||
     value.genderGroups.some(
@@ -239,7 +332,7 @@ export function validateProfile(value: Profile): Profile {
       (item) =>
         typeof item !== "string" ||
         item.trim().length < 1 ||
-        item.trim().length > 40,
+        !PROFILE_VALUES.includes(item),
     ) ||
     new Set(value.values.map((item) => item.trim().toLocaleLowerCase()))
       .size !== value.values.length
@@ -252,7 +345,29 @@ export function validateProfile(value: Profile): Profile {
     !["early", "flexible", "late"].includes(value.lifestyle.schedule)
   )
     throw new RangeError("profile lifestyle is invalid");
-  return value;
+  if (
+    value.photo !== null &&
+    (!value.photo ||
+      !["image/jpeg", "image/png", "image/webp"].includes(
+        value.photo.mimeType,
+      ) ||
+      typeof value.photo.data !== "string" ||
+      value.photo.data.length < 16 ||
+      value.photo.data.length > 600_000 ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(value.photo.data))
+  )
+    throw new RangeError("profile photo is invalid");
+  return {
+    ...value,
+    genderIdentities: [...value.genderIdentities].sort(
+      (left, right) =>
+        GENDER_IDENTITIES.indexOf(left) - GENDER_IDENTITIES.indexOf(right),
+    ),
+    values: [...value.values].sort(
+      (left, right) =>
+        PROFILE_VALUES.indexOf(left) - PROFILE_VALUES.indexOf(right),
+    ),
+  };
 }
 
 export const defaultPreferences: Preferences = {
@@ -331,6 +446,8 @@ export const demoCandidates: Candidate[] = [
       distanceKm: 4,
       pronouns: "she/her",
       gender: "Woman",
+      genderIdentities: ["woman"],
+      genderSelfDescription: "",
       genderGroups: ["women"],
       intent: "Long-term relationship",
       readiness: "Ready to meet in person",
@@ -339,6 +456,7 @@ export const demoCandidates: Candidate[] = [
       promptAnswer: "Building a life that has room for people, not only work.",
       values: ["Kindness", "Community", "Creativity"],
       lifestyle: { smoking: "no", children: "open", schedule: "early" },
+      photo: null,
       color: "#CBAF9C",
     },
     preferences: candidatePreferences({
@@ -363,6 +481,8 @@ export const demoCandidates: Candidate[] = [
       distanceKm: 24,
       pronouns: "he/him",
       gender: "Man",
+      genderIdentities: ["man"],
+      genderSelfDescription: "",
       genderGroups: ["men"],
       intent: "Long-term relationship",
       readiness: "Prefer to chat first",
@@ -371,6 +491,7 @@ export const demoCandidates: Candidate[] = [
       promptAnswer: "I’m outside long enough to forget what time it is.",
       values: ["Curiosity", "Kindness", "Nature"],
       lifestyle: { smoking: "no", children: "want", schedule: "early" },
+      photo: null,
       color: "#A7B5C7",
     },
     preferences: candidatePreferences({
@@ -391,6 +512,8 @@ export const demoCandidates: Candidate[] = [
       distanceKm: 22,
       pronouns: "she/her",
       gender: "Woman",
+      genderIdentities: ["woman"],
+      genderSelfDescription: "",
       genderGroups: ["women"],
       intent: "Long-term, open to short",
       readiness: "Ready to meet in person",
@@ -399,6 +522,7 @@ export const demoCandidates: Candidate[] = [
       promptAnswer: "Remembering what someone takes in their coffee.",
       values: ["Community", "Creativity", "Curiosity"],
       lifestyle: { smoking: "no", children: "open", schedule: "late" },
+      photo: null,
       color: "#D2C59D",
     },
     preferences: candidatePreferences({
@@ -423,6 +547,8 @@ export const demoCandidates: Candidate[] = [
       distanceKm: 52,
       pronouns: "they/them",
       gender: "Nonbinary",
+      genderIdentities: ["nonbinary"],
+      genderSelfDescription: "",
       genderGroups: ["nonbinary_people"],
       intent: "Long-term relationship",
       readiness: "Prefer to chat first",
@@ -432,6 +558,7 @@ export const demoCandidates: Candidate[] = [
         "Coffee and a walk, with permission to keep it short or let it run long.",
       values: ["Kindness", "Curiosity", "Independence"],
       lifestyle: { smoking: "no", children: "do not want", schedule: "late" },
+      photo: null,
       color: "#B5A8BF",
     },
     preferences: candidatePreferences({

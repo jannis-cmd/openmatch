@@ -99,11 +99,12 @@ export default function PrivacyPage() {
           creation time. On iOS and Android, OpenMatch creates the JSON file in
           its private cache for the system share sheet and attempts to delete
           that temporary copy whether sharing succeeds or fails. A destination
-          app controls any copy you choose to save or send. This does not
-          require photo, media-library, or external-storage access. The
-          prototype currently has no application-managed backups; infrastructure
-          and third-party records require a reviewed retention and deletion
-          policy before public launch.
+          app controls any copy you choose to save or send. Separately, choosing
+          a profile photo uses the browser or system photo picker; OpenMatch
+          compresses that selected image and stores it with the public profile.
+          The prototype currently has no application-managed backups;
+          infrastructure and third-party records require a reviewed retention
+          and deletion policy before public launch.
         </p>
 
         <h2>Security and current limits</h2>

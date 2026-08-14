@@ -14,6 +14,30 @@ import { migrateSqlite } from "./migrations.js";
 
 export const APPLICATION_SCHEMA_VERSION = 2;
 
+const legacyGenderFields = (genderValue: unknown) => {
+  const gender = typeof genderValue === "string" ? genderValue.trim() : "";
+  const normalized = gender.toLocaleLowerCase();
+  if (!gender) return { genderIdentities: [], genderSelfDescription: "" };
+  if (normalized === "woman")
+    return { genderIdentities: ["woman" as const], genderSelfDescription: "" };
+  if (normalized === "man")
+    return { genderIdentities: ["man" as const], genderSelfDescription: "" };
+  if (normalized === "nonbinary" || normalized === "non-binary")
+    return {
+      genderIdentities: ["nonbinary" as const],
+      genderSelfDescription: "",
+    };
+  if (normalized === "agender" || normalized === "genderfluid")
+    return {
+      genderIdentities: [normalized as "agender" | "genderfluid"],
+      genderSelfDescription: "",
+    };
+  return {
+    genderIdentities: ["self_described" as const],
+    genderSelfDescription: gender.slice(0, 50),
+  };
+};
+
 export const CONNECTION_OUTCOME_KINDS = [
   "met_in_person",
   "wanted_second_date",
@@ -199,7 +223,12 @@ export class Store {
       "profile",
       JSON.stringify(
         this.accountProfile
-          ? { ...demoUser, gender: "", genderGroups: [] }
+          ? {
+              ...demoUser,
+              gender: "",
+              genderIdentities: [],
+              genderGroups: [],
+            }
           : demoUser,
       ),
     );
@@ -219,7 +248,13 @@ export class Store {
     insert.run("research_consent_receipt", JSON.stringify(null));
     insert.run("directory_consent_receipt", JSON.stringify(null));
     const profile = this.getState<Record<string, unknown>>("profile");
-    if (!("readiness" in profile) || !("gender" in profile))
+    if (
+      !("readiness" in profile) ||
+      !("gender" in profile) ||
+      !("genderIdentities" in profile) ||
+      !("genderSelfDescription" in profile) ||
+      !("photo" in profile)
+    )
       this.setState("profile", {
         ...profile,
         ...(!("readiness" in profile)
@@ -233,6 +268,13 @@ export class Store {
                 genderGroups: demoUser.genderGroups,
               }
           : {}),
+        ...(!("genderIdentities" in profile)
+          ? legacyGenderFields(profile.gender)
+          : {}),
+        ...(!("genderSelfDescription" in profile)
+          ? { genderSelfDescription: "" }
+          : {}),
+        ...(!("photo" in profile) ? { photo: null } : {}),
       });
     const preferences = this.getState<Record<string, unknown>>("preferences");
     if (!("genderGroups" in preferences))
@@ -263,7 +305,19 @@ export class Store {
     return this.getState<Profile>("profile");
   }
   updateProfile(patch: Partial<Profile>) {
-    const next = validateProfile({ ...this.profile(), ...patch, id: "me" });
+    const current = this.profile();
+    const legacyFields =
+      patch.genderIdentities === undefined &&
+      current.genderIdentities.length === 0 &&
+      patch.gender !== undefined
+        ? legacyGenderFields(patch.gender)
+        : {};
+    const next = validateProfile({
+      ...current,
+      ...patch,
+      ...legacyFields,
+      id: "me",
+    });
     this.setState("profile", next);
     this.clearIntroductionBatch();
     return next;
@@ -289,7 +343,7 @@ export class Store {
     const profile = this.profile();
     const preferences = this.preferences();
     return (
-      profile.gender.trim().length > 0 &&
+      profile.genderIdentities.length > 0 &&
       profile.genderGroups.length > 0 &&
       preferences.genderGroups.length > 0
     );
@@ -311,6 +365,9 @@ export class Store {
     const profile = validateProfile({
       ...this.profile(),
       ...command.profile,
+      ...(command.profile.genderIdentities === undefined
+        ? legacyGenderFields(command.profile.gender)
+        : {}),
       id: "me",
     });
     const currentPreferences = this.preferences();
@@ -323,7 +380,7 @@ export class Store {
       },
     });
     if (
-      !profile.gender.trim() ||
+      !profile.genderIdentities.length ||
       !profile.genderGroups.length ||
       !preferences.genderGroups.length
     )

@@ -325,7 +325,20 @@ test("invalid public profile fields are rejected", () => {
     /details/,
   );
   assert.throws(
-    () => validateProfile({ ...demoUser, gender: "x".repeat(51) }),
+    () => validateProfile({ ...demoUser, gender: "x".repeat(101) }),
+    /details/,
+  );
+  assert.throws(
+    () => validateProfile({ ...demoUser, genderIdentities: [] }),
+    /details/,
+  );
+  assert.throws(
+    () =>
+      validateProfile({
+        ...demoUser,
+        genderIdentities: ["self_described"],
+        genderSelfDescription: "",
+      }),
     /details/,
   );
   assert.throws(
@@ -349,6 +362,14 @@ test("invalid public profile fields are rejected", () => {
         values: ["Kindness", "kindness"],
       }),
     /values/,
+  );
+  assert.throws(
+    () =>
+      validateProfile({
+        ...demoUser,
+        photo: { mimeType: "image/jpeg", data: "not base64!" },
+      }),
+    /photo/,
   );
   assert.throws(
     () =>

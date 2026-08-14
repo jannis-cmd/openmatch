@@ -43,10 +43,17 @@ import {
   POLITE_CLOSE_MESSAGE,
   conversationStarter,
   GENDER_DISCOVERY_GROUPS,
+  GENDER_IDENTITIES,
+  genderIdentityLabel,
+  PROFILE_PROMPTS,
+  PROFILE_VALUES,
+  profileGenderLabel,
+  profilePhotoDataUrl,
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
   type GenderDiscoveryGroup,
+  type GenderIdentity,
   type Preferences,
   type Profile,
   type WeightSuggestion,
@@ -836,15 +843,21 @@ function AppExperience({
                       age: profile.age,
                       city: profile.city.trim(),
                       pronouns: profile.pronouns.trim(),
-                      gender: profile.gender.trim(),
+                      gender: profileGenderLabel(profile),
+                      genderIdentities: profile.genderIdentities,
+                      genderSelfDescription:
+                        profile.genderSelfDescription.trim(),
                       genderGroups: profile.genderGroups,
                       intent: profile.intent,
                       readiness: profile.readiness,
                       bio: profile.bio.trim(),
                       prompt: profile.prompt.trim(),
                       promptAnswer: profile.promptAnswer.trim(),
-                      values: profile.values,
+                      values: PROFILE_VALUES.filter((value) =>
+                        profile.values.includes(value),
+                      ),
                       lifestyle: profile.lifestyle,
+                      photo: profile.photo,
                     },
                     preferences,
                     Boolean(authToken && joinDirectory),
@@ -936,9 +949,16 @@ function AppExperience({
                         <div
                           className="portrait"
                           style={{ background: current.profile.color }}
-                          aria-label={`Placeholder portrait for ${current.profile.name}`}
+                          aria-label={`Profile photo for ${current.profile.name}`}
                         >
-                          <span>{current.profile.name.slice(0, 1)}</span>
+                          {profilePhotoDataUrl(current.profile.photo) ? (
+                            <img
+                              src={profilePhotoDataUrl(current.profile.photo)!}
+                              alt={`Profile photo of ${current.profile.name}`}
+                            />
+                          ) : (
+                            <span>{current.profile.name.slice(0, 1)}</span>
+                          )}
                           <div className="distance">
                             {current.profile.distanceBand}
                           </div>
@@ -950,7 +970,8 @@ function AppExperience({
                             </h2>
                             <p>
                               {current.profile.pronouns} ·{" "}
-                              {current.profile.gender} · {current.profile.city}
+                              {profileGenderLabel(current.profile)} ·{" "}
+                              {current.profile.city}
                             </p>
                           </div>
                           <p className="intent">{current.profile.intent}</p>
@@ -2160,14 +2181,14 @@ function SignInPage({
                 : code.includes("invalid_email")
                   ? "Enter a valid email address."
                   : code.includes("common_password")
-                    ? "Choose a less common passphrase."
+                    ? "Choose a less common password."
                     : code.includes("invalid_password")
-                      ? "Use a passphrase between 15 and 128 characters."
+                      ? "Use a password with at least 15 characters."
                       : code.includes("invalid_recovery")
                         ? "The email or unused recovery code was not accepted."
                         : code.includes("password_unchanged")
-                          ? "Choose a new passphrase different from the current one."
-                          : "Email or passphrase was not accepted.",
+                          ? "Choose a new password different from the current one."
+                          : "Email or password was not accepted.",
             );
           } finally {
             setSubmitting(false);
@@ -2179,7 +2200,6 @@ function SignInPage({
             {entryNotice}
           </div>
         )}
-        <p className="landing-eyebrow">Private account</p>
         <h1>
           {mode === "create"
             ? "Create your account."
@@ -2188,11 +2208,9 @@ function SignInPage({
               : "Welcome back."}
         </h1>
         <p>
-          Your private data and conversations stay isolated. After setup, the
-          public profile you choose can appear to mutually eligible active
-          accounts in the same approximate region during an explicit 30-day
-          availability window. OpenMatch does not publish a last-active time and
-          stores a protected passphrase hash—not your passphrase.
+          {mode === "create"
+            ? "Start your OpenMatch profile."
+            : "Sign in to OpenMatch."}
         </p>
         {demoError && (
           <p role="status">{demoError} No connection was attempted.</p>
@@ -2221,7 +2239,7 @@ function SignInPage({
           </>
         )}
         <label htmlFor="sign-in-password">
-          {mode === "recover" ? "New passphrase" : "Passphrase"}
+          {mode === "recover" ? "New password" : "Password"}
         </label>
         <input
           id="sign-in-password"
@@ -2298,6 +2316,23 @@ function Nav({
   );
 }
 
+const prepareProfilePhoto = async (file: File): Promise<Profile["photo"]> => {
+  if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  for (const quality of [0.82, 0.72, 0.62, 0.52]) {
+    const encoded = canvas.toDataURL("image/jpeg", quality).split(",")[1];
+    if (encoded.length <= 600_000)
+      return { mimeType: "image/jpeg", data: encoded };
+  }
+  throw new Error("That image is too large. Choose a smaller photo.");
+};
+
 function MatchingProfileFields({
   value,
   onChange,
@@ -2305,28 +2340,70 @@ function MatchingProfileFields({
   value: Profile;
   onChange: (value: Profile) => void;
 }) {
-  const [valuesText, setValuesText] = useState(value.values.join(", "));
-  const updateValues = (text: string) => {
-    setValuesText(text);
-    const values = text
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .slice(0, 5);
-    onChange({ ...value, values });
-  };
-
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoUrl = profilePhotoDataUrl(value.photo);
   return (
     <>
+      <fieldset>
+        <legend>Profile photo</legend>
+        <div className="photo-editor">
+          <div className="photo-preview" style={{ background: value.color }}>
+            {photoUrl ? (
+              <img src={photoUrl} alt={`Profile preview for ${value.name}`} />
+            ) : (
+              <span>{value.name.slice(0, 1) || "?"}</span>
+            )}
+          </div>
+          <div className="photo-actions">
+            <label className="secondary-action file-action">
+              {photoUrl ? "Replace photo" : "Add photo"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  setPhotoError(null);
+                  void prepareProfilePhoto(file)
+                    .then((photo) => onChange({ ...value, photo }))
+                    .catch((error: unknown) =>
+                      setPhotoError(
+                        error instanceof Error
+                          ? error.message
+                          : "The photo could not be prepared.",
+                      ),
+                    );
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            {photoUrl && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => onChange({ ...value, photo: null })}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+        {photoError && <p role="alert">{photoError}</p>}
+      </fieldset>
       <label>
         Profile prompt
-        <input
+        <select
           value={value.prompt}
-          maxLength={100}
           onChange={(event) =>
             onChange({ ...value, prompt: event.target.value })
           }
-        />
+        >
+          {PROFILE_PROMPTS.map((prompt) => (
+            <option key={prompt} value={prompt}>
+              {prompt}
+            </option>
+          ))}
+        </select>
       </label>
       <label>
         Your answer
@@ -2338,14 +2415,32 @@ function MatchingProfileFields({
           }
         />
       </label>
-      <label>
-        Values <span className="optional">1–5, separated by commas</span>
-        <input
-          value={valuesText}
-          maxLength={210}
-          onChange={(event) => updateValues(event.target.value)}
-        />
-      </label>
+      <fieldset>
+        <legend>Values · choose 1–5</legend>
+        <div className="choice-chip-grid">
+          {PROFILE_VALUES.map((profileValue) => {
+            const checked = value.values.includes(profileValue);
+            return (
+              <label key={profileValue} className="choice-chip">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={!checked && value.values.length >= 5}
+                  onChange={() =>
+                    onChange({
+                      ...value,
+                      values: checked
+                        ? value.values.filter((item) => item !== profileValue)
+                        : [...value.values, profileValue],
+                    })
+                  }
+                />
+                {profileValue}
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
       <label>
         Smoking
         <select
@@ -2404,10 +2499,6 @@ function MatchingProfileFields({
           <option value="late">Usually late</option>
         </select>
       </label>
-      <p className="help">
-        These are matching inputs. They are never inferred from your behavior,
-        and every change takes effect when you save.
-      </p>
     </>
   );
 }
@@ -2446,7 +2537,7 @@ function OnboardingView({
     profile.prompt.trim().length > 0 &&
     profile.promptAnswer.trim().length > 0 &&
     profile.values.length > 0 &&
-    profile.gender.trim().length > 0 &&
+    profile.genderIdentities.length > 0 &&
     profile.genderGroups.length > 0 &&
     preferences.genderGroups.length > 0 &&
     profile.age >= 18 &&
@@ -2463,48 +2554,50 @@ function OnboardingView({
       </p>
       <section className="settings-card">
         <h2>Your public profile</h2>
-        <label>
-          Name
-          <input
-            value={profile.name}
-            maxLength={50}
-            onChange={(event) =>
-              onProfile({ ...profile, name: event.target.value })
-            }
-          />
-        </label>
-        <label>
-          Age
-          <input
-            type="number"
-            min="18"
-            max="120"
-            value={profile.age}
-            onChange={(event) =>
-              onProfile({ ...profile, age: Number(event.target.value) })
-            }
-          />
-        </label>
-        <label>
-          Approximate city or region
-          <input
-            value={profile.city}
-            maxLength={80}
-            onChange={(event) =>
-              onProfile({ ...profile, city: event.target.value })
-            }
-          />
-        </label>
-        <label>
-          Pronouns <span className="optional">optional</span>
-          <input
-            value={profile.pronouns}
-            maxLength={50}
-            onChange={(event) =>
-              onProfile({ ...profile, pronouns: event.target.value })
-            }
-          />
-        </label>
+        <div className="onboarding-profile-grid">
+          <label>
+            Name
+            <input
+              value={profile.name}
+              maxLength={50}
+              onChange={(event) =>
+                onProfile({ ...profile, name: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Age
+            <input
+              type="number"
+              min="18"
+              max="120"
+              value={profile.age}
+              onChange={(event) =>
+                onProfile({ ...profile, age: Number(event.target.value) })
+              }
+            />
+          </label>
+          <label>
+            Approximate city or region
+            <input
+              value={profile.city}
+              maxLength={80}
+              onChange={(event) =>
+                onProfile({ ...profile, city: event.target.value })
+              }
+            />
+          </label>
+          <label>
+            Pronouns <span className="optional">optional</span>
+            <input
+              value={profile.pronouns}
+              maxLength={50}
+              onChange={(event) =>
+                onProfile({ ...profile, pronouns: event.target.value })
+              }
+            />
+          </label>
+        </div>
         <GenderDiscoveryFields value={profile} onChange={onProfile} />
         <label>
           Relationship intention
@@ -2867,21 +2960,56 @@ function GenderDiscoveryFields({
 }) {
   return (
     <fieldset>
-      <legend>Gender and discovery</legend>
-      <label>
-        How you describe your gender
-        <input
-          value={value.gender}
-          maxLength={50}
-          placeholder="For example: woman, man, nonbinary, agender"
-          onChange={(event) =>
-            onChange({ ...value, gender: event.target.value })
-          }
-        />
-      </label>
-      <div className="checkbox-grid">
+      <legend>Gender</legend>
+      <div className="choice-chip-grid">
+        {GENDER_IDENTITIES.map((identity) => {
+          const checked = value.genderIdentities.includes(identity);
+          return (
+            <label key={identity} className="choice-chip">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => {
+                  const genderIdentities = checked
+                    ? value.genderIdentities.filter((item) => item !== identity)
+                    : [...value.genderIdentities, identity];
+                  const next = {
+                    ...value,
+                    genderIdentities,
+                    genderSelfDescription: genderIdentities.includes(
+                      "self_described",
+                    )
+                      ? value.genderSelfDescription
+                      : "",
+                  };
+                  onChange({ ...next, gender: profileGenderLabel(next) });
+                }}
+              />
+              {genderIdentityLabel(identity)}
+            </label>
+          );
+        })}
+      </div>
+      {value.genderIdentities.includes("self_described") && (
+        <label>
+          Your words
+          <input
+            value={value.genderSelfDescription}
+            maxLength={50}
+            onChange={(event) => {
+              const next = {
+                ...value,
+                genderSelfDescription: event.target.value,
+              };
+              onChange({ ...next, gender: profileGenderLabel(next) });
+            }}
+          />
+        </label>
+      )}
+      <p className="field-intro">Who can find you</p>
+      <div className="choice-chip-grid">
         {GENDER_DISCOVERY_GROUPS.map((group) => (
-          <label key={group}>
+          <label key={group} className="choice-chip">
             <input
               type="checkbox"
               checked={value.genderGroups.includes(group)}
@@ -2894,15 +3022,10 @@ function GenderDiscoveryFields({
                 })
               }
             />
-            Include me in discovery for {genderGroupLabel(group).toLowerCase()}
+            {genderGroupLabel(group)}
           </label>
         ))}
       </div>
-      <p className="help">
-        Your description is public to eligible people. Your selected routing
-        groups stay private. Groups may overlap and are not a complete
-        definition of identity. OpenMatch never infers them.
-      </p>
     </fieldset>
   );
 }
@@ -3220,6 +3343,8 @@ type VisibleProfile = Pick<
   | "city"
   | "pronouns"
   | "gender"
+  | "genderIdentities"
+  | "genderSelfDescription"
   | "intent"
   | "readiness"
   | "bio"
@@ -3227,6 +3352,7 @@ type VisibleProfile = Pick<
   | "promptAnswer"
   | "values"
   | "lifestyle"
+  | "photo"
 >;
 
 const smokingDisclosure = (value: Profile["lifestyle"]["smoking"]) =>
@@ -3269,7 +3395,7 @@ function PublicProfilePreview({
       </h3>
       <p className="profile-meta">
         {profile.pronouns || "Pronouns not shown"} ·{" "}
-        {profile.gender || "Gender description not set"} ·{" "}
+        {profileGenderLabel(profile) || "Gender not set"} ·{" "}
         {profile.city || "Approximate region not set"}
       </p>
       <p className="intent">{profile.intent}</p>
@@ -3454,7 +3580,7 @@ function ProfileView({
     draft.prompt.trim().length > 0 &&
     draft.promptAnswer.trim().length > 0 &&
     draft.values.length > 0 &&
-    draft.gender.trim().length > 0 &&
+    draft.genderIdentities.length > 0 &&
     draft.genderGroups.length > 0 &&
     draft.age >= 18 &&
     draft.age <= 120;
@@ -3496,15 +3622,20 @@ function ProfileView({
                       age: draft.age,
                       city: draft.city.trim(),
                       pronouns: draft.pronouns.trim(),
-                      gender: draft.gender.trim(),
+                      gender: profileGenderLabel(draft),
+                      genderIdentities: draft.genderIdentities,
+                      genderSelfDescription: draft.genderSelfDescription.trim(),
                       genderGroups: draft.genderGroups,
                       intent: draft.intent,
                       readiness: draft.readiness,
                       bio: draft.bio.trim(),
                       prompt: draft.prompt.trim(),
                       promptAnswer: draft.promptAnswer.trim(),
-                      values: draft.values,
+                      values: PROFILE_VALUES.filter((value) =>
+                        draft.values.includes(value),
+                      ),
                       lifestyle: draft.lifestyle,
+                      photo: draft.photo,
                     });
                     setEditing(false);
                   } catch {
@@ -4092,7 +4223,7 @@ function ProfileView({
                 (!directoryParticipationIsActive(directoryConsent) &&
                   ((Boolean(emailVerification?.deliveryConfigured) &&
                     !emailVerification?.verifiedAt) ||
-                    !profile.gender.trim() ||
+                    !profile.genderIdentities.length ||
                     profile.genderGroups.length === 0 ||
                     !genderPreferencesConfigured))
               }
@@ -4125,12 +4256,12 @@ function ProfileView({
           {directoryActionError && <p role="alert">{directoryActionError}</p>}
           <p className="help" role="status">
             {directoryParticipationIsActive(directoryConsent) &&
-            (!profile.gender.trim() ||
+            (!profile.genderIdentities.length ||
               profile.genderGroups.length === 0 ||
               !genderPreferencesConfigured)
               ? "Participation is recorded, but you are excluded from matching until you finish gender discovery in Profile and Preferences."
               : !directoryParticipationIsActive(directoryConsent) &&
-                  (!profile.gender.trim() ||
+                  (!profile.genderIdentities.length ||
                     profile.genderGroups.length === 0 ||
                     !genderPreferencesConfigured)
                 ? "Finish gender discovery in Profile and Preferences before joining account matching."

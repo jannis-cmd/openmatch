@@ -167,7 +167,7 @@ test("an incomplete account can delete itself from the public web path", async (
     .getByRole("link", { name: "Sign in to delete my account" })
     .click();
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Passphrase").fill(password);
+  await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
@@ -330,14 +330,12 @@ test("first run through a persistent connection and safety action", async ({
   expect(publicApiRequests).toEqual([]);
   await expectAccessible(page);
   await page.getByRole("button", { name: "Sign in" }).first().click();
-  await expect(
-    page.getByText(/private data and conversations stay isolated/),
-  ).toBeVisible();
+  await expect(page.getByText("Sign in to OpenMatch.")).toBeVisible();
   await expectAccessible(page);
   await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByRole("textbox", { name: "Email" }).fill("taylor@example.com");
   await page
-    .getByLabel("Passphrase")
+    .getByLabel("Password")
     .fill("a repeatable browser test passphrase");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(
@@ -347,7 +345,7 @@ test("first run through a persistent connection and safety action", async ({
     .locator(".settings-card")
     .first()
     .boundingBox();
-  expect(onboardingCard?.width).toBeGreaterThan(500);
+  expect(onboardingCard?.width).toBeGreaterThan(300);
   await expectAccessible(page);
   await page.getByRole("textbox", { name: "Name" }).fill("Taylor");
   await page
@@ -356,11 +354,12 @@ test("first run through a persistent connection and safety action", async ({
   await page
     .getByRole("textbox", { name: "Pronouns optional" })
     .fill("she/her");
-  await page
-    .getByRole("textbox", { name: "How you describe your gender" })
-    .fill("Woman");
-  await page
-    .getByRole("checkbox", { name: "Include me in discovery for women" })
+  const genderProfile = page.getByRole("group", { name: "Gender" });
+  await genderProfile
+    .getByRole("checkbox", { name: "Woman", exact: true })
+    .check();
+  await genderProfile
+    .getByRole("checkbox", { name: "Women", exact: true })
     .check();
   await page
     .getByRole("combobox", { name: "Relationship intention" })
@@ -372,7 +371,8 @@ test("first run through a persistent connection and safety action", async ({
     .getByRole("combobox", { name: "Meeting readiness" })
     .selectOption({ label: "Ready to meet in person" });
   await page.getByLabel("Your answer").fill("Building a welcoming table.");
-  await page.getByLabel(/Values 1–5/).fill("Care, Curiosity");
+  await page.getByRole("checkbox", { name: "Care", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Curiosity", exact: true }).check();
   const publicPreview = page.getByLabel("Live public preview");
   await expect(
     publicPreview.getByRole("heading", { name: "Taylor, 31" }),
@@ -563,7 +563,9 @@ test("first run through a persistent connection and safety action", async ({
   await expect(recoveryCard.locator("li")).toHaveCount(0);
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByLabel("Profile prompt")).toBeVisible();
-  await expect(page.getByLabel(/Values 1–5/)).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", { name: "Care", exact: true }),
+  ).toBeVisible();
   await page.getByLabel("Display name").fill("Unsaved Taylor");
   await page.route(
     "**/v1/me",

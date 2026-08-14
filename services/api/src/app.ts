@@ -45,13 +45,13 @@ const send = (response: ServerResponse, status: number, body: unknown) => {
   });
   response.end(status === 204 ? undefined : JSON.stringify(body));
 };
-const readJson = async (request: IncomingMessage) => {
+const readJson = async (request: IncomingMessage, maximumBytes = 64 * 1024) => {
   const chunks: Buffer[] = [];
   let bytes = 0;
   for await (const chunk of request) {
     const buffer = Buffer.from(chunk);
     bytes += buffer.length;
-    if (bytes > 64 * 1024) throw new RangeError("request body is too large");
+    if (bytes > maximumBytes) throw new RangeError("request body is too large");
     chunks.push(buffer);
   }
   return chunks.length
@@ -1165,7 +1165,9 @@ export function createApp(
           response,
           200,
           store.updateProfile(
-            (await readJson(request)) as Parameters<Store["updateProfile"]>[0],
+            (await readJson(request, 700 * 1024)) as Parameters<
+              Store["updateProfile"]
+            >[0],
           ),
         );
       if (request.method === "GET" && url.pathname === "/v1/preferences")
@@ -1231,7 +1233,7 @@ export function createApp(
       if (request.method === "GET" && url.pathname === "/v1/onboarding")
         return send(response, 200, { complete: store.onboardingComplete() });
       if (request.method === "POST" && url.pathname === "/v1/setup") {
-        const body = (await readJson(request)) as SetupCommand;
+        const body = (await readJson(request, 700 * 1024)) as SetupCommand;
         if (
           body.joinDirectory === true &&
           accountSession &&

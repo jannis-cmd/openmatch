@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.1.0",
   "status": "local-prototype",
-  "updated": "2026-08-13",
+  "updated": "2026-08-14",
   "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
@@ -146,6 +146,8 @@
         "distanceKm",
         "pronouns",
         "gender",
+        "genderIdentities[]",
+        "genderSelfDescription",
         "genderGroups[]",
         "intent",
         "readiness",
@@ -156,9 +158,11 @@
         "lifestyle.smoking",
         "lifestyle.children",
         "lifestyle.schedule",
+        "photo.mimeType",
+        "photo.data",
         "color"
       ],
-      "disclosure": "For fictional demo candidates, distanceKm is converted to a public distance band. For account-to-account testing, only accounts with exactly matching normalized self-entered city/region text are considered and the client receives 'Same approximate region'; no distance is calculated. The person's free-text gender description is public to eligible candidates; their self-selected, potentially overlapping routing groups are processed only for reciprocal eligibility and are removed from introduction/connection payloads. OpenMatch never infers either. The other chosen profile fields are public after completed setup while Active. Preferences and decisions are not profile fields."
+      "disclosure": "For fictional demo candidates, distanceKm is converted to a public distance band. For account-to-account testing, only accounts with exactly matching normalized self-entered city/region text are considered and the client receives 'Same approximate region'; no distance is calculated. Gender identities use stable user-selected categories; optional self-description is public. Private, potentially overlapping routing groups are processed only for reciprocal eligibility and removed from introduction/connection payloads. Values and matching-related lifestyle fields use stable presets rather than arbitrary text. One optional JPEG, PNG, or WebP profile photo is compressed on the client, limited to 600,000 base64 characters, stored with the profile, included in personal export, and shown only wherever the public profile is disclosed. The app does not analyze the image or infer identity, attractiveness, safety, or preferences from it. The other chosen profile fields are public after completed setup while Active. Preferences and decisions are not profile fields."
     },
     {
       "id": "preferences",

@@ -2025,6 +2025,8 @@ test("the public data inventory covers every current storage and export field", 
       "distanceKm",
       "pronouns",
       "gender",
+      "genderIdentities[]",
+      "genderSelfDescription",
       "genderGroups[]",
       "intent",
       "readiness",
@@ -2035,6 +2037,8 @@ test("the public data inventory covers every current storage and export field", 
       "lifestyle.smoking",
       "lifestyle.children",
       "lifestyle.schedule",
+      "photo.mimeType",
+      "photo.data",
       "color",
     ],
     preferences: [
@@ -2194,6 +2198,10 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
             prompt: "Something I value",
             promptAnswer: "Making time for people.",
             values: ["Care", "Curiosity"],
+            photo: {
+              mimeType: "image/png",
+              data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            },
             lifestyle: {
               smoking: "no",
               children: "want",
@@ -2216,7 +2224,9 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     const me = (await (await request("/v1/me")).json()) as Profile;
     assert.equal(me.bio, "A newly edited biography.");
     assert.equal(me.promptAnswer, "Making time for people.");
-    assert.deepEqual(me.values, ["Care", "Curiosity"]);
+    assert.deepEqual(me.values, ["Curiosity", "Care"]);
+    assert.equal(me.photo?.mimeType, "image/png");
+    assert.match(me.photo?.data ?? "", /^iVBOR/);
     assert.equal(me.lifestyle.schedule, "flexible");
     await request("/v1/preferences", {
       method: "PATCH",

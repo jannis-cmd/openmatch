@@ -16,6 +16,14 @@
           "faceIDPermission": false
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "OpenMatch accesses only the photo you choose for your dating profile.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
       "expo-sharing"
     ],
     "ios": {

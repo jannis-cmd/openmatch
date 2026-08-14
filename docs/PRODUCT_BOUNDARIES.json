@@ -1,11 +1,12 @@
 {
   "schemaVersion": "1.0.0",
-  "updated": "2026-08-13",
+  "updated": "2026-08-14",
   "objective": "Useful introductions that help people leave the app, never engagement or revenue extraction.",
   "states": {
     "forbidden_by_mission": "The capability conflicts with the nonprofit product objective and must not ship.",
     "absent_until_review": "The capability is not implemented and may be proposed only after the named safety, privacy, and inclusion review.",
-    "intentionally_absent": "The capability is unnecessary for the current product and is deliberately not implemented."
+    "intentionally_absent": "The capability is unnecessary for the current product and is deliberately not implemented.",
+    "implemented_with_limits": "The capability is implemented only inside the published narrow technical and product limits."
   },
   "capabilities": [
     {
@@ -39,10 +40,10 @@
       "reason": "The current prototype uses self-entered approximate region text; any coarse-region replacement needs privacy and safety review."
     },
     {
-      "id": "camera_and_profile_photos",
-      "state": "absent_until_review",
-      "userFacing": "No camera, photo-library, biometric, beauty-score, or image-analysis capability in the executable prototype.",
-      "reason": "Media needs consent, secure processing, abuse operations, accessibility, outing-risk, and inclusion decisions before implementation."
+      "id": "profile_photo",
+      "state": "implemented_with_limits",
+      "userFacing": "One optional user-selected profile photo is compressed locally, shown only with the public profile, and removable at any time.",
+      "reason": "A recognizable photo is core dating-app utility, while one bounded image avoids a media feed. Camera capture, image analysis, face recognition, biometric verification, beauty scoring, and photo-based matching remain absent. Photo consent, moderation, outing risk, and secure production media storage still require review before a real-person pilot."
     },
     {
       "id": "presence_and_receipts",
@@ -81,7 +82,6 @@
       "expo-location",
       "expo-contacts",
       "expo-camera",
-      "expo-image-picker",
       "expo-tracking-transparency"
     ],
     "forbiddenSourceFragments": [
@@ -92,7 +92,6 @@
       "expo-location",
       "expo-contacts",
       "expo-camera",
-      "expo-image-picker",
       "expo-tracking-transparency",
       "react-native-google-mobile-ads",
       "firebase/analytics"

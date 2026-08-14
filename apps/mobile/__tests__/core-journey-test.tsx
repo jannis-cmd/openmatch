@@ -660,22 +660,17 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByLabelText("Approximate city or region"),
     "Winterthur",
   );
-  await fireEvent.changeText(
-    screen.getByLabelText("How you describe your gender"),
-    "Woman",
-  );
-  await fireEvent.press(
-    screen.getByText("Include me in discovery for nonbinary people"),
-  );
-  await fireEvent.press(screen.getByText("Include me in discovery for women"));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Nonbinary" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Woman" }));
+  await fireEvent.press(screen.getAllByText("Nonbinary people")[0]);
+  await fireEvent.press(screen.getAllByText("Women")[0]);
   await fireEvent.changeText(
     screen.getByLabelText("Profile prompt answer"),
     "Building a welcoming table.",
   );
-  await fireEvent.changeText(
-    screen.getByLabelText("Profile values separated by commas"),
-    "Care, Curiosity",
-  );
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Kindness" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Community" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Care" }));
   expect(screen.getByLabelText("Live public preview")).toBeTruthy();
   expect(screen.getByText("Taylor, 31")).toBeTruthy();
   expect(screen.getByText("Building a welcoming table.")).toBeTruthy();
@@ -711,7 +706,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   expect(demoSessionRequests).toBe(1);
   expect(profile.promptAnswer).toBe("Building a welcoming table.");
-  expect(profile.values).toEqual(["Care", "Curiosity"]);
+  expect(profile.values).toEqual(["Curiosity", "Care"]);
   expect(profile.gender).toBe("Woman");
   expect(profile.genderGroups).toEqual(["women"]);
   expect(screen.getByText("Mara, 30")).toBeTruthy();
@@ -1058,14 +1053,12 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     screen.getByLabelText("Profile display name"),
     "Taylor Two",
   );
-  await fireEvent.changeText(
-    screen.getByLabelText("Profile values separated by commas"),
-    "Care, Community",
-  );
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Curiosity" }));
+  await fireEvent.press(screen.getByRole("checkbox", { name: "Community" }));
   await fireEvent.press(screen.getByText("Flexible"));
   await fireEvent.press(screen.getByText("Save profile"));
   await waitFor(() => expect(profile.name).toBe("Taylor Two"));
-  expect(profile.values).toEqual(["Care", "Community"]);
+  expect(profile.values).toEqual(["Community", "Care"]);
   expect(profile.lifestyle.schedule).toBe("flexible");
   failNextVisibilitySave = true;
   await fireEvent.press(screen.getByText("Pause introductions"));
@@ -1146,7 +1139,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() => expect(screen.getByText("Welcome back.")).toBeTruthy());
   expect(clearSessionToken).toHaveBeenCalled();
   expect(screen.getByLabelText("Email")).toBeTruthy();
-  expect(screen.getByLabelText("Passphrase")).toBeTruthy();
+  expect(screen.getByLabelText("Password")).toBeTruthy();
   await fireEvent.press(screen.getByText("Use a recovery code"));
   expect(screen.getByText("Recover your account.")).toBeTruthy();
   expect(screen.getByLabelText("Unused recovery code")).toBeTruthy();
@@ -1158,7 +1151,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     "native@example.org",
   );
   await fireEvent.changeText(
-    screen.getByLabelText("Passphrase"),
+    screen.getByLabelText("Password"),
     "a native test passphrase",
   );
   (clearPendingMessageAttempts as jest.Mock).mockClear();

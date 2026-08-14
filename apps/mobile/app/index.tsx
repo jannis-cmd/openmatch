@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AppState,
+  Image,
   Linking,
   Platform,
   Pressable,
@@ -15,6 +16,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Crypto from "expo-crypto";
 import Constants from "expo-constants";
+import * as ImageManipulator from "expo-image-manipulator";
+import * as ImagePicker from "expo-image-picker";
 import { resolveApiConfiguration } from "../lib/api-configuration";
 import { resolveWebConfiguration } from "../lib/web-configuration";
 import { shareDataExport } from "../lib/share-data-export";
@@ -63,10 +66,17 @@ import {
   POLITE_CLOSE_MESSAGE,
   conversationStarter,
   GENDER_DISCOVERY_GROUPS,
+  GENDER_IDENTITIES,
+  genderIdentityLabel,
+  PROFILE_PROMPTS,
+  PROFILE_VALUES,
+  profileGenderLabel,
+  profilePhotoDataUrl,
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
   type GenderDiscoveryGroup,
+  type GenderIdentity,
   type Preferences,
   type Profile,
   type WeightSuggestion,
@@ -323,7 +333,7 @@ export default function App() {
     profileEdit.prompt.trim().length > 0 &&
     profileEdit.promptAnswer.trim().length > 0 &&
     profileEdit.values.length > 0 &&
-    profileEdit.gender.trim().length > 0 &&
+    profileEdit.genderIdentities.length > 0 &&
     profileEdit.genderGroups.length > 0 &&
     profileEdit.age >= 18 &&
     profileEdit.age <= 120;
@@ -707,15 +717,20 @@ export default function App() {
           age: profile.age,
           city: profile.city.trim(),
           pronouns: profile.pronouns.trim(),
-          gender: profile.gender.trim(),
+          gender: profileGenderLabel(profile),
+          genderIdentities: profile.genderIdentities,
+          genderSelfDescription: profile.genderSelfDescription.trim(),
           genderGroups: profile.genderGroups,
           intent: profile.intent,
           readiness: profile.readiness,
           bio: profile.bio.trim(),
           prompt: profile.prompt.trim(),
           promptAnswer: profile.promptAnswer.trim(),
-          values: profile.values,
+          values: PROFILE_VALUES.filter((value) =>
+            profile.values.includes(value),
+          ),
           lifestyle: profile.lifestyle,
+          photo: profile.photo,
         },
         preferences,
         accessMode === "account" && directoryAccepted,
@@ -1069,14 +1084,14 @@ export default function App() {
                   disabled:
                     (Boolean(emailVerification?.deliveryConfigured) &&
                       !emailVerification?.verifiedAt) ||
-                    !profile.gender.trim() ||
+                    !profile.genderIdentities.length ||
                     !profile.genderGroups.length ||
                     !preferences.genderGroups.length,
                 }}
                 disabled={
                   (Boolean(emailVerification?.deliveryConfigured) &&
                     !emailVerification?.verifiedAt) ||
-                  !profile.gender.trim() ||
+                  !profile.genderIdentities.length ||
                   !profile.genderGroups.length ||
                   !preferences.genderGroups.length
                 }
@@ -1118,7 +1133,7 @@ export default function App() {
                 !profile.prompt.trim() ||
                 !profile.promptAnswer.trim() ||
                 !profile.values.length ||
-                !profile.gender.trim() ||
+                !profile.genderIdentities.length ||
                 !profile.genderGroups.length ||
                 !preferences.genderGroups.length ||
                 !adultConfirmed ||
@@ -1322,9 +1337,19 @@ export default function App() {
                       { backgroundColor: current.profile.color },
                     ]}
                   >
-                    <Text style={styles.initial}>
-                      {current.profile.name[0]}
-                    </Text>
+                    {profilePhotoDataUrl(current.profile.photo) ? (
+                      <Image
+                        source={{
+                          uri: profilePhotoDataUrl(current.profile.photo)!,
+                        }}
+                        accessibilityLabel={`Profile photo of ${current.profile.name}`}
+                        style={styles.portraitImage}
+                      />
+                    ) : (
+                      <Text style={styles.initial}>
+                        {current.profile.name[0]}
+                      </Text>
+                    )}
                     <Text style={styles.distance}>
                       {current.profile.distanceBand}
                     </Text>
@@ -1334,7 +1359,8 @@ export default function App() {
                       {current.profile.name}, {current.profile.age}
                     </Text>
                     <Text style={styles.meta}>
-                      {current.profile.pronouns} · {current.profile.gender} ·{" "}
+                      {current.profile.pronouns} ·{" "}
+                      {profileGenderLabel(current.profile)} ·{" "}
                       {current.profile.city}
                     </Text>
                     <Text style={styles.intent}>{current.profile.intent}</Text>
@@ -2396,15 +2422,21 @@ export default function App() {
                             age: profileEdit.age,
                             city: profileEdit.city.trim(),
                             pronouns: profileEdit.pronouns.trim(),
-                            gender: profileEdit.gender.trim(),
+                            gender: profileGenderLabel(profileEdit),
+                            genderIdentities: profileEdit.genderIdentities,
+                            genderSelfDescription:
+                              profileEdit.genderSelfDescription.trim(),
                             genderGroups: profileEdit.genderGroups,
                             intent: profileEdit.intent,
                             readiness: profileEdit.readiness,
                             bio: profileEdit.bio.trim(),
                             prompt: profileEdit.prompt.trim(),
                             promptAnswer: profileEdit.promptAnswer.trim(),
-                            values: profileEdit.values,
+                            values: PROFILE_VALUES.filter((value) =>
+                              profileEdit.values.includes(value),
+                            ),
                             lifestyle: profileEdit.lifestyle,
+                            photo: profileEdit.photo,
                           })
                           .then((saved) => {
                             setProfile(saved);
@@ -2986,7 +3018,7 @@ export default function App() {
                       (!directoryParticipationIsActive(directoryConsent) &&
                         ((Boolean(emailVerification?.deliveryConfigured) &&
                           !emailVerification?.verifiedAt) ||
-                          !profile.gender.trim() ||
+                          !profile.genderIdentities.length ||
                           !profile.genderGroups.length ||
                           !preferences.genderGroups.length))
                     }
@@ -3025,12 +3057,12 @@ export default function App() {
                     style={styles.mathNote}
                   >
                     {directoryParticipationIsActive(directoryConsent) &&
-                    (!profile.gender.trim() ||
+                    (!profile.genderIdentities.length ||
                       !profile.genderGroups.length ||
                       !preferences.genderGroups.length)
                       ? "Participation is recorded, but you are excluded from matching until you finish gender discovery in Profile and Preferences."
                       : !directoryParticipationIsActive(directoryConsent) &&
-                          (!profile.gender.trim() ||
+                          (!profile.genderIdentities.length ||
                             !profile.genderGroups.length ||
                             !preferences.genderGroups.length)
                         ? "Finish gender discovery in Profile and Preferences before joining account matching."
@@ -4066,16 +4098,16 @@ function MobileAuthentication({
           : code === "invalid_email"
             ? "Enter a valid email address."
             : code === "common_password"
-              ? "Choose a less common passphrase."
+              ? "Choose a less common password."
               : code === "invalid_password"
-                ? "Use a passphrase between 15 and 128 characters."
+                ? "Use a password with at least 15 characters."
                 : code === "secure_session_storage_unavailable"
                   ? "This device could not protect the session. No account session was kept."
                   : code === "invalid_recovery"
                     ? "The email or unused recovery code was not accepted."
                     : code === "password_unchanged"
-                      ? "Choose a new passphrase different from the current one."
-                      : "Email or passphrase was not accepted.",
+                      ? "Choose a new password different from the current one."
+                      : "Email or password was not accepted.",
       );
     } finally {
       setSubmitting(false);
@@ -4085,7 +4117,6 @@ function MobileAuthentication({
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.authPage}>
         <Text style={styles.brand}>OpenMatch</Text>
-        <Text style={styles.eyebrow}>Private account</Text>
         <Text style={styles.title}>
           {mode === "create"
             ? "Create your account."
@@ -4094,10 +4125,9 @@ function MobileAuthentication({
               : "Welcome back."}
         </Text>
         <Text style={styles.subtle}>
-          Your private data and conversations stay isolated. After setup, the
-          public profile you choose can appear to mutually eligible active
-          accounts in the same approximate region. OpenMatch stores a protected
-          passphrase hash—not your passphrase.
+          {mode === "create"
+            ? "Start your OpenMatch profile."
+            : "Sign in to OpenMatch."}
         </Text>
         {notice && <Text style={styles.mathNote}>{notice}</Text>}
         <Text style={styles.setting}>Email</Text>
@@ -4124,10 +4154,10 @@ function MobileAuthentication({
           </>
         )}
         <Text style={styles.setting}>
-          {mode === "recover" ? "New passphrase" : "Passphrase"}
+          {mode === "recover" ? "New password" : "Password"}
         </Text>
         <TextInput
-          accessibilityLabel="Passphrase"
+          accessibilityLabel="Password"
           autoCapitalize="none"
           autoComplete={
             mode === "create" || mode === "recover"
@@ -4917,6 +4947,8 @@ type VisibleProfile = Pick<
   | "city"
   | "pronouns"
   | "gender"
+  | "genderIdentities"
+  | "genderSelfDescription"
   | "intent"
   | "readiness"
   | "bio"
@@ -4924,6 +4956,7 @@ type VisibleProfile = Pick<
   | "promptAnswer"
   | "values"
   | "lifestyle"
+  | "photo"
 >;
 
 const smokingDisclosure = (value: Profile["lifestyle"]["smoking"]) =>
@@ -4975,7 +5008,7 @@ function PublicProfilePreview({
       </Text>
       <Text style={styles.meta}>
         {profile.pronouns || "Pronouns not shown"} ·{" "}
-        {profile.gender || "Gender description not set"} ·{" "}
+        {profileGenderLabel(profile) || "Gender not set"} ·{" "}
         {profile.city || "Approximate region not set"}
       </Text>
       <Text style={styles.intent}>{profile.intent}</Text>
@@ -5018,16 +5051,78 @@ function MatchingProfileFields({
   value: Profile;
   onChange: (value: Profile) => void;
 }) {
-  const [valuesText, setValuesText] = useState(value.values.join(", "));
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoUrl = profilePhotoDataUrl(value.photo);
+  const choosePhoto = async () => {
+    setPhotoError(null);
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setPhotoError("Allow photo access to choose a profile photo.");
+      return;
+    }
+    const selection = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [4, 5],
+      quality: 0.8,
+    });
+    if (selection.canceled) return;
+    const prepared = await ImageManipulator.manipulateAsync(
+      selection.assets[0].uri,
+      [{ resize: { width: 900 } }],
+      {
+        base64: true,
+        compress: 0.68,
+        format: ImageManipulator.SaveFormat.JPEG,
+      },
+    );
+    if (!prepared.base64 || prepared.base64.length > 600_000) {
+      setPhotoError("That photo is too large. Choose a smaller image.");
+      return;
+    }
+    onChange({
+      ...value,
+      photo: { mimeType: "image/jpeg", data: prepared.base64 },
+    });
+  };
   return (
     <View>
+      <Text style={styles.setting}>Profile photo</Text>
+      <View style={styles.photoEditor}>
+        <View style={[styles.photoPreview, { backgroundColor: value.color }]}>
+          {photoUrl ? (
+            <Image
+              source={{ uri: photoUrl }}
+              accessibilityLabel={`Profile preview for ${value.name}`}
+              style={styles.photoImage}
+            />
+          ) : (
+            <Text style={styles.photoInitial}>
+              {value.name.slice(0, 1) || "?"}
+            </Text>
+          )}
+        </View>
+        <View style={styles.photoButtons}>
+          <Action
+            label={photoUrl ? "Replace photo" : "Add photo"}
+            secondary
+            onPress={() => void choosePhoto()}
+          />
+          {photoUrl && (
+            <Action
+              label="Remove"
+              secondary
+              onPress={() => onChange({ ...value, photo: null })}
+            />
+          )}
+        </View>
+      </View>
+      {photoError && <Text style={styles.errorText}>{photoError}</Text>}
       <Text style={styles.setting}>Profile prompt</Text>
-      <TextInput
-        accessibilityLabel="Profile prompt"
+      <ChoiceRows
         value={value.prompt}
-        maxLength={100}
-        onChangeText={(prompt) => onChange({ ...value, prompt })}
-        style={styles.textField}
+        options={PROFILE_PROMPTS.map((prompt) => [prompt, prompt])}
+        onChange={(prompt) => onChange({ ...value, prompt })}
       />
       <Text style={styles.setting}>Your answer</Text>
       <TextInput
@@ -5038,24 +5133,34 @@ function MatchingProfileFields({
         onChangeText={(promptAnswer) => onChange({ ...value, promptAnswer })}
         style={styles.bioInput}
       />
-      <Text style={styles.setting}>Values · 1–5, separated by commas</Text>
-      <TextInput
-        accessibilityLabel="Profile values separated by commas"
-        value={valuesText}
-        maxLength={210}
-        onChangeText={(text) => {
-          setValuesText(text);
-          onChange({
-            ...value,
-            values: text
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean)
-              .slice(0, 5),
-          });
-        }}
-        style={styles.textField}
-      />
+      <Text style={styles.setting}>Values · choose 1–5</Text>
+      <View style={styles.choiceChipGrid}>
+        {PROFILE_VALUES.map((profileValue) => {
+          const checked = value.values.includes(profileValue);
+          const disabled = !checked && value.values.length >= 5;
+          return (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked, disabled }}
+              disabled={disabled}
+              key={profileValue}
+              onPress={() =>
+                onChange({
+                  ...value,
+                  values: checked
+                    ? value.values.filter((item) => item !== profileValue)
+                    : [...value.values, profileValue],
+                })
+              }
+              style={[styles.choiceChip, checked && styles.choiceChipSelected]}
+            >
+              <Text style={checked ? styles.choiceChipTextSelected : undefined}>
+                {profileValue}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
       <Text style={styles.setting}>Smoking</Text>
       <ChoiceRows
         value={value.lifestyle.smoking}
@@ -5100,10 +5205,6 @@ function MatchingProfileFields({
           })
         }
       />
-      <Text style={styles.mathNote}>
-        These are matching inputs. They are never inferred from your behavior,
-        and every change takes effect when you save.
-      </Text>
     </View>
   );
 }
@@ -5177,16 +5278,53 @@ function GenderDiscoveryFields({
 }) {
   return (
     <View>
-      <Text style={styles.setting}>How you describe your gender</Text>
-      <TextInput
-        accessibilityLabel="How you describe your gender"
-        value={value.gender}
-        maxLength={50}
-        placeholder="For example: woman, man, nonbinary, agender"
-        onChangeText={(gender) => onChange({ ...value, gender })}
-        style={styles.textField}
-      />
-      <Text style={styles.setting}>Your discovery groups</Text>
+      <Text style={styles.setting}>Gender</Text>
+      <View style={styles.choiceChipGrid}>
+        {GENDER_IDENTITIES.map((identity) => {
+          const checked = value.genderIdentities.includes(identity);
+          return (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked }}
+              key={identity}
+              onPress={() => {
+                const genderIdentities = checked
+                  ? value.genderIdentities.filter((item) => item !== identity)
+                  : [...value.genderIdentities, identity];
+                const next = {
+                  ...value,
+                  genderIdentities,
+                  genderSelfDescription: genderIdentities.includes(
+                    "self_described",
+                  )
+                    ? value.genderSelfDescription
+                    : "",
+                };
+                onChange({ ...next, gender: profileGenderLabel(next) });
+              }}
+              style={[styles.choiceChip, checked && styles.choiceChipSelected]}
+            >
+              <Text style={checked ? styles.choiceChipTextSelected : undefined}>
+                {genderIdentityLabel(identity)}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {value.genderIdentities.includes("self_described") && (
+        <TextInput
+          accessibilityLabel="Gender in your own words"
+          value={value.genderSelfDescription}
+          maxLength={50}
+          placeholder="Your words"
+          onChangeText={(genderSelfDescription) => {
+            const next = { ...value, genderSelfDescription };
+            onChange({ ...next, gender: profileGenderLabel(next) });
+          }}
+          style={styles.textField}
+        />
+      )}
+      <Text style={styles.setting}>Who can find you</Text>
       {GENDER_DISCOVERY_GROUPS.map((group) => {
         const checked = value.genderGroups.includes(group);
         return (
@@ -5205,18 +5343,10 @@ function GenderDiscoveryFields({
             key={group}
           >
             <Text style={styles.radioMark}>{checked ? "☑" : "☐"}</Text>
-            <Text style={styles.radioLabel}>
-              Include me in discovery for{" "}
-              {genderGroupLabel(group).toLowerCase()}
-            </Text>
+            <Text style={styles.radioLabel}>{genderGroupLabel(group)}</Text>
           </Pressable>
         );
       })}
-      <Text style={styles.mathNote}>
-        Your description is public to eligible people. Your selected routing
-        groups stay private. Groups may overlap and are not a complete
-        definition of identity. OpenMatch never infers them.
-      </Text>
     </View>
   );
 }
@@ -5330,6 +5460,7 @@ const styles = StyleSheet.create({
     borderColor: "#E2E2DC",
   },
   portrait: { height: 300, alignItems: "center", justifyContent: "center" },
+  portraitImage: { width: "100%", height: "100%", resizeMode: "cover" },
   initial: { fontSize: 110, fontWeight: "700", color: "rgba(255,255,255,.7)" },
   distance: {
     position: "absolute",
@@ -5366,6 +5497,43 @@ const styles = StyleSheet.create({
     backgroundColor: "#FAFAF7",
     fontSize: 16,
   },
+  photoEditor: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 10,
+  },
+  photoPreview: {
+    width: 96,
+    height: 120,
+    borderRadius: 18,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoImage: { width: "100%", height: "100%", resizeMode: "cover" },
+  photoInitial: {
+    color: "rgba(255,255,255,.75)",
+    fontSize: 46,
+    fontWeight: "700",
+  },
+  photoButtons: { flex: 1 },
+  choiceChipGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 10,
+  },
+  choiceChip: {
+    borderWidth: 1,
+    borderColor: "#CED1CA",
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: "#FFF",
+  },
+  choiceChipSelected: { backgroundColor: "#173F32", borderColor: "#173F32" },
+  choiceChipTextSelected: { color: "#FFF", fontWeight: "700" },
   radioRow: {
     minHeight: 48,
     flexDirection: "row",
