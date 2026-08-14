@@ -1,26 +1,27 @@
 # Verified mobile artifacts
 
 This file records reproducible provenance for archived owner-testing artifacts.
-Every listed binary is an immutable source snapshot. Android build 11 and iOS
-build 8 are the current owner-testing baselines; older Android and iOS
+Every listed binary is an immutable source snapshot. Android build 12 and iOS
+build 10 are the current owner-testing baselines; older Android and iOS
 artifacts remain explicitly archived. Neither current build is an app-store
 approval or a claim of production readiness. The same facts are published in
 [`RELEASE_ARTIFACTS.json`](./RELEASE_ARTIFACTS.json) for machine verification.
 
 ## OpenMatch 0.1.0
 
-### Signed Android APK — build 11
+### Signed Android APK — build 12
 
 - Purpose: direct installation for private owner testing
-- Source commit: `be91af3e4a4ed47eebb430d52155a32c2ba181ab`
+- Source commit: `260210398014484a4ca69474b5bc81fa9148720f`
 - Package: `org.openmatch.app`
-- Version: `0.1.0` (`versionCode` 11)
-- Release: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-11>
-- APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-11/openmatch-android-0.1.0-build-11.apk>
-- Build workflow: <https://github.com/jannis-cmd/openmatch/actions/runs/31812993620>
-- Signing/release workflow: <https://github.com/jannis-cmd/openmatch/actions/runs/31816671556>
-- Size: 97,120,319 bytes
-- SHA-256: `ac49f3625c6ef66fd29aebb48f967e5100078eb2f601a2690550d8036d812a17`
+- Version: `0.1.0` (`versionCode` 12)
+- Runtime: Expo SDK 57 / React Native 0.86.2 / corrected Hermes `250829098.0.16`
+- Release: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-12>
+- APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-12/openmatch-android-0.1.0-build-12.apk>
+- Build workflow: <https://github.com/jannis-cmd/openmatch/actions/runs/31817416931>
+- Signing/release workflow: <https://github.com/jannis-cmd/openmatch/actions/runs/31819280112>
+- Size: 98,013,247 bytes
+- SHA-256: `dbfe31e424698ab69169761bb815c4a9460ee742323b9dc69d3ffa562b4aa167`
 - Signing certificate SHA-256: `C4:73:46:D5:C2:B9:75:88:8C:66:A3:5F:62:04:F9:18:D9:1B:B8:C7:72:9F:B5:9F:6C:A6:84:8D:1A:63:F2:9D`
 - Availability: public direct download for owner testing; not Google Play
 
@@ -32,7 +33,7 @@ verified one signer with APK signature schemes v2 and v3, checked the complete
 ZIP archive and embedded JavaScript bundle, and published the APK, checksum,
 and signing report as one immutable release. Re-downloading the public asset
 produced the exact recorded size and checksum; `assets/app.config` records
-versionCode 11 and the complete source revision.
+versionCode 12, Expo SDK 57, and the complete source revision.
 
 The build includes the current structured profile and photo flow. It connects
 only to the documented private tailnet service, so the Android device must be a
@@ -41,16 +42,17 @@ install an APK. This is not a Google Play release: no production AAB from this
 revision, Play Console enrollment, data-safety declaration, tester track, or
 store review is claimed.
 
-### Signed iOS IPA — build 8
+### Signed iOS IPA — build 10
 
 - Purpose: internal TestFlight owner testing
-- Source commit: `99d587d80ef4ad9d9da6b3890d3c994ab59d5e83`
+- Source commit: `260210398014484a4ca69474b5bc81fa9148720f`
 - Bundle identifier: `org.openmatch.app`
-- Version: `0.1.0` (`CFBundleVersion` 8)
+- Version: `0.1.0` (`CFBundleVersion` 10)
+- Runtime: Expo SDK 57 / React Native 0.86.2 / corrected Hermes `250829098.0.16`
 - App Store Connect app ID: `6801267398`
-- EAS submission: `c85855b2-aab6-475c-99de-f0d096790fde`
-- Size: 16,954,673 bytes
-- SHA-256: `ea281e4244a7035527409e529c2e4a043c39f8d6f0fa0882258b61488dd759fb`
+- EAS submission: `631d324d-de3f-473c-9bc3-4a3aaaea956e`
+- Size: 17,215,629 bytes
+- SHA-256: `4a9654720b4035e6b234053714aaa00077421295ab669884747352c47c1dec8f`
 - Availability: retained on the owner build Mac and available to the internal
   TestFlight group (`VALID`, `IN_BETA_TESTING`); it is not a public direct
   download
@@ -60,7 +62,8 @@ store review is claimed.
   configuration contains the exact source revision and both intended HTTPS
   origins; App Transport Security has no arbitrary-load or local-network
   exception; `ITSAppUsesNonExemptEncryption=false`; and privacy manifests are
-  present in the app and relevant dependencies.
+  present in the app and relevant dependencies. Expo Doctor passed all 21
+  checks inside the isolated build environment.
 
 Apple still controls TestFlight and App Store availability. This record proves
 what was built, uploaded, processed, and made available internally; it does not
@@ -88,7 +91,7 @@ scientific effectiveness.
 
 This archive cannot run on an iPhone and is not TestFlight-signed. It requires
 Xcode's iOS Simulator on a Mac. It is retained as an older independently
-inspectable compilation artifact; signed device build 8 now supersedes it for
+inspectable compilation artifact; signed device build 10 now supersedes it for
 TestFlight owner testing.
 
 ### Archived Android direct-install APK — build 10
@@ -111,7 +114,7 @@ TestFlight owner testing.
 Android may require permission to install an app delivered by the browser. The
 device must be a member of the `cheetah-vernier` tailnet. There was no connected
 Android device for an installation test. This artifact is superseded by
-stable-signed build 11 above.
+stable-signed build 12 above.
 
 Build 10 shows durable pending-delivery state on load, manual refresh, and
 foreground return. It does not include later source work such as immediate
@@ -119,8 +122,9 @@ queued-delivery feedback, account security refinements, expiring explicit
 availability, file-based data export, current accessibility changes, or native
 source-revision disclosure. Expo rejected an earlier hosted build-11 attempt
 before compilation because the account's included Android quota was exhausted
-until September 1, 2026. The verified GitHub build and signing path above
-completed build 11 without using that hosted quota.
+until September 1, 2026. The verified GitHub build and signing path first
+completed build 11 without using that hosted quota; SDK 57 build 12 now
+supersedes it.
 
 ### Android Play App Bundle — build 10
 
@@ -164,7 +168,7 @@ data-safety declarations, tester setup, and submission have not been performed.
   `ITSAppUsesNonExemptEncryption` is false
 
 This archive cannot run on an iPhone and is not TestFlight-signed. It is an
-older source snapshot retained for provenance; current signed device build 8
+older source snapshot retained for provenance; current signed device build 10
 is available to the internal TestFlight group.
 
 ## Common limits

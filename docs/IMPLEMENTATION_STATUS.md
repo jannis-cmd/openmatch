@@ -78,7 +78,7 @@ cd apps/mobile && pnpm dlx expo-doctor
 
 Apple membership, signing credentials, Xcode, CocoaPods, and Fastlane are
 active on the build Mac. A quota-free local EAS build produced signed iOS IPA
-build 8 from commit `99d587d`; its signature, provisioning, embedded source
+build 10 from commit `2602103` on Expo SDK 57; its signature, provisioning, embedded source
 revision, transport policy, privacy manifests, and SHA-256 digest were checked
 before submission. App Store Connect now reports it `VALID` and
 `IN_BETA_TESTING` for the internal group. This is an owner-testing artifact,
@@ -87,10 +87,10 @@ not a public App Store release.
 Android release profiles now explicitly produce an installable APK for preview
 and an AAB for production, and EAS refuses release work from an uncommitted
 source tree. Temurin Java 17 is installed on the build Mac. Current owner APK
-build 11 was compiled on GitHub's licensed Android runner, signed with the
+build 12 was compiled on GitHub's licensed Android runner from Expo SDK 57, signed with the
 stable EAS identity from encrypted repository secrets, independently
 re-downloaded and verified, and published at the immutable
-`android-baseline-build-11` GitHub release. It remains a private-tailnet owner
+`android-baseline-build-12` GitHub release. It remains a private-tailnet owner
 build, not a Google Play release; the production AAB, Play Console account and
 declarations, tester track, and store review are still outstanding.
 

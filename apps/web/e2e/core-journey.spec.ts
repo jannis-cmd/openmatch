@@ -310,7 +310,7 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("link", { name: "Download Android APK" }),
   ).toHaveAttribute(
     "href",
-    /android-baseline-build-11\/openmatch-android-0\.1\.0-build-11\.apk/,
+    /android-baseline-build-12\/openmatch-android-0\.1\.0-build-12\.apk/,
   );
   await expect(page.getByText("Verified · stable signed")).toBeVisible();
   await expect(

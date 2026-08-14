@@ -3,22 +3,41 @@
   "reviewedAt": "2026-08-14",
   "verifiedLocalArtifacts": [
     {
-      "id": "ios-ipa-build-8",
+      "id": "ios-ipa-build-10",
       "platform": "ios",
       "kind": "ipa",
       "version": "0.1.0",
-      "buildNumber": "8",
-      "sourceCommit": "99d587d80ef4ad9d9da6b3890d3c994ab59d5e83",
+      "buildNumber": "10",
+      "sourceCommit": "260210398014484a4ca69474b5bc81fa9148720f",
       "status": "available-in-internal-testflight",
       "publiclyDownloadable": false,
-      "sizeBytes": 16954673,
-      "sha256": "ea281e4244a7035527409e529c2e4a043c39f8d6f0fa0882258b61488dd759fb",
+      "sizeBytes": 17215629,
+      "sha256": "4a9654720b4035e6b234053714aaa00077421295ab669884747352c47c1dec8f",
       "bundleIdentifier": "org.openmatch.app",
       "ascAppId": "6801267398",
-      "submissionId": "c85855b2-aab6-475c-99de-f0d096790fde"
+      "submissionId": "631d324d-de3f-473c-9bc3-4a3aaaea956e",
+      "expoSdkVersion": "57.0.0"
     }
   ],
   "artifacts": [
+    {
+      "id": "android-apk-build-12",
+      "platform": "android",
+      "kind": "apk",
+      "version": "0.1.0",
+      "buildNumber": "12",
+      "sourceCommit": "260210398014484a4ca69474b5bc81fa9148720f",
+      "status": "current-owner-testing-baseline",
+      "directlyInstallable": true,
+      "url": "https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-12/openmatch-android-0.1.0-build-12.apk",
+      "releaseUrl": "https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-12",
+      "workflowRunUrl": "https://github.com/jannis-cmd/openmatch/actions/runs/31819280112",
+      "buildWorkflowRunUrl": "https://github.com/jannis-cmd/openmatch/actions/runs/31817416931",
+      "sizeBytes": 98013247,
+      "sha256": "dbfe31e424698ab69169761bb815c4a9460ee742323b9dc69d3ffa562b4aa167",
+      "signingCertificateSha256": "c47346d5c2b975888c66a35f6204f918d91bb8c7729fb59f6ca6848d1a63f29d",
+      "expoSdkVersion": "57.0.0"
+    },
     {
       "id": "android-apk-build-11",
       "platform": "android",
@@ -26,7 +45,7 @@
       "version": "0.1.0",
       "buildNumber": "11",
       "sourceCommit": "be91af3e4a4ed47eebb430d52155a32c2ba181ab",
-      "status": "current-owner-testing-baseline",
+      "status": "archived-source-snapshot",
       "directlyInstallable": true,
       "url": "https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-11/openmatch-android-0.1.0-build-11.apk",
       "releaseUrl": "https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-11",
@@ -89,7 +108,7 @@
     }
   ],
   "buildAvailability": {
-    "android": "Stable-signed Android APK build 11 is publicly downloadable for private owner testing. It contains the current structured profile and photo flow, embeds its exact source revision, and connects only to the documented tailnet service. The APK is not a Google Play release; a production AAB, Play Console setup, store review, and public service remain outstanding.",
-    "ios": "Signed iOS IPA build 8 was produced locally from commit 99d587d, verified, uploaded to App Store Connect, and is VALID and IN_BETA_TESTING for the internal TestFlight group. The build used active Apple distribution credentials and did not consume hosted EAS build quota. It is not a public App Store release."
+    "android": "Stable-signed Android APK build 12 is publicly downloadable for private owner testing. It contains the current structured profile and photo flow on Expo SDK 57 with the corrected Hermes runtime, embeds its exact source revision, and connects only to the documented tailnet service. The APK is not a Google Play release; a production AAB, Play Console setup, store review, and public service remain outstanding.",
+    "ios": "Signed iOS IPA build 10 was produced locally from commit 2602103 on Expo SDK 57, verified, uploaded to App Store Connect, and is VALID and IN_BETA_TESTING for the internal TestFlight group. The build used active Apple distribution credentials and did not consume hosted EAS build quota. It is not a public App Store release."
   }
 }

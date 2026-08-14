@@ -23,9 +23,9 @@ contains no endpoint. EAS injects the selected HTTPS origin at build time.
   this listing name can be revised independently of the installed app name.
 - Full Xcode 26.6, its owner-accepted license and first-launch components,
   CocoaPods, and Fastlane are ready on the build Mac.
-- Local EAS produced signed IPA build 8 from commit `99d587d` without consuming
+- Local EAS produced signed IPA build 10 from commit `2602103` on Expo SDK 57 without consuming
   hosted build quota. EAS submission
-  `c85855b2-aab6-475c-99de-f0d096790fde` completed; App Store Connect reports
+  `631d324d-de3f-473c-9bc3-4a3aaaea956e` completed; App Store Connect reports
   the build `VALID` and `IN_BETA_TESTING`.
 - The internal TestFlight group is `Team (Expo)` and includes the owner account.
 - The tailnet beta exposes a prototype privacy notice at
@@ -108,10 +108,10 @@ Use this internal build for a small, consented pilot before App Store review.
 
 For an installable Android APK:
 
-- Current owner build: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-11>
-- Direct APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-11/openmatch-android-0.1.0-build-11.apk>
+- Current owner build: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-12>
+- Direct APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-12/openmatch-android-0.1.0-build-12.apk>
 
-Build 11 is the current stable-signed baseline. Open the APK link on an Android
+Build 12 is the current Expo SDK 57 stable-signed baseline. Open the APK link on an Android
 device in the same tailnet; Android may require explicit browser permission to
 install it. Its public checksum, signing report, exact source revision, and
 verification record are in [`RELEASE_ARTIFACTS.md`](./RELEASE_ARTIFACTS.md).
@@ -183,7 +183,7 @@ resolved manifest, verify the embedded revision and HTTPS origins, test the APK
 on a real Android device, and record its digest before treating it as a current
 artifact.
 
-Build 11 used an alternative quota-free GitHub path: a licensed hosted runner
+Build 12 used an alternative quota-free GitHub path: a licensed hosted runner
 compiled the exact committed source, then a separate workflow restored the
 stable EAS signing identity from encrypted repository secrets, signed and
 verified the APK, and published the immutable release. The secrets remain

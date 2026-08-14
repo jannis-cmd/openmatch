@@ -63,7 +63,7 @@ type View = "today" | "connections" | "preferences" | "profile" | "about";
 type SiteView = "landing" | "sign-in" | "app";
 
 const currentAndroidApk = releaseArtifacts.artifacts.find(
-  ({ id }) => id === "android-apk-build-11",
+  ({ id }) => id === "android-apk-build-12",
 )!;
 const currentIosIpa = releaseArtifacts.verifiedLocalArtifacts[0]!;
 const currentIosSimulator = releaseArtifacts.artifacts.find(
