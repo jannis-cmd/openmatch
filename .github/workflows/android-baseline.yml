@@ -1,0 +1,61 @@
+name: Android baseline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      EXPO_PUBLIC_OPENMATCH_API_URL: https://janniss-macbook-air.cheetah-vernier.ts.net
+      EXPO_PUBLIC_OPENMATCH_WEB_URL: https://janniss-macbook-air.cheetah-vernier.ts.net:8443
+      EAS_BUILD_GIT_COMMIT_HASH: ${{ github.sha }}
+      NODE_ENV: production
+    steps:
+      - name: Check out the exact source revision
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify and build shared packages
+        run: |
+          pnpm --filter @openmatch/mobile release:preflight:android
+          pnpm build:packages
+
+      - name: Generate the Android project
+        working-directory: apps/mobile
+        run: pnpm exec expo prebuild --platform android --no-install --clean
+
+      - name: Build an installable debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload immutable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: openmatch-android-${{ github.sha }}
+          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
