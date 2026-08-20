@@ -22,6 +22,7 @@ This repository is an initial, research-backed specification and executable skel
 - `research/EVIDENCE_REGISTER.md` — evidence, limitations, and product implications
 - `research/LITERATURE_MAP.md` — broad, annotated map of valuable dating research
 - `docs/MATCHING.md` — matching formula and explanation contract
+- `docs/DATA_MODEL.md` — complete versioned dating-data, consent, prediction, and audit contract
 - `docs/ALGORITHM_DECISIONS.md` — evidence, uncertainty, and falsification log for algorithm choices
 - `docs/PRIVACY_SECURITY.md` — data minimization and threat model
 - `docs/ARCHITECTURE.md` — mobile, web, API, and data architecture
@@ -67,6 +68,7 @@ The repository now contains a thin, local-first vertical slice:
 - decision-only preference suggestions that never apply automatically;
 - genuine two-sided eligibility and directed fit from both people's explicit demo preferences;
 - profile and privacy views;
+- a versioned structured dating-data model with per-field importance, private-by-default learning controls, pair-specific prediction/audit records, export, and deletion;
 - self-service JSON export and synchronous local demo-data deletion with a non-retained completion receipt;
 - optional email/passphrase accounts with NIST-aligned length/usability rules, scrypt-protected credentials, primary plus optional backup inbox confirmation, sparse security-change notices to every confirmed address, authenticated passphrase change with complete session rotation, one-time hashed offline recovery codes, expiring opaque sessions, privacy-minimal active-session inspection/revocation, account-isolated SQLite data, and device-secure iOS/Android session restoration;
 - the same shared matching package on web, iOS, Android, and API;

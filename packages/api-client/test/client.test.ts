@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { defaultPreferences, demoUser } from "@openmatch/matching";
+import {
+  defaultDatingDataSettings,
+  defaultPreferences,
+  demoUser,
+} from "@openmatch/matching";
 import {
   ApiError,
   createApiClient,
@@ -867,4 +871,62 @@ test("sends message safety acknowledgement only after client confirmation", asyn
     safetyAcknowledged: true,
     clientRequestId: "75afbb9f-60c8-49be-a8b9-4b3bb2fe6b3f",
   });
+});
+
+test("uses the versioned consent-gated dating data endpoints", async () => {
+  const requests: Array<{ path: string; method: string; body: unknown }> = [];
+  const settings = defaultDatingDataSettings();
+  const client = createApiClient(
+    "http://example.test",
+    withDemoSession(async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      const body = init?.body ? JSON.parse(String(init.body)) : null;
+      requests.push({ path, method: init?.method ?? "GET", body });
+      if (path === "/v1/data-model" && (init?.method ?? "GET") === "GET")
+        return new Response(
+          JSON.stringify({
+            version: settings.version,
+            settings,
+            fieldPolicies: {},
+            prohibitedDerivedScores: [],
+            proposedRankingPolicy: {},
+          }),
+        );
+      return new Response(JSON.stringify(body), { status: 200 });
+    }),
+  );
+  await client.datingDataModel();
+  await client.replaceDatingDataSettings(settings);
+  await client.recordBehaviorEvent({
+    id: "00000000-0000-4000-8000-000000000001",
+    occurredAt: "2026-08-20T12:00:00.000Z",
+    candidateId: "mara",
+    kind: "interested",
+    source: "explicit_action",
+    sessionSequence: 1,
+    dwellTimeBucket: null,
+    viewedPhotoCount: null,
+    bioOpened: null,
+    selectionProbability: 1,
+  });
+  await client.recordInteractionFeedback({
+    id: "00000000-0000-4000-8000-000000000002",
+    connectionId: "connection-mara",
+    recordedAt: "2026-08-20T12:00:00.000Z",
+    metInPerson: true,
+    wantsMoreProfilesLikeThis: null,
+    positiveInteraction: true,
+    wantedFurtherContact: null,
+    unmatchReason: null,
+    freeText: "",
+  });
+  assert.deepEqual(
+    requests.map(({ path, method }) => [method, path]),
+    [
+      ["GET", "/v1/data-model"],
+      ["PATCH", "/v1/data-model"],
+      ["POST", "/v1/data-model/behavior-events"],
+      ["POST", "/v1/data-model/interaction-feedback"],
+    ],
+  );
 });

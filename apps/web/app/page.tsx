@@ -52,6 +52,7 @@ import {
   PRIORITY_LEVELS,
   priorityLabel,
   type Introduction,
+  type DatingDataSettings,
   type GenderDiscoveryGroup,
   type GenderIdentity,
   type Preferences,
@@ -305,6 +306,8 @@ function AppExperience({
   const [transparency, setTransparency] = useState<TransparencyVersion | null>(
     null,
   );
+  const [datingDataSettings, setDatingDataSettings] =
+    useState<DatingDataSettings | null>(null);
   const visibleIntroductions = showSaved ? savedIntroductions : introductions;
   const current = visibleIntroductions[0];
   const connected = connections.length > 0;
@@ -368,6 +371,7 @@ function AppExperience({
         nextNotificationEmail,
         nextAccountDeliveryStatus,
         nextSecurityNotificationDelivery,
+        nextDatingDataModel,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -388,6 +392,7 @@ function AppExperience({
         authToken ? api.notificationEmail() : Promise.resolve(null),
         api.accountDeliveryStatus(),
         authToken ? api.securityNotificationStatus() : Promise.resolve(null),
+        api.datingDataModel(),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -411,6 +416,7 @@ function AppExperience({
       setNotificationEmail(nextNotificationEmail);
       setAccountDeliveryStatus(nextAccountDeliveryStatus);
       setSecurityNotificationDelivery(nextSecurityNotificationDelivery);
+      setDatingDataSettings(nextDatingDataModel.settings);
     } catch {
       setError(
         "OpenMatch could not reach its configured service. Check your connection and retry.",
@@ -1699,6 +1705,11 @@ function AppExperience({
                 <AboutView
                   transparency={transparency}
                   authenticated={Boolean(authToken)}
+                  dataSettings={datingDataSettings}
+                  saveDataSettings={async (settings) => {
+                    const saved = await api.replaceDatingDataSettings(settings);
+                    setDatingDataSettings(saved);
+                  }}
                 />
               )}
             </>
@@ -5403,9 +5414,13 @@ function PastConnectionsView({
 function AboutView({
   transparency,
   authenticated,
+  dataSettings,
+  saveDataSettings,
 }: {
   transparency: TransparencyVersion | null;
   authenticated: boolean;
+  dataSettings: DatingDataSettings | null;
+  saveDataSettings: (settings: DatingDataSettings) => Promise<void>;
 }) {
   return (
     <div className="narrow">
@@ -5468,6 +5483,7 @@ function AboutView({
         )}
       </div>
       <ScoreCalculator />
+      <DataCollectionControls settings={dataSettings} save={saveDataSettings} />
       <section className="transparency-links settings-card">
         <h2>Inspect the work</h2>
         <p>
@@ -5502,6 +5518,13 @@ function AboutView({
           rel="noreferrer"
         >
           Machine-readable data inventory ↗
+        </a>
+        <a
+          href="https://github.com/jannis-cmd/openmatch/blob/main/docs/DATA_MODEL.md"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Complete dating data model ↗
         </a>
         <a
           href="https://github.com/jannis-cmd/openmatch/blob/main/docs/PRODUCT_BOUNDARIES.json"
@@ -5613,6 +5636,119 @@ function SafetySupportCard() {
         victim-support services. Calling or opening another site leaves
         OpenMatch and may appear in device, phone-provider, or website records.
         OpenMatch sends no report or profile data when you use these links.
+      </p>
+    </section>
+  );
+}
+
+function DataCollectionControls({
+  settings,
+  save,
+}: {
+  settings: DatingDataSettings | null;
+  save: (settings: DatingDataSettings) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState<DatingDataSettings | null>(settings);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => setDraft(settings), [settings]);
+  if (!draft)
+    return (
+      <section className="settings-card">
+        <h2>Matching data</h2>
+        <p>Data controls are unavailable while the service is offline.</p>
+      </section>
+    );
+  const toggle = (
+    key:
+      | "behavioralLearning"
+      | "interactionOutcomeLearning"
+      | "activityTiming"
+      | "localBioClassification"
+      | "localMessageClassification",
+  ) =>
+    setDraft({
+      ...draft,
+      collection: {
+        ...draft.collection,
+        [key]: !draft.collection[key],
+      },
+    });
+  const choices = [
+    [
+      "behavioralLearning",
+      "Learn from Interested and Pass",
+      "Keeps explicit choices for pair-specific suggestions. Never changes a preference silently.",
+    ],
+    [
+      "interactionOutcomeLearning",
+      "Learn from voluntary outcomes",
+      "Uses only feedback you choose to provide after a match.",
+    ],
+    [
+      "activityTiming",
+      "Use coarse activity timing",
+      "Uses time buckets, never a movement history or a heavy-user boost.",
+    ],
+    [
+      "localBioClassification",
+      "Suggest interests on this device",
+      "Only categories you confirm may leave the device.",
+    ],
+    [
+      "localMessageClassification",
+      "Local message safety help",
+      "Message content never becomes a matching or engagement score.",
+    ],
+  ] as const;
+  return (
+    <section className="settings-card">
+      <p className="eyebrow">Your control</p>
+      <h2>Matching data</h2>
+      <p>Everything optional starts off. Change only what you want.</p>
+      <div className="data-control-grid">
+        {choices.map(([key, label, description]) => (
+          <label className="data-control-choice" key={key}>
+            <input
+              type="checkbox"
+              checked={draft.collection[key]}
+              onChange={() => {
+                setSaved(false);
+                setError(null);
+                toggle(key);
+              }}
+            />
+            <span>
+              <strong>{label}</strong>
+              <small>{description}</small>
+            </span>
+          </label>
+        ))}
+      </div>
+      <div className="data-actions">
+        <button
+          disabled={saving}
+          onClick={() => {
+            setSaving(true);
+            setSaved(false);
+            setError(null);
+            void save(draft)
+              .then(() => setSaved(true))
+              .catch(() =>
+                setError("These controls could not be saved. Try again."),
+              )
+              .finally(() => setSaving(false));
+          }}
+        >
+          {saving ? "Saving…" : "Save data controls"}
+        </button>
+      </div>
+      {saved && <p role="status">Data controls saved.</p>}
+      {error && <p role="alert">{error}</p>}
+      <p className="help">
+        Research participation is separate in Your profile. Export or delete
+        these records there at any time.
       </p>
     </section>
   );

@@ -74,6 +74,7 @@ import {
   profilePhotoDataUrl,
   PRIORITY_LEVELS,
   priorityLabel,
+  type DatingDataSettings,
   type Introduction,
   type GenderDiscoveryGroup,
   type GenderIdentity,
@@ -277,6 +278,12 @@ export default function App() {
   );
   const [deletionReceipt, setDeletionReceipt] =
     useState<DeletionReceipt | null>(null);
+  const [datingDataSettings, setDatingDataSettings] =
+    useState<DatingDataSettings | null>(null);
+  const [dataSettingsSaving, setDataSettingsSaving] = useState(false);
+  const [dataSettingsNotice, setDataSettingsNotice] = useState<string | null>(
+    null,
+  );
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [conversationDrafts, setConversationDrafts] = useState<
     Record<string, string>
@@ -493,6 +500,7 @@ export default function App() {
         nextNotificationEmail,
         nextAccountDeliveryStatus,
         nextSecurityNotificationDelivery,
+        nextDatingDataModel,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -519,6 +527,7 @@ export default function App() {
         accessMode === "account"
           ? api.securityNotificationStatus()
           : Promise.resolve(null),
+        api.datingDataModel().catch(() => null),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -542,6 +551,8 @@ export default function App() {
       setNotificationEmail(nextNotificationEmail);
       setAccountDeliveryStatus(nextAccountDeliveryStatus);
       setSecurityNotificationDelivery(nextSecurityNotificationDelivery);
+      if (nextDatingDataModel)
+        setDatingDataSettings(nextDatingDataModel.settings);
     } catch {
       setError(
         "OpenMatch could not reach its configured service. Check your connection and retry.",
@@ -3848,6 +3859,97 @@ export default function App() {
               )}
               <MobileScoreCalculator />
               <View style={styles.scoreCard}>
+                <Text style={styles.eyebrow}>Your control</Text>
+                <Text style={styles.name}>Matching data</Text>
+                <Text style={styles.scoreNote}>
+                  Everything optional starts off. Tap only what you want, then
+                  save.
+                </Text>
+                {datingDataSettings ? (
+                  <>
+                    {(
+                      [
+                        [
+                          "behavioralLearning",
+                          "Learn from Interested and Pass",
+                        ],
+                        [
+                          "interactionOutcomeLearning",
+                          "Learn from voluntary outcomes",
+                        ],
+                        ["activityTiming", "Use coarse activity timing"],
+                        [
+                          "localBioClassification",
+                          "Suggest interests on this device",
+                        ],
+                        [
+                          "localMessageClassification",
+                          "Local message safety help",
+                        ],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <Action
+                        key={key}
+                        label={`${datingDataSettings.collection[key] ? "On" : "Off"} · ${label}`}
+                        secondary={!datingDataSettings.collection[key]}
+                        selected={datingDataSettings.collection[key]}
+                        disabled={dataSettingsSaving}
+                        onPress={() => {
+                          setDataSettingsNotice(null);
+                          setDatingDataSettings({
+                            ...datingDataSettings,
+                            collection: {
+                              ...datingDataSettings.collection,
+                              [key]: !datingDataSettings.collection[key],
+                            },
+                          });
+                        }}
+                      />
+                    ))}
+                    <Action
+                      label={
+                        dataSettingsSaving
+                          ? "Saving data controls…"
+                          : "Save data controls"
+                      }
+                      disabled={dataSettingsSaving}
+                      onPress={() => {
+                        setDataSettingsSaving(true);
+                        setDataSettingsNotice(null);
+                        void api
+                          .replaceDatingDataSettings(datingDataSettings)
+                          .then((saved) => {
+                            setDatingDataSettings(saved);
+                            setDataSettingsNotice("Data controls saved.");
+                          })
+                          .catch(() =>
+                            setDataSettingsNotice(
+                              "These controls could not be saved. Try again.",
+                            ),
+                          )
+                          .finally(() => setDataSettingsSaving(false));
+                      }}
+                    />
+                  </>
+                ) : (
+                  <Text style={styles.mathNote}>
+                    These controls require the current service version.
+                  </Text>
+                )}
+                {dataSettingsNotice && (
+                  <Text
+                    accessibilityLiveRegion="polite"
+                    style={styles.mathNote}
+                  >
+                    {dataSettingsNotice}
+                  </Text>
+                )}
+                <Text style={styles.mathNote}>
+                  Message content never becomes a matching score. Research
+                  participation remains separate in Profile.
+                </Text>
+              </View>
+              <View style={styles.scoreCard}>
                 <Text style={styles.name}>Inspect the work</Text>
                 <Text style={styles.scoreNote}>
                   The objective is useful introductions, not engagement.
@@ -3887,6 +3989,15 @@ export default function App() {
                   onPress={() =>
                     void Linking.openURL(
                       "https://github.com/jannis-cmd/openmatch/blob/main/docs/DATA_INVENTORY.json",
+                    )
+                  }
+                />
+                <Action
+                  label="Open complete dating data model"
+                  secondary
+                  onPress={() =>
+                    void Linking.openURL(
+                      "https://github.com/jannis-cmd/openmatch/blob/main/docs/DATA_MODEL.md",
                     )
                   }
                 />

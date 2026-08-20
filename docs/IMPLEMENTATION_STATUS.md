@@ -1,5 +1,11 @@
 # Implementation status
 
+## Versioned dating data model
+
+Implemented in source: structured extended profile attributes, per-field preference/important/dealbreaker controls, explicit visibility, opt-in collection controls, pairwise prediction and recommendation audit contracts, interaction feedback, exploration, safety, versioned persistence, API access, personal export, synchronous deletion, and tests. See `DATA_MODEL.md`.
+
+The current live matcher still uses the smaller published deterministic model. Learned pair probabilities, personality scoring, communication metadata and activity features remain disabled until the research and pilot gates are satisfied.
+
 This repository is a verified pre-alpha development foundation, not a deployable dating service. The narrow local-demo scope is complete enough to extend without replacing its architecture.
 
 ## Implemented and verified

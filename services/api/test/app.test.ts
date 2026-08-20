@@ -12,6 +12,7 @@ import {
   nextWeeklyBatchAt,
   publicWeeklySeed,
   type Profile,
+  type DatingDataSettings,
 } from "@openmatch/matching";
 import { createApp } from "../src/app.ts";
 import {
@@ -1358,6 +1359,18 @@ test("authenticated accounts have hashed credentials and isolated application da
     assert.equal(secondConnections.items[0]?.profile.id, firstId);
     assert.equal(firstConnections.items[0]?.id, secondConnections.items[0]?.id);
     const connectionId = firstConnections.items[0].id;
+    secondStore.db
+      .prepare(
+        "INSERT INTO data_model_records(id,family,subject_id,occurred_at,consent_notice_version,payload_json) VALUES (?,?,?,?,?,?)",
+      )
+      .run(
+        "00000000-0000-4000-8000-000000000099",
+        "feedback",
+        connectionId,
+        "2026-08-20T12:00:00.000Z",
+        "matching-data-controls-1.0",
+        JSON.stringify({ connectionId }),
+      );
     await fetch(base + "/v1/consents/directory", {
       method: "PATCH",
       headers: auth(second.body.token!),
@@ -1595,6 +1608,7 @@ test("authenticated accounts have hashed credentials and isolated application da
     const secondExportAfterDeletion = secondStore.exportData();
     assert.equal(secondExportAfterDeletion.connections.length, 0);
     assert.equal(secondExportAfterDeletion.messages.length, 0);
+    assert.equal(secondExportAfterDeletion.dataModelRecords.length, 0);
     assert.equal(
       secondExportAfterDeletion.decisions.some(
         ({ profileId }) => profileId === firstId,
@@ -1919,7 +1933,7 @@ test("account reset is atomic when storage rejects a deletion", () => {
       .prepare("SELECT COUNT(*) AS count FROM state")
       .get() as { count: number };
     assert.equal(decisionCount.count, 1);
-    assert.equal(stateCount.count, 9);
+    assert.equal(stateCount.count, 10);
   } finally {
     store.close();
   }
@@ -2055,6 +2069,28 @@ test("the public data inventory covers every current storage and export field", 
       "weights.lifestyle",
       "weights.schedule",
     ],
+    datingDataSettings: [
+      "version",
+      "profileAttributes.*",
+      "profileVisibility.*",
+      "discoveryCriteria.*",
+      "collection.behavioralLearning",
+      "collection.interactionOutcomeLearning",
+      "collection.activityTiming",
+      "collection.localBioClassification",
+      "collection.localMessageClassification",
+      "collection.noticeVersion",
+      "collection.updatedAt",
+      "updatedAt",
+    ],
+    dataModelRecords: [
+      "id",
+      "family",
+      "subjectId",
+      "occurredAt",
+      "consentNoticeVersion",
+      "payload.*",
+    ],
     onboarding: ["complete"],
     accountStatus: ["status"],
     deliverySettings: ["batchSize"],
@@ -2127,6 +2163,122 @@ test("the public data inventory covers every current storage and export field", 
     assert.ok(collection.retention, `${collection.id} needs retention`);
     assert.ok(collection.access.length, `${collection.id} needs access roles`);
     assert.deepEqual(collection.fields.sort(), expected[collection.id].sort());
+  }
+});
+
+test("dating data collection is explicit, versioned, exportable, and deletable", async () => {
+  const store = new Store(":memory:");
+  const server = createApp({
+    store,
+    deployedCommit: null,
+    demoSessionsEnabled: true,
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  const headers = await sessionHeaders(base);
+  const request = (path: string, init: RequestInit = {}) =>
+    fetch(base + path, { ...init, headers: { ...headers, ...init.headers } });
+  const event = {
+    id: "00000000-0000-4000-8000-000000000011",
+    occurredAt: "2026-08-20T12:00:00.000Z",
+    candidateId: "mara",
+    kind: "interested",
+    source: "explicit_action",
+    sessionSequence: 1,
+    dwellTimeBucket: null,
+    viewedPhotoCount: null,
+    bioOpened: null,
+    selectionProbability: 1,
+  };
+  try {
+    const description = (await (await request("/v1/data-model")).json()) as {
+      version: string;
+      settings: DatingDataSettings;
+      prohibitedDerivedScores: string[];
+    };
+    assert.equal(description.version, "dating-data-model-1.0");
+    assert.equal(description.settings.collection.behavioralLearning, false);
+    assert.ok(
+      description.prohibitedDerivedScores.includes(
+        "universal_desirability_elo",
+      ),
+    );
+    assert.throws(
+      () =>
+        store.recordPairPrediction({
+          id: "00000000-0000-4000-8000-000000000010",
+          computedAt: "2026-08-20T12:00:00.000Z",
+          expiresAt: "2026-08-21T12:00:00.000Z",
+          personAId: "me",
+          personBId: "mara",
+          modelVersion: "test-model-1",
+          trainingDataNoticeVersion: "matching-data-controls-1.0",
+          probabilityAInterestedInB: 0.7,
+          probabilityBInterestedInA: 0.6,
+          probabilityMutualInterest: 0.42,
+          probabilityConversationGivenMatch: null,
+          probabilityPositiveInteraction: null,
+          uncertainty: 0.3,
+          featureFamiliesUsed: ["explicit_preferences", "behavior"],
+          explanationFeatureIds: ["relationship_forms"],
+        }),
+      /behavioral learning consent/,
+    );
+    const rejected = await request("/v1/data-model/behavior-events", {
+      method: "POST",
+      body: JSON.stringify(event),
+    });
+    assert.equal(rejected.status, 400);
+    description.settings.collection.behavioralLearning = true;
+    description.settings.profileAttributes.languages = [
+      { code: "de-CH", proficiency: "native" },
+    ];
+    description.settings.discoveryCriteria.childrenDesire = {
+      importance: "dealbreaker",
+      accepted: ["want", "open"],
+      relationship: "similarity",
+    };
+    const saved = await request("/v1/data-model", {
+      method: "PATCH",
+      body: JSON.stringify(description.settings),
+    });
+    assert.equal(saved.status, 200);
+    assert.equal(
+      ((await saved.json()) as DatingDataSettings).collection
+        .behavioralLearning,
+      true,
+    );
+    assert.equal(
+      (
+        await request("/v1/data-model/behavior-events", {
+          method: "POST",
+          body: JSON.stringify(event),
+        })
+      ).status,
+      201,
+    );
+    const exported = (await (await request("/v1/me/export")).json()) as {
+      datingDataModel: { settings: DatingDataSettings };
+      dataModelRecords: Array<{ family: string; payload: unknown }>;
+    };
+    assert.equal(
+      exported.datingDataModel.settings.profileAttributes.languages[0]?.code,
+      "de-CH",
+    );
+    assert.equal(exported.dataModelRecords.length, 1);
+    assert.equal(exported.dataModelRecords[0]?.family, "behavior");
+    assert.equal((await request("/v1/me", { method: "DELETE" })).status, 200);
+    assert.equal(store.dataModelRecords().length, 0);
+    assert.equal(
+      store.datingDataSettings().collection.behavioralLearning,
+      false,
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
   }
 });
 
@@ -2415,6 +2567,10 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
           explanation.selectionProbability <= 1,
       ),
     );
+    const maraSelectionProbability = introductions.items.find(
+      ({ profile }) => profile.id === "mara",
+    )?.explanation.selectionProbability;
+    assert.ok(maraSelectionProbability);
     assert.doesNotMatch(introductionsText, /"preferences"/);
     assert.doesNotMatch(introductionsText, /"distanceKm"/);
     assert.match(introductionsText, /"distanceBand":"Within 5 km"/);
@@ -2841,7 +2997,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       };
       savedIntroductions: Array<{ profileId: string }>;
     };
-    assert.equal(dataExport.schemaVersion, "1.1.0");
+    assert.equal(dataExport.schemaVersion, "1.2.0");
     assert.equal(dataExport.algorithmVersion, ALGORITHM_VERSION);
     assert.equal(Number.isNaN(Date.parse(dataExport.exportedAt)), false);
     assert.equal(dataExport.profile.id, "me");
@@ -2851,7 +3007,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(dataExport.preferenceObservations.length, 1);
     assert.equal(
       dataExport.preferenceObservations[0].selectionProbability,
-      1 / 3,
+      maraSelectionProbability,
     );
     assert.deepEqual(
       await (

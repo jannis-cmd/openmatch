@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "status": "local-prototype",
-  "updated": "2026-08-14",
+  "updated": "2026-08-20",
   "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
@@ -185,6 +185,38 @@
         "weights.schedule"
       ],
       "disclosure": "The person sees all of their inputs. Gender-group preferences remain private and are used only as a reciprocal eligibility boundary. Another person's factor trace is private unless that person explicitly shares it."
+    },
+    {
+      "id": "datingDataSettings",
+      "storage": "state.dating_data_settings JSON",
+      "purpose": "Store structured, user-authored profile attributes, per-field discovery importance, and explicit collection controls for the versioned dating data model.",
+      "retention": "prototype",
+      "access": ["person", "service", "operator"],
+      "fields": [
+        "version",
+        "profileAttributes.*",
+        "profileVisibility.*",
+        "discoveryCriteria.*",
+        "collection.behavioralLearning",
+        "collection.interactionOutcomeLearning",
+        "collection.activityTiming",
+        "collection.localBioClassification",
+        "collection.localMessageClassification",
+        "collection.noticeVersion",
+        "collection.updatedAt",
+        "updatedAt"
+      ],
+      "disclosure": "Every optional observation or classification control defaults off. Research participation is governed separately by its dedicated consent receipt, never this settings record. Profile attributes use stable categories plus narrowly bounded self-description. Each discovery criterion is independently not used, a preference, important, or a dealbreaker. The settings endpoint returns the complete field-policy catalogue and explicit prohibited-score list."
+    },
+    {
+      "id": "dataModelRecords",
+      "storage": "data_model_records table with versioned JSON payloads",
+      "purpose": "Retain consent-versioned behavior, outcome, pair-feature, prediction, recommendation, activity, profile-quality, funnel, and reviewed safety records without inventing a universal attractiveness score.",
+      "retention": "By public field policy: rolling 30 or 90 days, connection lifetime, or account deletion; the prototype currently deletes all records synchronously with local-data or account deletion.",
+      "access": ["person", "service", "operator"],
+      "fields": ["id", "family", "subjectId", "occurredAt", "consentNoticeVersion", "payload.*"],
+      "excluded": ["global attractiveness or Elo", "precise location and movement history", "raw verification evidence or biometric templates", "message content as a ranking input", "automatic reach penalty from an unreviewed report"],
+      "disclosure": "Behavior records cannot be accepted before behavioral-learning opt-in; interaction feedback cannot be accepted before outcome-learning opt-in. Predictions are pair-specific, versioned, expiring, uncertain, and include the feature-family and explanation identifiers used. Recommendation records preserve hard-filter reasons, exploration mode, probability, seed, and component scores for auditability."
     },
     {
       "id": "onboarding",

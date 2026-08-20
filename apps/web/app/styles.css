@@ -1691,6 +1691,43 @@ textarea {
   width: 16px !important;
   margin: 0 !important;
 }
+.data-control-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.data-control-choice {
+  display: grid !important;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 14px 16px;
+  border: 1px solid #d7dad4;
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+.data-control-choice:has(input:checked) {
+  border-color: #285945;
+  background: #edf3ee;
+}
+.data-control-choice input {
+  width: 17px !important;
+  margin: 2px 0 0 !important;
+}
+.data-control-choice strong,
+.data-control-choice small {
+  display: block;
+}
+.data-control-choice small {
+  margin-top: 4px;
+  color: #5d625b;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.45;
+}
 .field-intro {
   margin: 20px 0 0;
   font-weight: 680;

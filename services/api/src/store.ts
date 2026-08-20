@@ -1,18 +1,30 @@
 import { DatabaseSync } from "node:sqlite";
 import {
   ALGORITHM_VERSION,
+  DATA_FIELD_POLICIES,
+  DATING_DATA_MODEL_VERSION,
+  PROPOSED_RANKING_POLICY,
   defaultPreferences,
+  defaultDatingDataSettings,
   demoUser,
   suggestPreferenceWeights,
+  validateBehaviorEvent,
+  validateDatingDataSettings,
+  validateInteractionFeedback,
+  validatePairPrediction,
   validatePreferences,
   validateProfile,
+  type BehaviorEvent,
+  type DatingDataSettings,
+  type InteractionFeedback,
+  type PairPrediction,
   type PreferenceObservation,
   type Preferences,
   type Profile,
 } from "@openmatch/matching";
 import { migrateSqlite } from "./migrations.js";
 
-export const APPLICATION_SCHEMA_VERSION = 2;
+export const APPLICATION_SCHEMA_VERSION = 3;
 
 const legacyGenderFields = (genderValue: unknown) => {
   const gender = typeof genderValue === "string" ? genderValue.trim() : "";
@@ -209,6 +221,20 @@ export class Store {
           );
         `);
       },
+      (database) => {
+        database.exec(`
+          CREATE TABLE data_model_records (
+            id TEXT PRIMARY KEY,
+            family TEXT NOT NULL CHECK(family IN ('behavior','match_funnel','communication_metadata','activity','profile_media','profile_quality','pair_feature','context','exposure_audit','prediction','recommendation','feedback','safety')),
+            subject_id TEXT,
+            occurred_at TEXT NOT NULL,
+            consent_notice_version TEXT,
+            payload_json TEXT NOT NULL
+          );
+          CREATE INDEX data_model_records_family_time ON data_model_records(family,occurred_at);
+          CREATE INDEX data_model_records_subject ON data_model_records(subject_id) WHERE subject_id IS NOT NULL;
+        `);
+      },
     ]);
     if (schemaVersion !== APPLICATION_SCHEMA_VERSION)
       throw new Error("application schema version declaration is stale");
@@ -247,6 +273,10 @@ export class Store {
     insert.run("consent_receipt", JSON.stringify(null));
     insert.run("research_consent_receipt", JSON.stringify(null));
     insert.run("directory_consent_receipt", JSON.stringify(null));
+    insert.run(
+      "dating_data_settings",
+      JSON.stringify(defaultDatingDataSettings()),
+    );
     const profile = this.getState<Record<string, unknown>>("profile");
     if (
       !("readiness" in profile) ||
@@ -324,6 +354,141 @@ export class Store {
   }
   preferences() {
     return this.getState<Preferences>("preferences");
+  }
+  datingDataSettings() {
+    return validateDatingDataSettings(
+      this.getState<DatingDataSettings>("dating_data_settings"),
+    );
+  }
+  replaceDatingDataSettings(value: DatingDataSettings) {
+    const next = validateDatingDataSettings({
+      ...value,
+      version: DATING_DATA_MODEL_VERSION,
+      updatedAt: new Date().toISOString(),
+      collection: {
+        ...value.collection,
+        noticeVersion: "matching-data-controls-1.0",
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    this.setState("dating_data_settings", next);
+    this.clearIntroductionBatch();
+    return next;
+  }
+  dataModelDescription() {
+    return {
+      version: DATING_DATA_MODEL_VERSION,
+      settings: this.datingDataSettings(),
+      fieldPolicies: DATA_FIELD_POLICIES,
+      proposedRankingPolicy: PROPOSED_RANKING_POLICY,
+      prohibitedDerivedScores: [
+        "global_attractiveness",
+        "universal_desirability_elo",
+        "message_content_engagement",
+        "unreviewed_report_penalty",
+        "precise_location_or_movement_profile",
+      ],
+    };
+  }
+  private appendDataModelRecord(
+    family:
+      | "behavior"
+      | "match_funnel"
+      | "communication_metadata"
+      | "activity"
+      | "profile_media"
+      | "profile_quality"
+      | "pair_feature"
+      | "context"
+      | "exposure_audit"
+      | "prediction"
+      | "recommendation"
+      | "feedback"
+      | "safety",
+    id: string,
+    subjectId: string | null,
+    occurredAt: string,
+    payload: unknown,
+    consentNoticeVersion: string | null,
+  ) {
+    this.db
+      .prepare(
+        "INSERT INTO data_model_records(id,family,subject_id,occurred_at,consent_notice_version,payload_json) VALUES (?,?,?,?,?,?)",
+      )
+      .run(
+        id,
+        family,
+        subjectId,
+        occurredAt,
+        consentNoticeVersion,
+        JSON.stringify(payload),
+      );
+  }
+  recordBehaviorEvent(value: BehaviorEvent) {
+    const settings = this.datingDataSettings();
+    if (!settings.collection.behavioralLearning)
+      throw new RangeError("behavioral learning consent is required");
+    const event = validateBehaviorEvent(value);
+    this.appendDataModelRecord(
+      "behavior",
+      event.id,
+      event.candidateId,
+      event.occurredAt,
+      event,
+      settings.collection.noticeVersion,
+    );
+    return event;
+  }
+  recordInteractionFeedback(value: InteractionFeedback) {
+    const settings = this.datingDataSettings();
+    if (!settings.collection.interactionOutcomeLearning)
+      throw new RangeError("interaction outcome consent is required");
+    const feedback = validateInteractionFeedback(value);
+    const connectionExists = this.db
+      .prepare("SELECT 1 AS found FROM connections WHERE id = ?")
+      .get(feedback.connectionId) as { found: 1 } | undefined;
+    if (!connectionExists) throw new RangeError("connection does not exist");
+    this.appendDataModelRecord(
+      "feedback",
+      feedback.id,
+      feedback.connectionId,
+      feedback.recordedAt,
+      feedback,
+      settings.collection.noticeVersion,
+    );
+    return feedback;
+  }
+  recordPairPrediction(value: PairPrediction) {
+    const prediction = validatePairPrediction(value);
+    const collection = this.datingDataSettings().collection;
+    if (
+      prediction.featureFamiliesUsed.includes("behavior") &&
+      !collection.behavioralLearning
+    )
+      throw new RangeError("behavioral learning consent is required");
+    if (
+      prediction.featureFamiliesUsed.includes("activity") &&
+      !collection.activityTiming
+    )
+      throw new RangeError("activity timing consent is required");
+    this.appendDataModelRecord(
+      "prediction",
+      prediction.id,
+      prediction.personBId,
+      prediction.computedAt,
+      prediction,
+      collection.noticeVersion,
+    );
+    return prediction;
+  }
+  dataModelRecords() {
+    return (
+      this.db
+        .prepare(
+          "SELECT id,family,subject_id AS subjectId,occurred_at AS occurredAt,consent_notice_version AS consentNoticeVersion,payload_json AS payload FROM data_model_records ORDER BY occurred_at,id",
+        )
+        .all() as Array<Record<string, unknown> & { payload: string }>
+    ).map((row) => ({ ...row, payload: JSON.parse(row.payload) }));
   }
   updatePreferences(patch: Partial<Preferences>) {
     const current = this.preferences();
@@ -918,11 +1083,13 @@ export class Store {
 
   exportData() {
     return {
-      schemaVersion: "1.1.0",
+      schemaVersion: "1.2.0",
       algorithmVersion: ALGORITHM_VERSION,
       exportedAt: new Date().toISOString(),
       profile: this.profile(),
       preferences: this.preferences(),
+      datingDataModel: this.dataModelDescription(),
+      dataModelRecords: this.dataModelRecords(),
       onboardingComplete: this.onboardingComplete(),
       consentReceipt: this.consentReceipt(),
       researchConsentReceipt: this.researchConsentReceipt(),
@@ -987,7 +1154,7 @@ export class Store {
     this.db.exec("BEGIN IMMEDIATE");
     try {
       this.db.exec(
-        "DELETE FROM connection_outcomes; DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM report_updates; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM processed_account_events; DELETE FROM state;",
+        "DELETE FROM data_model_records; DELETE FROM connection_outcomes; DELETE FROM messages; DELETE FROM connections; DELETE FROM decisions; DELETE FROM preference_observations; DELETE FROM blocks; DELETE FROM report_updates; DELETE FROM reports; DELETE FROM saved_introductions; DELETE FROM processed_account_events; DELETE FROM state;",
       );
       this.seed();
       this.db.exec("COMMIT");
@@ -1009,6 +1176,11 @@ export class Store {
           "DELETE FROM connection_outcomes WHERE connection_id IN (SELECT id FROM connections WHERE profile_id=?)",
         )
         .run(profileId);
+      this.db
+        .prepare(
+          "DELETE FROM data_model_records WHERE subject_id=? OR subject_id IN (SELECT id FROM connections WHERE profile_id=?)",
+        )
+        .run(profileId, profileId);
       this.db
         .prepare("DELETE FROM connections WHERE profile_id=?")
         .run(profileId);

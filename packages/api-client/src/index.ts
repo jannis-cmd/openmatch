@@ -1,14 +1,19 @@
 import type {
+  BehaviorEvent,
+  DataFieldPolicy,
+  DatingDataSettings,
+  InteractionFeedback,
   Introduction,
   Preferences,
   Profile,
   PublicProfile,
+  TransparentRankingPolicy,
   WeightSuggestion,
 } from "@openmatch/matching";
 
 export type Decision = "interested" | "passed";
 export type DataExport = Record<string, unknown> & {
-  schemaVersion: "1.1.0";
+  schemaVersion: "1.2.0";
   algorithmVersion: string;
   exportedAt: string;
 };
@@ -479,6 +484,26 @@ export function createApiClient(
     preferences: () => request<Preferences>("/v1/preferences"),
     updatePreferences: (patch: Partial<Preferences>) =>
       request<Preferences>("/v1/preferences", json("PATCH", patch)),
+    datingDataModel: () =>
+      request<{
+        version: string;
+        settings: DatingDataSettings;
+        fieldPolicies: Record<string, DataFieldPolicy>;
+        prohibitedDerivedScores: string[];
+        proposedRankingPolicy: TransparentRankingPolicy;
+      }>("/v1/data-model"),
+    replaceDatingDataSettings: (settings: DatingDataSettings) =>
+      request<DatingDataSettings>("/v1/data-model", json("PATCH", settings)),
+    recordBehaviorEvent: (event: BehaviorEvent) =>
+      request<BehaviorEvent>(
+        "/v1/data-model/behavior-events",
+        json("POST", event),
+      ),
+    recordInteractionFeedback: (feedback: InteractionFeedback) =>
+      request<InteractionFeedback>(
+        "/v1/data-model/interaction-feedback",
+        json("POST", feedback),
+      ),
     previewPreferences: (patch: Partial<Preferences>) =>
       request<PreferencePoolPreview>(
         "/v1/preferences/preview",

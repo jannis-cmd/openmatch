@@ -15,7 +15,10 @@ import {
   publicWeeklySeed,
   toPublicProfile,
   validatePreferences,
+  type BehaviorEvent,
   type Candidate,
+  type DatingDataSettings,
+  type InteractionFeedback,
 } from "@openmatch/matching";
 import {
   CONNECTION_OUTCOME_KINDS,
@@ -1172,6 +1175,36 @@ export function createApp(
         );
       if (request.method === "GET" && url.pathname === "/v1/preferences")
         return send(response, 200, store.preferences());
+      if (request.method === "GET" && url.pathname === "/v1/data-model")
+        return send(response, 200, store.dataModelDescription());
+      if (request.method === "PATCH" && url.pathname === "/v1/data-model")
+        return send(
+          response,
+          200,
+          store.replaceDatingDataSettings(
+            (await readJson(request, 256 * 1024)) as DatingDataSettings,
+          ),
+        );
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/data-model/behavior-events"
+      )
+        return send(
+          response,
+          201,
+          store.recordBehaviorEvent((await readJson(request)) as BehaviorEvent),
+        );
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/data-model/interaction-feedback"
+      )
+        return send(
+          response,
+          201,
+          store.recordInteractionFeedback(
+            (await readJson(request)) as InteractionFeedback,
+          ),
+        );
       if (
         request.method === "POST" &&
         url.pathname === "/v1/preferences/preview"
