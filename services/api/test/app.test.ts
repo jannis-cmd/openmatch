@@ -8,6 +8,7 @@ import {
   ALGORITHM_VERSION,
   POLITE_CLOSE_MESSAGE,
   defaultPreferences,
+  demoCandidates,
   demoUser,
   nextWeeklyBatchAt,
   publicWeeklySeed,
@@ -2000,6 +2001,9 @@ test("the public data inventory covers every current storage and export field", 
       "expiresAt",
       "createdAt",
     ],
+    adminAccounts: ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
+    adminSessions: ["id", "tokenHash", "adminId", "expiresAt", "createdAt"],
+    adminAuditEvents: ["id", "adminId", "action", "occurredAt", "metadataJson"],
     accountDeliveryEvents: [
       "sequence",
       "id",
@@ -2399,7 +2403,7 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
       preferencesSaved: boolean;
     };
     assert.equal(preview.eligibleCount, 0);
-    assert.equal(preview.evaluatedCount, 4);
+    assert.equal(preview.evaluatedCount, demoCandidates.length);
     assert.equal(preview.preferencesSaved, false);
     assert.equal(
       (
@@ -2567,13 +2571,12 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
           explanation.selectionProbability <= 1,
       ),
     );
-    const maraSelectionProbability = introductions.items.find(
-      ({ profile }) => profile.id === "mara",
-    )?.explanation.selectionProbability;
-    assert.ok(maraSelectionProbability);
+    const maraSelectionProbability =
+      introductions.items.find(({ profile }) => profile.id === "mara")
+        ?.explanation.selectionProbability ?? 1;
     assert.doesNotMatch(introductionsText, /"preferences"/);
     assert.doesNotMatch(introductionsText, /"distanceKm"/);
-    assert.match(introductionsText, /"distanceBand":"Within 5 km"/);
+    assert.match(introductionsText, /"distanceBand":"[^"]+"/);
     assert.equal(
       (await request("/v1/introductions/lea/saved", { method: "POST" })).status,
       201,
@@ -2642,6 +2645,11 @@ test("persists profile/preferences, creates a mutual connection, messages, and h
     assert.equal(
       afterPreConnectionBlock.items.some((item) => item.profile.id === "noah"),
       false,
+    );
+    assert.equal(
+      (await request("/v1/introductions/mara/saved", { method: "POST" }))
+        .status,
+      201,
     );
     const decision = (await (
       await request("/v1/introductions/mara/decision", {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import releaseArtifacts from "../../../docs/RELEASE_ARTIFACTS.json";
 import { resolveWebApiConfiguration } from "../lib/api-configuration.mjs";
+import { LanguageSwitch, useLocale } from "../lib/locale";
 import {
   clearPendingMessageAttempts,
   persistPendingMessageAttempts,
@@ -708,6 +709,7 @@ function AppExperience({
           OpenMatch
         </button>
         <span className="nonprofit">Nonprofit · Open source</span>
+        <LanguageSwitch />
       </header>
       <div className={`workspace ${onboarded ? "" : "workspace-single"}`}>
         {onboarded && (
@@ -1750,6 +1752,45 @@ function LandingPage({
   tryDemo: () => void;
   demoError: string | null;
 }) {
+  const { locale } = useLocale();
+  const t =
+    locale === "de"
+      ? {
+          how: "So funktioniert es",
+          principles: "Prinzipien",
+          evidence: "Evidenz",
+          transparency: "Transparenz",
+          apps: "Apps",
+          help: "Hilfe",
+          signIn: "Anmelden",
+          eyebrow: "Ein gemeinnütziger Kennenlerndienst",
+          title: "Damit du uns nicht mehr brauchst.",
+          copy: "OpenMatch zeigt wenige, durchdachte Vorschläge, erklärt jeden davon und hat keinen Grund, dich swipen zu lassen. Keine Werbung. Kein Premium-Ranking. Kein versteckter Score.",
+          demo: "Private Demo testen",
+          matching: "Matching verstehen",
+          source: "Open Source",
+          nonprofit: "Gemeinnützig",
+          finite: "Begrenzte Vorschläge",
+          yours: "Deine Daten gehören dir",
+        }
+      : {
+          how: "How it works",
+          principles: "Principles",
+          evidence: "Evidence",
+          transparency: "Transparency",
+          apps: "Apps",
+          help: "Get help",
+          signIn: "Sign in",
+          eyebrow: "A nonprofit introduction service",
+          title: "Made to help you leave.",
+          copy: "OpenMatch offers a small number of thoughtful introductions, explains every one, and has no reason to keep you swiping. No ads. No premium ranking. No hidden score.",
+          demo: "Try the private demo",
+          matching: "See how matching works",
+          source: "Open source",
+          nonprofit: "Nonprofit",
+          finite: "Finite introductions",
+          yours: "Your data is yours",
+        };
   return (
     <main className="landing-shell">
       <header className="landing-nav">
@@ -1758,26 +1799,25 @@ function LandingPage({
           OpenMatch
         </a>
         <nav aria-label="Website navigation">
-          <a href="#how">How it works</a>
-          <a href="#principles">Principles</a>
-          <a href="#evidence">Evidence</a>
-          <a href="#transparency">Transparency</a>
-          <a href="#apps">Apps</a>
-          <a href="#support">Get help</a>
+          <a href="#how">{t.how}</a>
+          <a href="#principles">{t.principles}</a>
+          <a href="#evidence">{t.evidence}</a>
+          <a href="#transparency">{t.transparency}</a>
+          <a href="#apps">{t.apps}</a>
+          <a href="#support">{t.help}</a>
         </nav>
-        <button className="nav-sign-in" onClick={signIn}>
-          Sign in
-        </button>
+        <div className="landing-nav-actions">
+          <LanguageSwitch />
+          <button className="nav-sign-in" onClick={signIn}>
+            {t.signIn}
+          </button>
+        </div>
       </header>
 
       <section className="hero" id="top">
-        <p className="landing-eyebrow">A nonprofit introduction service</p>
-        <h1>Made to help you leave.</h1>
-        <p className="hero-copy">
-          OpenMatch offers a small number of thoughtful introductions, explains
-          every one, and has no reason to keep you swiping. No ads. No premium
-          ranking. No hidden score.
-        </p>
+        <p className="landing-eyebrow">{t.eyebrow}</p>
+        <h1>{t.title}</h1>
+        <p className="hero-copy">{t.copy}</p>
         <div className="hero-actions">
           <button
             className="primary-action"
@@ -1785,10 +1825,10 @@ function LandingPage({
             disabled={Boolean(demoError)}
             aria-describedby={demoError ? "hosted-demo-status" : undefined}
           >
-            Try the private demo
+            {t.demo}
           </button>
           <a className="text-action" href="#how">
-            See how matching works <span aria-hidden="true">↓</span>
+            {t.matching} <span aria-hidden="true">↓</span>
           </a>
         </div>
         {demoError && (
@@ -1797,10 +1837,10 @@ function LandingPage({
           </p>
         )}
         <div className="hero-proof" aria-label="OpenMatch commitments">
-          <span>Open source</span>
-          <span>Nonprofit</span>
-          <span>Finite introductions</span>
-          <span>Your data is yours</span>
+          <span>{t.source}</span>
+          <span>{t.nonprofit}</span>
+          <span>{t.finite}</span>
+          <span>{t.yours}</span>
         </div>
       </section>
 
@@ -2166,6 +2206,9 @@ function SignInPage({
 
   return (
     <main className="sign-in-shell">
+      <div className="sign-in-language">
+        <LanguageSwitch />
+      </div>
       <button className="sign-in-brand" onClick={back}>
         <Mark /> OpenMatch
       </button>

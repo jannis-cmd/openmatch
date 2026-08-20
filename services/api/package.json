@@ -8,6 +8,7 @@
     "nodemailer": "^9.0.5"
   },
   "scripts": {
+    "admin:bootstrap": "node --import tsx scripts/bootstrap-admin.ts",
     "dev": "OPENMATCH_ENABLE_DEMO_SESSIONS=true OPENMATCH_ENABLE_ACCOUNTS=true node --import tsx --watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",

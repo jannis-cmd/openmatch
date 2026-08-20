@@ -249,3 +249,4 @@ export function suggestPreferenceWeights(input: {
 
 export * from "./product.js";
 export * from "./data-model.js";
+export * from "./localization.js";

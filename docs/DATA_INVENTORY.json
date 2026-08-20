@@ -70,6 +70,33 @@
       "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. The person can see the opaque session identifier, broad allowlisted client type (web, iOS, Android, or unknown), creation time, expiry, and whether it is current, and can revoke another session. A successful passphrase change atomically deletes every prior session and issues a replacement token with the same broad client label. OpenMatch does not store an IP address, exact device model, user agent, fingerprint, or activity history for this feature. Session records and credentials are not included in the application-data export."
     },
     {
+      "id": "adminAccounts",
+      "storage": "admin_accounts table in the authentication SQLite database",
+      "purpose": "Authenticate a deliberately separate operational administrator identity.",
+      "retention": "Until deliberately removed by the operator or the authentication database is removed.",
+      "access": ["service", "operator"],
+      "fields": ["id", "email", "passwordHash", "passwordSalt", "createdAt"],
+      "disclosure": "Admin credentials cannot authenticate user routes. The bootstrap password is shown once and only a random-salted scrypt hash persists. This prototype admin role can read aggregate counts only and must gain MFA before public internet exposure."
+    },
+    {
+      "id": "adminSessions",
+      "storage": "admin_sessions table in the authentication SQLite database",
+      "purpose": "Authorize the separate aggregate-only administration surface.",
+      "retention": "At most 30 minutes, until explicit sign-out, or until the admin account is removed.",
+      "access": ["service", "operator"],
+      "fields": ["id", "tokenHash", "adminId", "expiresAt", "createdAt"],
+      "disclosure": "Only a SHA-256 bearer-token hash persists. A user session is explicitly forbidden from admin routes, and an admin session is rejected by all user-data routes."
+    },
+    {
+      "id": "adminAuditEvents",
+      "storage": "admin_audit_events table in the authentication SQLite database",
+      "purpose": "Record security-relevant admin bootstrap, sign-in, overview-read, and sign-out actions.",
+      "retention": "Until the admin account or authentication database is removed; a production retention limit remains required before launch.",
+      "access": ["service", "operator"],
+      "fields": ["id", "adminId", "action", "occurredAt", "metadataJson"],
+      "disclosure": "Contains action categories and timestamps only. It excludes profile data, preferences, messages, exact location, tokens, passwords, IP addresses, and device fingerprints."
+    },
+    {
       "id": "accountDeliveryEvents",
       "storage": "account_delivery_events table in the authentication SQLite database",
       "purpose": "Durably stage an account-to-account decision, connection, message, close, or block until the intended mutation has committed in every affected isolated account store.",

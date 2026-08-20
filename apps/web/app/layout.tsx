@@ -1,5 +1,6 @@
 import "./styles.css";
 import type { Metadata } from "next";
+import { LocaleProvider } from "../lib/locale";
 
 export const metadata: Metadata = {
   title: "OpenMatch — Made to help you leave",
@@ -33,8 +34,10 @@ export const viewport = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="de">
+      <body>
+        <LocaleProvider>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

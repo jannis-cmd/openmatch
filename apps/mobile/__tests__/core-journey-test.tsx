@@ -404,11 +404,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       });
     if (path === "/v1/introductions/saved")
       return response({
-        items: createIntroductions(profile, demoCandidates, preferences, {
-          weeklySeed: "s0",
-          explorationSlots: 1,
-          limit: 5,
-        }).filter((item) => savedIds.has(item.profile.id)),
+        items: createIntroductions(
+          profile,
+          demoCandidates.slice(0, 4),
+          preferences,
+          {
+            weeklySeed: "s0",
+            explorationSlots: 1,
+            limit: 5,
+          },
+        ).filter((item) => savedIds.has(item.profile.id)),
       });
     const saved = path.match(/^\/v1\/introductions\/([^/]+)\/saved$/);
     if (saved && init.method === "POST") {
@@ -428,11 +433,16 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     }
     if (path === "/v1/introductions")
       return response({
-        items: createIntroductions(profile, demoCandidates, preferences, {
-          weeklySeed: "s0",
-          explorationSlots: 1,
-          limit: 5,
-        })
+        items: createIntroductions(
+          profile,
+          demoCandidates.slice(0, 4),
+          preferences,
+          {
+            weeklySeed: "s0",
+            explorationSlots: 1,
+            limit: 5,
+          },
+        )
           .filter((item) => !savedIds.has(item.profile.id))
           .slice(0, batchSize),
         finite: true,

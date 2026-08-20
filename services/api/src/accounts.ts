@@ -18,7 +18,7 @@ import type { SecurityNotificationEvent } from "./email-verification.js";
 import type { Candidate, PublicProfile } from "@openmatch/matching";
 import { migrateSqlite } from "./migrations.js";
 
-export const ACCOUNT_SCHEMA_VERSION = 2;
+export const ACCOUNT_SCHEMA_VERSION = 3;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MINIMUM = 15;
@@ -40,6 +40,7 @@ const COMMON_PASSWORDS = new Set([
   "welcomecomewelcome",
 ]);
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const ADMIN_SESSION_TTL_MS = 30 * 60 * 1000;
 const RECOVERY_CODE_COUNT = 8;
 const SECURITY_NOTICE_RETRY_BASE_MS = 60_000;
 const SECURITY_NOTICE_RETRY_MAX_MS = 6 * 60 * 60_000;
@@ -71,6 +72,13 @@ export type PublicAccountSession = {
   createdAt: string;
   expiresAt: string;
   current: boolean;
+};
+export type AdminSession = {
+  adminId: string;
+  email: string;
+  sessionId: string;
+  token: string;
+  expiresAt: string;
 };
 
 export class AccountError extends Error {
@@ -280,6 +288,31 @@ export class Accounts {
           );
         `);
       },
+      (database) => {
+        database.exec(`
+          CREATE TABLE admin_accounts (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            password_salt TEXT NOT NULL,
+            created_at TEXT NOT NULL
+          );
+          CREATE TABLE admin_sessions (
+            token_hash TEXT PRIMARY KEY,
+            id TEXT UNIQUE NOT NULL,
+            admin_id TEXT NOT NULL REFERENCES admin_accounts(id) ON DELETE CASCADE,
+            expires_at INTEGER NOT NULL,
+            created_at TEXT NOT NULL
+          );
+          CREATE TABLE admin_audit_events (
+            id TEXT PRIMARY KEY,
+            admin_id TEXT NOT NULL REFERENCES admin_accounts(id) ON DELETE CASCADE,
+            action TEXT NOT NULL,
+            occurred_at TEXT NOT NULL,
+            metadata_json TEXT NOT NULL
+          );
+        `);
+      },
     ]);
     if (schemaVersion !== ACCOUNT_SCHEMA_VERSION)
       throw new Error("account schema version declaration is stale");
@@ -424,6 +457,156 @@ export class Accounts {
         )
         .get() as { count: number }
     ).count;
+  }
+
+  bootstrapAdmin(emailValue: unknown, passwordValue: unknown) {
+    const email = this.normalizeEmail(emailValue);
+    const password = this.validatePassword(passwordValue);
+    const salt = randomBytes(16);
+    const adminId = randomUUID();
+    const createdAt = new Date().toISOString();
+    try {
+      this.db
+        .prepare(
+          "INSERT INTO admin_accounts(id,email,password_hash,password_salt,created_at) VALUES (?,?,?,?,?)",
+        )
+        .run(
+          adminId,
+          email,
+          this.passwordHash(password, salt).toString("base64url"),
+          salt.toString("base64url"),
+          createdAt,
+        );
+    } catch (error) {
+      if (String(error).includes("UNIQUE constraint failed"))
+        throw new AccountError("admin_exists", 409);
+      throw error;
+    }
+    this.auditAdmin(adminId, "admin_bootstrapped", { email });
+    return { adminId, email, createdAt };
+  }
+
+  private auditAdmin(
+    adminId: string,
+    action: string,
+    metadata: Record<string, string | number | boolean | null> = {},
+  ) {
+    this.db
+      .prepare(
+        "INSERT INTO admin_audit_events(id,admin_id,action,occurred_at,metadata_json) VALUES (?,?,?,?,?)",
+      )
+      .run(
+        randomUUID(),
+        adminId,
+        action,
+        new Date().toISOString(),
+        JSON.stringify(metadata),
+      );
+  }
+
+  signInAdmin(emailValue: unknown, passwordValue: unknown): AdminSession {
+    const email = this.normalizeEmail(emailValue);
+    const account = this.db
+      .prepare(
+        "SELECT id,email,password_hash,password_salt,created_at FROM admin_accounts WHERE email=?",
+      )
+      .get(email) as AccountRow | undefined;
+    if (!account || !this.passwordMatches(account, passwordValue))
+      throw new AccountError("invalid_credentials", 401);
+    this.db
+      .prepare("DELETE FROM admin_sessions WHERE expires_at<=?")
+      .run(Date.now());
+    const token = randomBytes(32).toString("base64url");
+    const sessionId = randomUUID();
+    const expiresAt = Date.now() + ADMIN_SESSION_TTL_MS;
+    this.db
+      .prepare(
+        "INSERT INTO admin_sessions(token_hash,id,admin_id,expires_at,created_at) VALUES (?,?,?,?,?)",
+      )
+      .run(
+        createHash("sha256").update(token).digest("base64url"),
+        sessionId,
+        account.id,
+        expiresAt,
+        new Date().toISOString(),
+      );
+    this.auditAdmin(account.id, "admin_signed_in");
+    return {
+      adminId: account.id,
+      email: account.email,
+      sessionId,
+      token,
+      expiresAt: new Date(expiresAt).toISOString(),
+    };
+  }
+
+  authenticateAdmin(token: string) {
+    const tokenHash = createHash("sha256").update(token).digest("base64url");
+    const session = this.db
+      .prepare(
+        `SELECT s.id AS sessionId,s.admin_id AS adminId,s.expires_at AS expiresAt,a.email
+         FROM admin_sessions s JOIN admin_accounts a ON a.id=s.admin_id
+         WHERE s.token_hash=?`,
+      )
+      .get(tokenHash) as
+      | { sessionId: string; adminId: string; expiresAt: number; email: string }
+      | undefined;
+    if (!session || session.expiresAt <= Date.now()) {
+      if (session)
+        this.db
+          .prepare("DELETE FROM admin_sessions WHERE token_hash=?")
+          .run(tokenHash);
+      return undefined;
+    }
+    return {
+      adminId: session.adminId,
+      email: session.email,
+      sessionId: session.sessionId,
+      expiresAt: new Date(session.expiresAt).toISOString(),
+    };
+  }
+
+  adminOverview(adminId: string) {
+    this.auditAdmin(adminId, "admin_overview_viewed");
+    const count = (sql: string) =>
+      (this.db.prepare(sql).get() as { count: number }).count;
+    this.db
+      .prepare("DELETE FROM admin_sessions WHERE expires_at<=?")
+      .run(Date.now());
+    return {
+      accounts: {
+        total: count("SELECT COUNT(*) AS count FROM accounts"),
+        emailVerified: count(
+          "SELECT COUNT(*) AS count FROM accounts WHERE email_verified_at IS NOT NULL",
+        ),
+        activeSessions: count(
+          "SELECT COUNT(*) AS count FROM account_sessions WHERE expires_at > unixepoch('now') * 1000",
+        ),
+      },
+      operations: {
+        pendingAccountActions: this.pendingDeliveryCount(),
+        pendingSecurityNotifications: this.pendingSecurityNotificationCount(),
+      },
+    };
+  }
+
+  adminAuditEvents(adminId: string) {
+    return this.db
+      .prepare(
+        "SELECT action,occurred_at AS occurredAt FROM admin_audit_events WHERE admin_id=? ORDER BY occurred_at DESC LIMIT 50",
+      )
+      .all(adminId) as Array<{ action: string; occurredAt: string }>;
+  }
+
+  revokeAdmin(token: string) {
+    const tokenHash = createHash("sha256").update(token).digest("base64url");
+    const session = this.authenticateAdmin(token);
+    if (session) this.auditAdmin(session.adminId, "admin_signed_out");
+    return Boolean(
+      this.db
+        .prepare("DELETE FROM admin_sessions WHERE token_hash=?")
+        .run(tokenHash).changes,
+    );
   }
 
   deliveryStatus(accountId: string) {

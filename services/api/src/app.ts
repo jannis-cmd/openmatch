@@ -524,6 +524,31 @@ export function createApp(
           throw error;
         }
       }
+      if (request.method === "POST" && url.pathname === "/v1/admin/sessions") {
+        if (!accounts)
+          return send(response, 404, { error: "accounts_disabled" });
+        if (!consumeAuthenticationAttempt(`admin:${key}`, now, response))
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          email?: unknown;
+          password?: unknown;
+        };
+        try {
+          const session = accounts.signInAdmin(body.email, body.password);
+          return send(response, 200, {
+            token: session.token,
+            email: session.email,
+            expiresAt: session.expiresAt,
+            authentication: true,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
       if (request.method === "POST" && url.pathname === "/v1/account/recover") {
         if (!accounts)
           return send(response, 404, { error: "accounts_disabled" });
@@ -584,7 +609,59 @@ export function createApp(
       const expiresAt = tokenHash ? demoSessions.get(tokenHash) : undefined;
       const accountSession =
         token && accounts ? accounts.authenticate(token) : undefined;
+      const adminSession =
+        token && accounts ? accounts.authenticateAdmin(token) : undefined;
       const demoSessionValid = Boolean(expiresAt && expiresAt > now);
+      if (url.pathname.startsWith("/v1/admin/")) {
+        if (!token)
+          return send(response, 401, { error: "admin_session_required" });
+        if (!adminSession)
+          return send(response, accountSession ? 403 : 401, {
+            error: accountSession
+              ? "admin_forbidden"
+              : "admin_session_required",
+          });
+        const adminAccounts = accounts;
+        if (!adminAccounts)
+          return send(response, 404, { error: "accounts_disabled" });
+        if (request.method === "GET" && url.pathname === "/v1/admin/overview")
+          return send(response, 200, {
+            admin: {
+              email: adminSession.email,
+              expiresAt: adminSession.expiresAt,
+            },
+            service: {
+              status:
+                adminAccounts.pendingDeliveryCount() ||
+                adminAccounts.pendingSecurityNotificationCount()
+                  ? "degraded"
+                  : "ok",
+              algorithmVersion: ALGORITHM_VERSION,
+              deployedCommit,
+            },
+            ...adminAccounts.adminOverview(adminSession.adminId),
+            fixtures: { fictionalProfiles: demoCandidates.length },
+            privacy: {
+              messageContentExposed: false,
+              profileDataExposed: false,
+              preferenceDataExposed: false,
+              preciseLocationExposed: false,
+            },
+            generatedAt: new Date().toISOString(),
+          });
+        if (request.method === "GET" && url.pathname === "/v1/admin/audit")
+          return send(response, 200, {
+            items: adminAccounts.adminAuditEvents(adminSession.adminId),
+          });
+        if (
+          request.method === "DELETE" &&
+          url.pathname === "/v1/admin/session"
+        ) {
+          adminAccounts.revokeAdmin(token);
+          return send(response, 204, null);
+        }
+        return send(response, 404, { error: "not_found" });
+      }
       if (!token || (!accountSession && !demoSessionValid)) {
         if (tokenHash && expiresAt) demoSessions.delete(tokenHash);
         return send(response, 401, { error: "session_required" });

@@ -14,11 +14,59 @@ import {
   priorityLabel,
   proximityCompatibility,
   publicWeeklySeed,
+  resolveLocale,
   suggestPreferenceWeights,
   validatePreferences,
   validateProfile,
   type Profile,
 } from "../src/index.ts";
+
+test("the fictional fixture pool is valid, stable, and meaningfully diverse", () => {
+  assert.equal(demoCandidates.length, 20);
+  assert.equal(
+    new Set(demoCandidates.map(({ profile }) => profile.id)).size,
+    20,
+  );
+  for (const candidate of demoCandidates) {
+    assert.equal(validateProfile(candidate.profile).id, candidate.profile.id);
+    validatePreferences(candidate.preferences);
+    assert.equal(candidate.profile.photo, null);
+  }
+  assert.ok(
+    new Set(demoCandidates.map(({ profile }) => profile.city)).size >= 8,
+  );
+  assert.ok(
+    new Set(demoCandidates.flatMap(({ profile }) => profile.genderIdentities))
+      .size >= 6,
+  );
+  assert.deepEqual(
+    new Set(demoCandidates.map(({ profile }) => profile.intent)),
+    new Set([
+      "Long-term relationship",
+      "Long-term, open to short",
+      "Still figuring it out",
+    ]),
+  );
+  assert.ok(
+    demoCandidates.some(
+      ({ profile }) => profile.lifestyle.smoking === "sometimes",
+    ),
+  );
+  assert.ok(
+    demoCandidates.some(({ profile }) => profile.lifestyle.children === "want"),
+  );
+  assert.ok(
+    demoCandidates.some(
+      ({ profile }) => profile.lifestyle.children === "do not want",
+    ),
+  );
+});
+
+test("locale resolution supports German and English BCP 47 tags", () => {
+  assert.equal(resolveLocale("de-CH"), "de");
+  assert.equal(resolveLocale(["fr-CH", "en-GB"]), "en");
+  assert.equal(resolveLocale("pt-BR"), "de");
+});
 
 test("a failed boundary makes a pair ineligible", () => {
   const result = explainMatch({
@@ -118,7 +166,7 @@ test("candidate generation excludes hard-boundary failures and orders eligible p
   );
   assert.deepEqual(
     introductions.map((item) => item.profile.id),
-    ["mara", "noah", "lea"],
+    ["mara", "noah", "amina", "imani", "lea", "rowan", "luca", "sofia", "theo"],
   );
   assert.ok(introductions.every((item) => item.explanation.eligible));
   assert.ok(
@@ -166,7 +214,10 @@ test("public-seed exploration reserves a reproducible slot without changing scor
     (item) => item.explanation.selectionMode === "exploration",
   );
   assert.ok(exploratory);
-  assert.equal(exploratory.explanation.selectionProbability, 1 / 3);
+  assert.equal(
+    exploratory.explanation.selectionProbability,
+    1 / baseline.length,
+  );
   assert.equal(exploratory.explanation.weeklySeed, "2026-08-10");
   assert.equal(
     exploratory.explanation.finalScore,

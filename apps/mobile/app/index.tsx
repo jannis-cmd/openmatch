@@ -74,6 +74,7 @@ import {
   profilePhotoDataUrl,
   PRIORITY_LEVELS,
   priorityLabel,
+  resolveLocale,
   type DatingDataSettings,
   type Introduction,
   type GenderDiscoveryGroup,
@@ -81,6 +82,7 @@ import {
   type Preferences,
   type Profile,
   type WeightSuggestion,
+  type SupportedLocale,
 } from "@openmatch/matching";
 
 type Tab = "Today" | "Connections" | "Preferences" | "Profile" | "Method";
@@ -126,6 +128,9 @@ function securityNotice(status: SecurityNotificationStatus) {
 }
 
 export default function App() {
+  const [locale, setLocale] = useState<SupportedLocale>(() =>
+    resolveLocale(Intl.DateTimeFormat().resolvedOptions().locale),
+  );
   const configuredNativeSourceRevision = Constants.expoConfig?.extra
     ?.sourceRevision as string | null | undefined;
   const nativeSourceRevision = /^[0-9a-f]{40}$/.test(
@@ -1244,6 +1249,27 @@ export default function App() {
       <View style={styles.header}>
         <Text style={styles.brand}>OpenMatch</Text>
         <Text style={styles.nonprofit}>Nonprofit · Open</Text>
+        <View style={styles.mobileLanguages}>
+          {(["de", "en"] as const).map((language) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: locale === language }}
+              accessibilityLabel={language === "de" ? "Deutsch" : "English"}
+              key={language}
+              onPress={() => setLocale(language)}
+            >
+              <Text
+                style={
+                  locale === language
+                    ? styles.mobileLanguageActive
+                    : styles.mobileLanguage
+                }
+              >
+                {language.toUpperCase()}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
       <ScrollView contentContainerStyle={styles.page}>
         <>
@@ -4151,7 +4177,17 @@ export default function App() {
               maxFontSizeMultiplier={2}
               style={[styles.tabText, tab === item && styles.tabActive]}
             >
-              {item}
+              {locale === "de"
+                ? (
+                    {
+                      Today: "Heute",
+                      Connections: "Kontakte",
+                      Preferences: "Suche",
+                      Profile: "Profil",
+                      Method: "Methode",
+                    } as const
+                  )[item]
+                : item}
             </Text>
           </Pressable>
         ))}
@@ -5547,6 +5583,9 @@ const styles = StyleSheet.create({
   },
   brand: { fontSize: 19, fontWeight: "700", letterSpacing: -0.6 },
   nonprofit: { marginLeft: "auto", fontSize: 11, color: "#757970" },
+  mobileLanguages: { flexDirection: "row", gap: 8, marginLeft: 12 },
+  mobileLanguage: { color: "#757970", fontSize: 11, fontWeight: "700" },
+  mobileLanguageActive: { color: "#173F32", fontSize: 11, fontWeight: "800" },
   page: { padding: 20, paddingBottom: 110, gap: 12 },
   eyebrow: {
     fontSize: 11,
