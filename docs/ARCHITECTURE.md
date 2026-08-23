@@ -34,19 +34,29 @@ Versions are provisional until an implementation ADR checks current support, acc
 
 The development API uses Node's built-in SQLite interface directly. Both the account registry and every application-data store pass through a shared ordered migration runner using SQLite `user_version`. Each numbered schema step runs in `BEGIN IMMEDIATE`, records its version only in the same commit, rolls all DDL back on failure, and refuses a database created by newer unsupported code. Legacy unversioned databases are upgraded in place; tests cover the existing session-column migration, version recording, injected rollback after `ALTER TABLE`, and forward-version refusal. This is not yet fleet-wide production migration orchestration: backup/restore drills, preflight capacity checks, staged rollout, observability, downgrade policy, and the eventual PostgreSQL authorization migration remain required. A dependency-free typed client is shared by web and mobile so endpoint semantics do not drift.
 
-A parallel self-hosted development boundary now provides PostgreSQL, Supabase
-Auth, and captured SMTP mail without exposing the database outside Docker. It
-exists to implement and test the migration away from SQLite; merely running it
-does not switch the current API or clients to PostgreSQL/Auth. The lightweight
-stack and transfer contract are documented in `docs/SELF_HOSTED_DEV.md`.
+A self-hosted development boundary now provides PostgreSQL, Supabase Auth
+(GoTrue), captured SMTP mail, the OpenMatch API, and the web app without
+exposing PostgreSQL outside Docker. When `OPENMATCH_SUPABASE_AUTH_URL` is set,
+GoTrue is authoritative for user passwords, inbox confirmation, and bearer
+tokens. The API validates every token against GoTrue, mirrors only the opaque
+user ID/email/verification state needed to locate the application store, and
+persists only a SHA-256 token hash for its local session index. The raw password
+is never copied into OpenMatch SQLite. Password change and credential deletion
+are reauthenticated against GoTrue; deletion also removes the account's local
+application data. Dating application data remains in per-account SQLite files
+during this development phase; moving the `app` schema and authorization rules
+to PostgreSQL is the next persistence migration. The stack and transfer
+contract are documented in `docs/SELF_HOSTED_DEV.md`.
 
 The release gate is intentionally layered: pure matching invariants, API/client contract tests, a native component journey under `jest-expo`, and one Chromium journey that exercises the durable vertical slice and runs WCAG 2.2 A/AA rules at setup, explanation, and conversation states. Device-level assistive-technology and native end-to-end testing remain required before a pilot.
 
 The development API has no universal credential. Its explicitly enabled local
 demo mode issues random 256-bit bearer tokens but still targets one shared demo
-identity. Separately enabled prototype accounts normalize email, use a
-per-account salted scrypt passphrase hash, persist only SHA-256 session-token
-hashes, and route requests to account-specific SQLite stores. Web and production
+identity. In standalone legacy mode, separately enabled prototype accounts use
+a per-account salted scrypt password hash. In self-hosted mode, GoTrue owns the
+password hash and confirmation state while OpenMatch retains only an identity
+mirror and hashed session index. Both route requests to account-specific SQLite
+stores. Web and production
 mobile builds expose create/sign-in flows. Native account tokens use device-only
 Expo SecureStore and are restored before personal data loads; invalid or
 unavailable secure state is not used. Each client submits only an allowlisted
@@ -59,8 +69,11 @@ recovery codes provide an offline fallback. An optional SMTP adapter sends
 single-use inbox-confirmation codes without returning or logging them; when it
 is configured, unconfirmed accounts are excluded from account matching.
 Confirmation establishes inbox access, not identity or a strong authenticator.
-This is still not pilot-ready authentication: passkeys, production migrations,
-delivery monitoring, and independent review remain open.
+The custom recovery-code, dual-code primary-email-change, and backup
+notification-address flows have not yet been migrated to GoTrue. Native GoTrue
+recovery/email-change flows, passkeys, production migrations, delivery
+monitoring, and independent review remain open; this is not pilot-ready
+authentication.
 
 For non-production account-flow testing, the account registry assembles
 candidates only from other completed, active accounts with a separate

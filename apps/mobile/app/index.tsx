@@ -4216,9 +4216,11 @@ function MobileAuthentication({
   const [recoveryCode, setRecoveryCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const submit = async () => {
     setSubmitting(true);
     setAuthError(null);
+    setAuthNotice(null);
     try {
       const session =
         mode === "create"
@@ -4226,6 +4228,14 @@ function MobileAuthentication({
           : mode === "recover"
             ? await api.recoverAccount(email, recoveryCode, password)
             : await api.signIn(email, password);
+      if ("confirmationRequired" in session) {
+        setPassword("");
+        setMode("sign-in");
+        setAuthNotice(
+          "Check your email and confirm the address. Then sign in here.",
+        );
+        return;
+      }
       try {
         await onAuthenticated(
           session.token,
@@ -4248,13 +4258,15 @@ function MobileAuthentication({
               ? "Choose a less common password."
               : code === "invalid_password"
                 ? "Use a password with at least 15 characters."
-                : code === "secure_session_storage_unavailable"
-                  ? "This device could not protect the session. No account session was kept."
-                  : code === "invalid_recovery"
-                    ? "The email or unused recovery code was not accepted."
-                    : code === "password_unchanged"
-                      ? "Choose a new password different from the current one."
-                      : "Email or password was not accepted.",
+                : code === "email_not_confirmed"
+                  ? "Confirm your email address before signing in."
+                  : code === "secure_session_storage_unavailable"
+                    ? "This device could not protect the session. No account session was kept."
+                    : code === "invalid_recovery"
+                      ? "The email or unused recovery code was not accepted."
+                      : code === "password_unchanged"
+                        ? "Choose a new password different from the current one."
+                        : "Email or password was not accepted.",
       );
     } finally {
       setSubmitting(false);
@@ -4277,6 +4289,7 @@ function MobileAuthentication({
             : "Sign in to OpenMatch."}
         </Text>
         {notice && <Text style={styles.mathNote}>{notice}</Text>}
+        {authNotice && <Text style={styles.mathNote}>{authNotice}</Text>}
         <Text style={styles.setting}>Email</Text>
         <TextInput
           accessibilityLabel="Email"

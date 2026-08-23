@@ -28,6 +28,7 @@ import {
   type SetupCommand,
 } from "./store.js";
 import { AccountError, Accounts } from "./accounts.js";
+import { SupabaseIdentity } from "./supabase-identity.js";
 import {
   smtpAccountEmailSenders,
   type EmailVerificationSender,
@@ -162,6 +163,7 @@ export function createApp(
     demoSessionsEnabled?: boolean;
     demoSessionTtlMs?: number;
     accounts?: Accounts | false;
+    identity?: SupabaseIdentity | false;
     authRateLimit?: { maximum: number; windowMs: number };
     operationRateLimits?: Partial<Record<OperationName, RateLimit>>;
     emailVerificationSender?: EmailVerificationSender | null;
@@ -178,6 +180,17 @@ export function createApp(
         (process.env.OPENMATCH_ENABLE_ACCOUNTS === "true"
           ? new Accounts()
           : null));
+  const identity =
+    options.identity === false
+      ? null
+      : (options.identity ??
+        (process.env.OPENMATCH_SUPABASE_AUTH_URL
+          ? new SupabaseIdentity()
+          : null));
+  if (identity && !accounts)
+    throw new Error(
+      "Supabase identity requires the OpenMatch account registry",
+    );
   const demoSessionsEnabled =
     options.demoSessionsEnabled ??
     process.env.OPENMATCH_ENABLE_DEMO_SESSIONS === "true";
@@ -501,20 +514,47 @@ export function createApp(
         };
         try {
           const creating = url.pathname === "/v1/accounts";
-          const session = creating
-            ? accounts.register(body.email, body.password, body.client)
-            : accounts.signIn(body.email, body.password, body.client);
+          if (
+            identity &&
+            (typeof body.email !== "string" ||
+              typeof body.password !== "string")
+          )
+            throw new AccountError("invalid_credentials", 400);
+          const external = identity
+            ? creating
+              ? await identity.register(
+                  body.email as string,
+                  body.password as string,
+                  body.client,
+                )
+              : await identity.signIn(
+                  body.email as string,
+                  body.password as string,
+                  body.client,
+                )
+            : null;
+          if (external && "confirmationRequired" in external)
+            return send(response, 202, external);
+          const session = external
+            ? accounts.provisionExternalSession({
+                ...external,
+                client: external.client,
+              })
+            : creating
+              ? accounts.register(body.email, body.password, body.client)
+              : accounts.signIn(body.email, body.password, body.client);
           const email = accounts.emailStatus(session.accountId);
-          const delivery = creating
-            ? await deliverEmailVerification(session.accountId)
-            : undefined;
+          const delivery =
+            creating && !identity
+              ? await deliverEmailVerification(session.accountId)
+              : undefined;
           return send(response, url.pathname === "/v1/accounts" ? 201 : 200, {
             token: session.token,
             expiresAt: session.expiresAt,
             authentication: true,
             emailVerification: {
               ...email,
-              deliveryConfigured: Boolean(emailVerificationSender),
+              deliveryConfigured: Boolean(identity || emailVerificationSender),
               ...(delivery ? { delivery } : {}),
             },
           });
@@ -552,6 +592,10 @@ export function createApp(
       if (request.method === "POST" && url.pathname === "/v1/account/recover") {
         if (!accounts)
           return send(response, 404, { error: "accounts_disabled" });
+        if (identity)
+          return send(response, 501, {
+            error: "identity_recovery_not_implemented",
+          });
         if (!consumeAuthenticationAttempt(key, now, response))
           return send(response, 429, {
             error: "authentication_rate_limit_exceeded",
@@ -607,8 +651,23 @@ export function createApp(
         : null;
       const tokenHash = token ? sessionHash(token) : null;
       const expiresAt = tokenHash ? demoSessions.get(tokenHash) : undefined;
-      const accountSession =
+      const externalUser =
+        token && accounts && identity
+          ? await identity.authenticate(token)
+          : undefined;
+      if (externalUser && accounts)
+        accounts.syncExternalIdentity(
+          externalUser.accountId,
+          externalUser.email,
+          externalUser.verifiedAt,
+        );
+      const locallyAuthenticated =
         token && accounts ? accounts.authenticate(token) : undefined;
+      const accountSession = identity
+        ? externalUser?.accountId === locallyAuthenticated?.accountId
+          ? locallyAuthenticated
+          : undefined
+        : locallyAuthenticated;
       const adminSession =
         token && accounts ? accounts.authenticateAdmin(token) : undefined;
       const demoSessionValid = Boolean(expiresAt && expiresAt > now);
@@ -778,8 +837,10 @@ export function createApp(
         return profile ? toPublicProfile(profile) : undefined;
       };
       if (request.method === "DELETE" && url.pathname === "/v1/session") {
-        if (accountSession && accounts) accounts.revoke(token);
-        else if (tokenHash) demoSessions.delete(tokenHash);
+        if (accountSession && accounts) {
+          accounts.revoke(token);
+          if (identity) await identity.signOut(token);
+        } else if (tokenHash) demoSessions.delete(tokenHash);
         return send(response, 204, null);
       }
       if (request.method === "GET" && url.pathname === "/v1/sessions") {
@@ -1134,10 +1195,21 @@ export function createApp(
           currentPassword?: unknown;
         };
         try {
-          accounts.deleteAccount(
-            accountSession.accountId,
-            body.currentPassword,
-          );
+          if (identity) {
+            if (!externalUser)
+              throw new AccountError("authenticated_account_required", 409);
+            await identity.deleteUser({
+              accountId: accountSession.accountId,
+              email: externalUser.email,
+              password: body.currentPassword,
+              client: "unknown",
+            });
+            accounts.deleteExternalAccount(accountSession.accountId);
+          } else
+            accounts.deleteAccount(
+              accountSession.accountId,
+              body.currentPassword,
+            );
           return send(response, 200, {
             deleted: true,
             completedAt: new Date().toISOString(),
@@ -1168,12 +1240,23 @@ export function createApp(
           newPassword?: unknown;
         };
         try {
-          const session = accounts.changePassword(
-            accountSession.accountId,
-            accountSession.sessionId,
-            body.currentPassword,
-            body.newPassword,
-          );
+          const session = identity
+            ? accounts.provisionExternalSession({
+                ...(await identity.changePassword({
+                  accountId: accountSession.accountId,
+                  email: externalUser!.email,
+                  currentPassword: body.currentPassword,
+                  newPassword: body.newPassword,
+                  client: "unknown",
+                })),
+                replaceSessions: true,
+              })
+            : accounts.changePassword(
+                accountSession.accountId,
+                accountSession.sessionId,
+                body.currentPassword,
+                body.newPassword,
+              );
           const notification = await deliverSecurityNotification(
             accountSession.accountId,
             "password_changed",
@@ -1199,6 +1282,10 @@ export function createApp(
         if (!accountSession || !accounts)
           return send(response, 409, {
             error: "authenticated_account_required",
+          });
+        if (identity)
+          return send(response, 501, {
+            error: "identity_recovery_not_implemented",
           });
         if (!consumeAuthenticationAttempt(key, now, response))
           return send(response, 429, {

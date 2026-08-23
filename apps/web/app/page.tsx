@@ -2193,6 +2193,7 @@ function SignInPage({
   const [mode, setMode] = useState<"sign-in" | "create" | "recover">("sign-in");
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
   const api = useMemo(
     () =>
       apiUrl
@@ -2219,6 +2220,7 @@ function SignInPage({
           if (!api) return;
           setSubmitting(true);
           setAuthError(null);
+          setAuthNotice(null);
           try {
             const session =
               mode === "create"
@@ -2226,6 +2228,14 @@ function SignInPage({
                 : mode === "recover"
                   ? await api.recoverAccount(email, recoveryCode, password)
                   : await api.signIn(email, password);
+            if ("confirmationRequired" in session) {
+              setPassword("");
+              setMode("sign-in");
+              setAuthNotice(
+                "Check your email and confirm the address. Then sign in here.",
+              );
+              return;
+            }
             continueToApp(
               session.token,
               mode === "recover" && "securityNotification" in session
@@ -2243,11 +2253,13 @@ function SignInPage({
                     ? "Choose a less common password."
                     : code.includes("invalid_password")
                       ? "Use a password with at least 15 characters."
-                      : code.includes("invalid_recovery")
-                        ? "The email or unused recovery code was not accepted."
-                        : code.includes("password_unchanged")
-                          ? "Choose a new password different from the current one."
-                          : "Email or password was not accepted.",
+                      : code.includes("email_not_confirmed")
+                        ? "Confirm your email address before signing in."
+                        : code.includes("invalid_recovery")
+                          ? "The email or unused recovery code was not accepted."
+                          : code.includes("password_unchanged")
+                            ? "Choose a new password different from the current one."
+                            : "Email or password was not accepted.",
             );
           } finally {
             setSubmitting(false);
@@ -2257,6 +2269,11 @@ function SignInPage({
         {entryNotice && (
           <div className="account-status" role="status">
             {entryNotice}
+          </div>
+        )}
+        {authNotice && (
+          <div className="account-status" role="status">
+            {authNotice}
           </div>
         )}
         <h1>

@@ -6,10 +6,16 @@
 :8080 {
 	encode zstd gzip
 
-	respond /health 200
+	handle /health {
+		reverse_proxy api:4000
+	}
 
 	handle_path /auth/v1/* {
 		reverse_proxy auth:9999
+	}
+
+	handle /v1/* {
+		reverse_proxy api:4000
 	}
 
 	respond 404

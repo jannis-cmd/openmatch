@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.2.0",
   "status": "local-prototype",
-  "updated": "2026-08-20",
+  "updated": "2026-08-23",
   "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
@@ -17,12 +17,12 @@
   "collections": [
     {
       "id": "accounts",
-      "storage": "accounts table in the authentication SQLite database",
-      "purpose": "Identify a private account and verify a supplied passphrase without storing that passphrase.",
+      "storage": "Standalone mode: accounts table in authentication SQLite. Self-hosted mode: auth.users in GoTrue/PostgreSQL plus a credential-free OpenMatch identity mirror.",
+      "purpose": "Identify a private account; credential verification is performed by the configured identity mode.",
       "retention": "Until the person deletes the authenticated account or the operator removes the authentication database.",
       "access": ["service", "operator"],
       "fields": ["id", "email", "passwordHash", "passwordSalt", "createdAt", "emailVerifiedAt"],
-      "disclosure": "Email is normalized to lowercase. emailVerifiedAt remains null until a single-use confirmation code delivered to that inbox is accepted; this proves inbox access, not identity. New and changed passphrases are normalized to Unicode NFC, checked at 15–128 characters and against a small disclosed common-value blocklist, then processed with scrypt and a new random per-account salt. Plaintext passphrases are used only for the request and never persisted. Credentials are excluded from the application-data export."
+      "disclosure": "In self-hosted mode GoTrue owns the password hash and confirmation state; OpenMatch mirrors opaque ID, normalized email and confirmation time and writes only fixed non-secret external-identity sentinels into legacy non-null columns. In standalone mode the documented salted-scrypt implementation remains available. Plaintext passwords are used only for the request and never persisted by OpenMatch or included in export."
     },
     {
       "id": "accountEmailVerifications",
@@ -62,12 +62,12 @@
     },
     {
       "id": "accountSessions",
-      "storage": "account_sessions table in the authentication SQLite database",
+      "storage": "GoTrue session state plus a SHA-256 token-hash routing index in OpenMatch SQLite",
       "purpose": "Authorize one account-specific client session and route every protected operation to that account's isolated store.",
       "retention": "At most 12 hours by default, until sign-out, or until the account record is removed.",
       "access": ["service", "operator"],
       "fields": ["id", "tokenHash", "accountId", "client", "expiresAt", "createdAt"],
-      "disclosure": "The raw random bearer token is returned once to the client. Only its SHA-256 hash is persisted. The person can see the opaque session identifier, broad allowlisted client type (web, iOS, Android, or unknown), creation time, expiry, and whether it is current, and can revoke another session. A successful passphrase change atomically deletes every prior session and issues a replacement token with the same broad client label. OpenMatch does not store an IP address, exact device model, user agent, fingerprint, or activity history for this feature. Session records and credentials are not included in the application-data export."
+      "disclosure": "In self-hosted mode GoTrue returns the raw bearer token to the client and OpenMatch persists only its SHA-256 hash for account-store routing; every protected request is also checked with GoTrue. The local index records only opaque session ID, broad allowlisted client type, creation and expiry. Password change replaces every local session index entry. OpenMatch does not add IP address, exact device model, user agent, fingerprint, or activity history. Session records and credentials are excluded from application-data export."
     },
     {
       "id": "adminAccounts",

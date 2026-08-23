@@ -8,6 +8,19 @@ The current live matcher still uses the smaller published deterministic model. L
 
 This repository is a verified pre-alpha development foundation, not a deployable dating service. The narrow local-demo scope is complete enough to extend without replacing its architecture.
 
+## Shared self-hosted development deployment
+
+The Tailnet-only `myna-1` environment runs PostgreSQL 17, Supabase Auth
+(GoTrue), Mailpit, Caddy, the OpenMatch API, and the web app. Registration,
+out-of-band email confirmation, login, authenticated API access, sign-out,
+password change, and permanent credential/application-data deletion use the
+GoTrue identity boundary. Twenty fictional, fully onboarded accounts exercise
+the real reciprocal account-directory path. This is a development deployment:
+application profile/interaction data is still isolated in SQLite, transport is
+private Tailnet HTTP, and the custom recovery-code, primary-email-change, and
+backup-notification-address flows are not yet migrated to GoTrue. It is not a
+public beta or production system.
+
 ## Implemented and verified
 
 Permanent credential deletion on web, iOS, and Android requires the active

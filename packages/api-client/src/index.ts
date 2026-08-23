@@ -166,6 +166,11 @@ export type AuthSession = {
     delivery?: "sent" | "failed" | "not_configured";
   };
 };
+export type PendingRegistration = {
+  authentication: false;
+  confirmationRequired: true;
+  email: string;
+};
 export type EmailVerificationStatus = {
   email: string;
   verifiedAt: string | null;
@@ -267,7 +272,7 @@ export function createApiClient(
     }));
   };
   const authenticate = async (
-    path: "/v1/accounts" | "/v1/sessions",
+    path: "/v1/sessions",
     email: string,
     password: string,
   ) => {
@@ -290,6 +295,33 @@ export function createApiClient(
       throw new ApiError(500, "invalid_session");
     sessionPromise = Promise.resolve(body.token);
     options.onTokenChange?.(body.token);
+    return body as AuthSession;
+  };
+  const createAccount = async (
+    email: string,
+    password: string,
+  ): Promise<AuthSession | PendingRegistration> => {
+    const response = await fetcher(`${origin}/v1/accounts`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password, client: options.client }),
+    });
+    const body = (await response.json().catch(() => ({}))) as Partial<
+      AuthSession & PendingRegistration
+    > & { error?: string };
+    if (!response.ok)
+      throw new ApiError(
+        response.status,
+        body.error ?? "authentication_failed",
+      );
+    if (
+      response.status === 202 &&
+      body.confirmationRequired === true &&
+      body.authentication === false &&
+      typeof body.email === "string"
+    )
+      return body as PendingRegistration;
+    adoptSession(body);
     return body as AuthSession;
   };
   const adoptSession = (body: Partial<AuthSession>) => {
@@ -347,8 +379,7 @@ export function createApiClient(
   });
 
   return {
-    createAccount: (email: string, password: string) =>
-      authenticate("/v1/accounts", email, password),
+    createAccount,
     signIn: (email: string, password: string) =>
       authenticate("/v1/sessions", email, password),
     changePassword: async (currentPassword: string, newPassword: string) => {

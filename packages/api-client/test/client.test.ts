@@ -192,6 +192,37 @@ test("creates an authenticated account, reuses its token, and signs out", async 
   assert.equal(requests[2].init?.method, "DELETE");
 });
 
+test("keeps a newly registered account signed out until email confirmation", async () => {
+  const tokenChanges: Array<string | null> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async () =>
+      new Response(
+        JSON.stringify({
+          authentication: false,
+          confirmationRequired: true,
+          email: "person@example.org",
+        }),
+        { status: 202 },
+      )) as typeof fetch,
+    {
+      demoSessions: false,
+      onTokenChange: (value) => tokenChanges.push(value),
+    },
+  );
+  const result = await client.createAccount(
+    "person@example.org",
+    "a sufficiently long password",
+  );
+  assert.deepEqual(result, {
+    authentication: false,
+    confirmationRequired: true,
+    email: "person@example.org",
+  });
+  assert.deepEqual(tokenChanges, []);
+  await assert.rejects(() => client.profile(), /session_required/);
+});
+
 test("changes a passphrase and adopts the rotated session", async () => {
   const oldToken = "o".repeat(43);
   const newToken = "n".repeat(43);

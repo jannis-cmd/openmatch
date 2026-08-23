@@ -77,11 +77,87 @@ services:
     networks:
       - private
 
+  api-data-init:
+    image: busybox:1.37
+    restart: "no"
+    command: ["chown", "-R", "1000:1000", "/data"]
+    volumes:
+      - api-data:/data
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/dev/Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+      api-data-init:
+        condition: service_completed_successfully
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4000
+      OPENMATCH_ENABLE_ACCOUNTS: "true"
+      OPENMATCH_ENABLE_DEMO_SESSIONS: "false"
+      OPENMATCH_AUTH_RATE_LIMIT_MAX: 200
+      OPENMATCH_SUPABASE_AUTH_URL: http://auth:9999
+      OPENMATCH_SUPABASE_JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      OPENMATCH_ALLOWED_ORIGINS: ${OPENMATCH_ALLOWED_ORIGINS:?set OPENMATCH_ALLOWED_ORIGINS in .env}
+      OPENMATCH_DB: /data/openmatch.sqlite
+      OPENMATCH_ACCOUNTS_DB: /data/openmatch-accounts.sqlite
+    volumes:
+      - api-data:/data
+    healthcheck:
+      test:
+        ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:4000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - private
+
+  web-cache-init:
+    image: busybox:1.37
+    restart: "no"
+    command: ["chown", "-R", "1000:1000", "/cache"]
+    volumes:
+      - web-cache:/cache
+
+  web:
+    image: openmatch-dev-api
+    restart: unless-stopped
+    command:
+      [
+        "pnpm",
+        "--filter",
+        "@openmatch/web",
+        "dev",
+        "--hostname",
+        "0.0.0.0",
+        "--port",
+        "3000",
+      ]
+    depends_on:
+      api:
+        condition: service_healthy
+      web-cache-init:
+        condition: service_completed_successfully
+    environment:
+      NEXT_PUBLIC_OPENMATCH_API_URL: ${OPENMATCH_API_URL:?set OPENMATCH_API_URL in .env}
+    ports:
+      - "${OPENMATCH_BIND_ADDRESS:-127.0.0.1}:${OPENMATCH_WEB_PORT:-3000}:3000"
+    volumes:
+      - web-cache:/app/apps/web/.next
+    networks:
+      - private
+
   gateway:
     image: caddy:2.10-alpine
     restart: unless-stopped
     depends_on:
       auth:
+        condition: service_healthy
+      api:
         condition: service_healthy
     ports:
       - "${OPENMATCH_BIND_ADDRESS:-127.0.0.1}:${OPENMATCH_GATEWAY_PORT:-54321}:8080"
@@ -110,3 +186,5 @@ networks:
 volumes:
   postgres-data:
   mailpit-data:
+  api-data:
+  web-cache:

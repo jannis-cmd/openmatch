@@ -940,14 +940,11 @@ export class Accounts {
     };
   }
 
-  deleteAccount(accountId: string, currentPasswordValue: unknown) {
+  private eraseAccount(accountId: string) {
     const account = this.db
-      .prepare(
-        "SELECT id,email,password_hash,password_salt,created_at FROM accounts WHERE id=?",
-      )
-      .get(accountId) as AccountRow | undefined;
-    if (!account || !this.passwordMatches(account, currentPasswordValue))
-      throw new AccountError("invalid_current_password", 400);
+      .prepare("SELECT id FROM accounts WHERE id=?")
+      .get(accountId) as { id: string } | undefined;
+    if (!account) return false;
     const peerAccountIds = this.db
       .prepare("SELECT id FROM accounts WHERE id<>? ORDER BY id")
       .all(accountId) as Array<{ id: string }>;
@@ -972,6 +969,21 @@ export class Accounts {
         if (existsSync(candidate)) unlinkSync(candidate);
     }
     return true;
+  }
+
+  deleteAccount(accountId: string, currentPasswordValue: unknown) {
+    const account = this.db
+      .prepare(
+        "SELECT id,email,password_hash,password_salt,created_at FROM accounts WHERE id=?",
+      )
+      .get(accountId) as AccountRow | undefined;
+    if (!account || !this.passwordMatches(account, currentPasswordValue))
+      throw new AccountError("invalid_current_password", 400);
+    return this.eraseAccount(accountId);
+  }
+
+  deleteExternalAccount(accountId: string) {
+    return this.eraseAccount(accountId);
   }
 
   private sessionClient(value: unknown): SessionClient {
@@ -1034,6 +1046,89 @@ export class Accounts {
       throw error;
     }
     return this.issueSession(id, client);
+  }
+
+  provisionExternalSession(input: {
+    accountId: string;
+    email: string;
+    verifiedAt: string | null;
+    token: string;
+    expiresAt: string;
+    client: unknown;
+    replaceSessions?: boolean;
+  }) {
+    const email = this.normalizeEmail(input.email);
+    const expiry = Date.parse(input.expiresAt);
+    if (!input.accountId || !input.token || !Number.isFinite(expiry))
+      throw new AccountError("invalid_identity_response", 502);
+    const existingByEmail = this.db
+      .prepare("SELECT id FROM accounts WHERE email=?")
+      .get(email) as { id: string } | undefined;
+    if (existingByEmail && existingByEmail.id !== input.accountId)
+      throw new AccountError("account_migration_conflict", 409);
+    const createdAt = new Date().toISOString();
+    const sessionId = randomUUID();
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db
+        .prepare(
+          `INSERT OR IGNORE INTO accounts(
+            id,email,password_hash,password_salt,created_at,email_verified_at
+          ) VALUES (?,?,?,?,?,?)`,
+        )
+        .run(
+          input.accountId,
+          email,
+          "external-identity",
+          "external-identity",
+          createdAt,
+          input.verifiedAt,
+        );
+      this.db
+        .prepare("UPDATE accounts SET email=?,email_verified_at=? WHERE id=?")
+        .run(email, input.verifiedAt, input.accountId);
+      if (input.replaceSessions)
+        this.db
+          .prepare("DELETE FROM account_sessions WHERE account_id=?")
+          .run(input.accountId);
+      this.db
+        .prepare(
+          `INSERT OR REPLACE INTO account_sessions(
+            token_hash,id,account_id,client,expires_at,created_at
+          ) VALUES (?,?,?,?,?,?)`,
+        )
+        .run(
+          createHash("sha256").update(input.token).digest("base64url"),
+          sessionId,
+          input.accountId,
+          this.sessionClient(input.client),
+          expiry,
+          createdAt,
+        );
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return {
+      accountId: input.accountId,
+      sessionId,
+      token: input.token,
+      expiresAt: new Date(expiry).toISOString(),
+      store: this.store(input.accountId),
+    };
+  }
+
+  syncExternalIdentity(
+    accountId: string,
+    email: string,
+    verifiedAt: string | null,
+  ) {
+    const normalized = this.normalizeEmail(email);
+    const changed = this.db
+      .prepare("UPDATE accounts SET email=?,email_verified_at=? WHERE id=?")
+      .run(normalized, verifiedAt, accountId).changes;
+    return changed > 0;
   }
 
   emailStatus(accountId: string) {

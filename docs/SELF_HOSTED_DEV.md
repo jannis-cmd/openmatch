@@ -10,6 +10,15 @@ This environment is development infrastructure, not a public production
 deployment. It has no high availability, managed backups, production mail,
 security monitoring, or incident response.
 
+In this mode GoTrue owns user credentials, email confirmation, and access
+tokens. OpenMatch stores only an identity mirror plus a hash of each token to
+route requests to isolated application stores. Password change and permanent
+account deletion are wired through GoTrue. The older OpenMatch recovery-code,
+primary-email-change, and backup-notification-address workflows are not yet
+migrated and remain a release blocker. Dating profiles and interactions still
+use per-account SQLite files; PostgreSQL currently holds the GoTrue schema and
+the reserved OpenMatch application schema only.
+
 ## Start locally
 
 ```bash
@@ -21,6 +30,8 @@ docker compose --env-file infra/dev/.env -f infra/dev/compose.yaml ps
 The generated configuration binds to `127.0.0.1`:
 
 - Auth: `http://127.0.0.1:54321/auth/v1`
+- OpenMatch API: `http://127.0.0.1:54321`
+- Web app: `http://127.0.0.1:3000`
 - Mailpit inbox: `http://127.0.0.1:8025`
 - PostgreSQL: private Docker network only
 
@@ -45,6 +56,7 @@ The initial server configuration is:
 ```text
 OPENMATCH_BIND_ADDRESS=100.94.214.92
 OPENMATCH_AUTH_URL=http://100.94.214.92:54321/auth/v1
+OPENMATCH_API_URL=http://100.94.214.92:54321
 OPENMATCH_SITE_URL=http://100.94.214.92:3000
 ```
 
@@ -57,6 +69,20 @@ curl --fail http://127.0.0.1:54321/auth/v1/health
 OPENMATCH_AUTH_URL=http://127.0.0.1:54321/auth/v1 \
 OPENMATCH_MAILPIT_URL=http://127.0.0.1:8025 \
 node scripts/dev-auth-smoke.mjs
+```
+
+The full OpenMatch API flow and the fictional 20-profile pool can be checked
+without placing a password in the repository:
+
+```bash
+OPENMATCH_API_URL=http://127.0.0.1:54321 \
+OPENMATCH_MAILPIT_URL=http://127.0.0.1:8025 \
+node scripts/dev-api-auth-smoke.mjs
+
+OPENMATCH_API_URL=http://127.0.0.1:54321 \
+OPENMATCH_MAILPIT_URL=http://127.0.0.1:8025 \
+OPENMATCH_TEST_PASSWORD='set-a-local-secret-of-15-or-more-characters' \
+node scripts/dev-seed-test-accounts.mjs
 ```
 
 An account-flow smoke test should register a unique development address, read
