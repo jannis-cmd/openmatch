@@ -34,6 +34,12 @@ Versions are provisional until an implementation ADR checks current support, acc
 
 The development API uses Node's built-in SQLite interface directly. Both the account registry and every application-data store pass through a shared ordered migration runner using SQLite `user_version`. Each numbered schema step runs in `BEGIN IMMEDIATE`, records its version only in the same commit, rolls all DDL back on failure, and refuses a database created by newer unsupported code. Legacy unversioned databases are upgraded in place; tests cover the existing session-column migration, version recording, injected rollback after `ALTER TABLE`, and forward-version refusal. This is not yet fleet-wide production migration orchestration: backup/restore drills, preflight capacity checks, staged rollout, observability, downgrade policy, and the eventual PostgreSQL authorization migration remain required. A dependency-free typed client is shared by web and mobile so endpoint semantics do not drift.
 
+A parallel self-hosted development boundary now provides PostgreSQL, Supabase
+Auth, and captured SMTP mail without exposing the database outside Docker. It
+exists to implement and test the migration away from SQLite; merely running it
+does not switch the current API or clients to PostgreSQL/Auth. The lightweight
+stack and transfer contract are documented in `docs/SELF_HOSTED_DEV.md`.
+
 The release gate is intentionally layered: pure matching invariants, API/client contract tests, a native component journey under `jest-expo`, and one Chromium journey that exercises the durable vertical slice and runs WCAG 2.2 A/AA rules at setup, explanation, and conversation states. Device-level assistive-technology and native end-to-end testing remain required before a pilot.
 
 The development API has no universal credential. Its explicitly enabled local

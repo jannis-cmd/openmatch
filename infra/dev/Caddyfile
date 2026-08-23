@@ -1,0 +1,16 @@
+{
+	auto_https off
+	admin off
+}
+
+:8080 {
+	encode zstd gzip
+
+	respond /health 200
+
+	handle_path /auth/v1/* {
+		reverse_proxy auth:9999
+	}
+
+	respond 404
+}

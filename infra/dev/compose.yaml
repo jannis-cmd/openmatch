@@ -1,0 +1,112 @@
+name: openmatch-dev
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-openmatch}
+      POSTGRES_USER: ${POSTGRES_USER:-openmatch_auth}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-openmatch_auth} -d ${POSTGRES_DB:-openmatch}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - private
+
+  auth:
+    image: supabase/gotrue:v2.189.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${OPENMATCH_AUTH_URL:?set OPENMATCH_AUTH_URL in .env}
+      GOTRUE_SITE_URL: ${OPENMATCH_SITE_URL:?set OPENMATCH_SITE_URL in .env}
+      GOTRUE_URI_ALLOW_LIST: ${OPENMATCH_REDIRECT_URLS:?set OPENMATCH_REDIRECT_URLS in .env}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://${POSTGRES_USER:-openmatch_auth}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-openmatch}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      GOTRUE_JWT_ISSUER: ${OPENMATCH_AUTH_URL}
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "false"
+      GOTRUE_PASSWORD_MIN_LENGTH: 15
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_MAILER_SECURE_EMAIL_CHANGE_ENABLED: "true"
+      GOTRUE_MAILER_NOTIFICATIONS_PASSWORD_CHANGED_ENABLED: "true"
+      GOTRUE_MAILER_NOTIFICATIONS_EMAIL_CHANGED_ENABLED: "true"
+      GOTRUE_MAILER_NOTIFICATIONS_MFA_FACTOR_ENROLLED_ENABLED: "true"
+      GOTRUE_MAILER_NOTIFICATIONS_MFA_FACTOR_UNENROLLED_ENABLED: "true"
+      GOTRUE_MFA_TOTP_ENROLL_ENABLED: "true"
+      GOTRUE_MFA_TOTP_VERIFY_ENABLED: "true"
+      GOTRUE_MFA_MAX_ENROLLED_FACTORS: 10
+      GOTRUE_SMTP_HOST: mailpit
+      GOTRUE_SMTP_PORT: 1025
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_FROM:-auth@openmatch.test}
+      GOTRUE_SMTP_SENDER_NAME: OpenMatch
+      GOTRUE_SMTP_MAX_FREQUENCY: 5s
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
+    healthcheck:
+      test:
+        ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:9999/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - private
+
+  gateway:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_healthy
+    ports:
+      - "${OPENMATCH_BIND_ADDRESS:-127.0.0.1}:${OPENMATCH_GATEWAY_PORT:-54321}:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - private
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_DATABASE: /data/mailpit.db
+    ports:
+      - "${OPENMATCH_BIND_ADDRESS:-127.0.0.1}:${OPENMATCH_MAILPIT_PORT:-8025}:8025"
+    volumes:
+      - mailpit-data:/data
+    networks:
+      - private
+
+networks:
+  private:
+    internal: false
+
+volumes:
+  postgres-data:
+  mailpit-data:

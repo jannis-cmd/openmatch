@@ -30,6 +30,7 @@ This repository is an initial, research-backed specification and executable skel
 - `docs/RELEASE_ARTIFACTS.md` — current verified mobile build provenance and hashes
 - `docs/STORE_LISTING_DRAFT.md` — plain-language listing copy, disclosures, and submission blockers
 - `docs/WEB_DEPLOYMENT.md` — landing-only and future interactive hosting modes
+- `docs/SELF_HOSTED_DEV.md` — portable PostgreSQL/Auth/Mailpit development stack
 - `docs/TAILNET_BETA.md` — current owner-only web/mobile beta topology and limits
 - `governance/GOVERNANCE.md` — nonprofit and algorithm-change governance
 - `packages/matching` — executable transparent matching kernel
