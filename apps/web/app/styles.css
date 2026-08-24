@@ -1270,6 +1270,23 @@ textarea {
   align-items: center;
   gap: 10px;
 }
+.profile-save-button {
+  border: 0;
+  border-radius: 999px;
+  background: #174d39;
+  color: #fff;
+  padding: 8px 14px;
+  font-weight: 680;
+  cursor: pointer;
+}
+.profile-save-button:hover {
+  background: #0d3c2b;
+}
+.profile-save-button:disabled {
+  background: #d5d9d3;
+  color: #626861;
+  cursor: not-allowed;
+}
 .preference-save-bar {
   display: flex;
   align-items: center;

@@ -719,28 +719,12 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getAllByText("✓ Doesn’t smoke")).not.toHaveLength(0);
   expect(screen.getAllByText(/children/)).not.toHaveLength(0);
   expect(screen.getAllByText(/schedule/)).not.toHaveLength(0);
+  expect(screen.queryByText("Public lottery slot")).toBeNull();
+  await fireEvent.press(screen.getByText("ⓘ Why this match?"));
   expect(screen.getByText("Public lottery slot")).toBeTruthy();
-  await fireEvent.press(screen.getByText("See the full calculation"));
   expect(screen.getByText(/Selection exploration/)).toBeTruthy();
   expect(screen.getByText(/public seed s0/)).toBeTruthy();
-  await fireEvent.press(screen.getByText("Hide calculation"));
-  failNextSavedIntroductionWrite = true;
-  await fireEvent.press(screen.getByText("Save for later"));
-  await waitFor(() =>
-    expect(
-      screen.getByText(
-        "Introduction was not saved. The previous confirmed state is still active; retry when ready.",
-      ),
-    ).toBeTruthy(),
-  );
-  expect(savedIds.size).toBe(0);
-  expect(screen.getByText("Mara, 30")).toBeTruthy();
-  await fireEvent.press(screen.getByText("Save for later"));
-  await waitFor(() => expect(screen.getByText("Noah, 34")).toBeTruthy());
-  await fireEvent.press(screen.getByText("Saved (1)"));
-  expect(screen.getByText("Mara, 30")).toBeTruthy();
-  await fireEvent.press(screen.getByText("Return to batch"));
-  await waitFor(() => expect(screen.getByText("Mara, 30")).toBeTruthy());
+  await fireEvent.press(screen.getByText("Hide match details"));
   expect(screen.getByText("Report this profile")).toBeTruthy();
   expect(screen.getByText("Block Mara")).toBeTruthy();
   await fireEvent.press(screen.getByText("Report this profile"));
@@ -766,7 +750,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("Cancel"));
   deliveryRetrying = true;
   failNextDecisionWrite = true;
-  await fireEvent.press(screen.getByText("Interested"));
+  await fireEvent.press(screen.getByText("Yes"));
   await waitFor(() =>
     expect(
       screen.getByText(
@@ -776,7 +760,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   expect(connectionActive).toBe(false);
   expect(screen.getByText("Mara, 30")).toBeTruthy();
-  await fireEvent.press(screen.getByText("Interested"));
+  await fireEvent.press(screen.getByText("Yes"));
   await waitFor(() => expect(connectionActive).toBe(true));
   await waitFor(() =>
     expect(screen.getByText("Delivery is retrying")).toBeTruthy(),
@@ -789,7 +773,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(screen.queryByText("Delivery is retrying")).toBeNull(),
   );
-  await fireEvent.press(screen.getByText("Connections"));
+  await fireEvent.press(screen.getByText("Matches"));
   expect(screen.getByLabelText("Choose a connection")).toBeTruthy();
   await fireEvent.press(screen.getByText("Noah"));
   await waitFor(() =>
@@ -989,7 +973,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() =>
     expect(preferences.intents).toContain("Still figuring it out"),
   );
-  await fireEvent.press(screen.getByText("Profile"));
+  await fireEvent.press(screen.getByText("Account"));
   await fireEvent.press(screen.getByText("Edit profile"));
   await fireEvent.changeText(
     screen.getByLabelText("Profile display name"),
@@ -1114,7 +1098,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(
     screen.getByText(/You do not need to file an OpenMatch report/),
   ).toBeTruthy();
-  await fireEvent.press(screen.getByText("Profile"));
+  await fireEvent.press(screen.getByText("Account"));
   const alertSpy = jest.spyOn(Alert, "alert");
   failNextLocalDataDeletion = true;
   await fireEvent.press(screen.getByText("Delete local data"));
@@ -1193,7 +1177,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await fireEvent.press(screen.getByText("See my introductions"));
   await waitFor(() => expect(directoryParticipating).toBeNull());
   await waitFor(() => expect(screen.getByText("Sign out")).toBeTruthy());
-  await fireEvent.press(screen.getByText("Profile"));
+  await fireEvent.press(screen.getByText("Account"));
   expect(screen.getByText("Profile visibility")).toBeTruthy();
   expect(
     screen.getByText("Confirm your email before joining account matching."),

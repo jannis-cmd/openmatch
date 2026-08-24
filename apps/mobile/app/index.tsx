@@ -1351,18 +1351,6 @@ export default function App() {
                   {visibleIntroductions.length} remaining
                 </Text>
                 <Text style={styles.subtle}>A finite set. Take your time.</Text>
-                <Action
-                  label={
-                    showSaved
-                      ? "Back to current batch"
-                      : `Saved (${savedIntroductions.length})`
-                  }
-                  secondary
-                  onPress={() => {
-                    setShowMath(false);
-                    setShowSaved(!showSaved);
-                  }}
-                />
                 <View style={styles.card}>
                   <View
                     style={[
@@ -1388,9 +1376,14 @@ export default function App() {
                     </Text>
                   </View>
                   <View style={styles.cardBody}>
-                    <Text style={styles.name}>
-                      {current.profile.name}, {current.profile.age}
-                    </Text>
+                    <View style={styles.nameRow}>
+                      <Text style={styles.name}>
+                        {current.profile.name}, {current.profile.age}
+                      </Text>
+                      <Text style={styles.fitBadge}>
+                        {Math.round(current.explanation.finalScore * 100)}% fit
+                      </Text>
+                    </View>
                     <Text style={styles.meta}>
                       {current.profile.pronouns} ·{" "}
                       {profileGenderLabel(current.profile)} ·{" "}
@@ -1418,40 +1411,39 @@ export default function App() {
                   </View>
                 </View>
                 <View style={styles.scoreCard}>
-                  <Text style={styles.eyebrow}>Why this introduction</Text>
-                  {current.explanation.selectionMode === "exploration" && (
-                    <View style={styles.explorationNote}>
-                      <Text style={styles.explorationTitle}>
-                        Public lottery slot
-                      </Text>
-                      <Text style={styles.scoreNote}>
-                        One place in this five-person batch is selected
-                        reproducibly from eligible profiles. It does not change
-                        anyone’s score.
-                      </Text>
-                    </View>
-                  )}
-                  <Text style={styles.score}>
-                    {Math.round(current.explanation.finalScore * 100)}%
-                  </Text>
-                  <Text style={styles.scoreNote}>
-                    Fit with explicit preferences you both control—not predicted
-                    chemistry.
-                  </Text>
-                  {current.reasons.map((reason) => (
-                    <Text style={styles.reason} key={reason}>
-                      ✓ {reason}
-                    </Text>
-                  ))}
-                  <Pressable onPress={() => setShowMath(!showMath)}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showMath }}
+                    onPress={() => setShowMath(!showMath)}
+                  >
                     <Text style={styles.link}>
-                      {showMath
-                        ? "Hide calculation"
-                        : "See the full calculation"}
+                      {showMath ? "Hide match details" : "ⓘ Why this match?"}
                     </Text>
                   </Pressable>
+                  {showMath &&
+                    current.explanation.selectionMode === "exploration" && (
+                      <View style={styles.explorationNote}>
+                        <Text style={styles.explorationTitle}>
+                          Public lottery slot
+                        </Text>
+                        <Text style={styles.scoreNote}>
+                          One place in this five-person batch is selected
+                          reproducibly from eligible profiles. It does not
+                          change anyone’s score.
+                        </Text>
+                      </View>
+                    )}
                   {showMath && (
                     <View style={styles.math}>
+                      <Text style={styles.scoreNote}>
+                        Fit with explicit preferences you both control—not
+                        predicted chemistry.
+                      </Text>
+                      {current.reasons.map((reason) => (
+                        <Text style={styles.reason} key={reason}>
+                          ✓ {reason}
+                        </Text>
+                      ))}
                       <Text style={styles.mathNote}>
                         Your directed fit ·{" "}
                         {Math.round(current.explanation.directedFitA * 100)}%
@@ -1508,70 +1500,13 @@ export default function App() {
                 </View>
                 <View style={styles.actions}>
                   <Action
-                    label={showSaved ? "Return to batch" : "Save for later"}
-                    secondary
-                    disabled={savedAction || decisionAction}
-                    onPress={() => {
-                      setSavedAction(true);
-                      setSavedActionError(null);
-                      const request = showSaved
-                        ? api.unsaveIntroduction(current.profile.id)
-                        : api.saveIntroduction(current.profile.id);
-                      void request
-                        .then(() => {
-                          if (showSaved) {
-                            setSavedIntroductions((items) =>
-                              items.filter(
-                                (item) =>
-                                  item.profile.id !== current.profile.id,
-                              ),
-                            );
-                            setIntroductions((items) =>
-                              items.some(
-                                (item) =>
-                                  item.profile.id === current.profile.id,
-                              )
-                                ? items
-                                : [current, ...items],
-                            );
-                            setShowSaved(false);
-                          } else {
-                            setIntroductions((items) =>
-                              items.filter(
-                                (item) =>
-                                  item.profile.id !== current.profile.id,
-                              ),
-                            );
-                            setSavedIntroductions((items) =>
-                              items.some(
-                                (item) =>
-                                  item.profile.id === current.profile.id,
-                              )
-                                ? items
-                                : [...items, current],
-                            );
-                            setSafetyNotice(
-                              `${current.profile.name} saved for this prototype batch.`,
-                            );
-                          }
-                          setShowMath(false);
-                        })
-                        .catch(() =>
-                          setSavedActionError(
-                            `${showSaved ? "Saved introduction was not returned to the batch" : "Introduction was not saved"}. The previous confirmed state is still active; retry when ready.`,
-                          ),
-                        )
-                        .finally(() => setSavedAction(false));
-                    }}
-                  />
-                  <Action
-                    label="Pass"
+                    label="No"
                     secondary
                     disabled={savedAction || decisionAction}
                     onPress={() => void decide("passed")}
                   />
                   <Action
-                    label="Interested"
+                    label="Yes"
                     disabled={savedAction || decisionAction}
                     onPress={() => void decide("interested")}
                   />
@@ -1792,7 +1727,7 @@ export default function App() {
             <>
               {connection ? (
                 <>
-                  <Text style={styles.eyebrow}>Connection</Text>
+                  <Text style={styles.eyebrow}>Match</Text>
                   <Text style={styles.title}>
                     {connection.profile?.name ?? "Connection"}
                   </Text>
@@ -2292,7 +2227,7 @@ export default function App() {
                   <Text style={styles.check}>○</Text>
                   <Text style={styles.name}>No connections yet</Text>
                   <Text style={styles.subtle}>
-                    Connections appear only after mutual interest.
+                    Matches appear only after mutual interest.
                   </Text>
                 </View>
               )}
@@ -4165,13 +4100,17 @@ export default function App() {
                 ? (
                     {
                       Today: "Heute",
-                      Connections: "Kontakte",
+                      Connections: "Matches",
                       Preferences: "Suche",
-                      Profile: "Profil",
+                      Profile: "Konto",
                       Method: "Methode",
                     } as const
                   )[item]
-                : item}
+                : item === "Connections"
+                  ? "Matches"
+                  : item === "Profile"
+                    ? "Account"
+                    : item}
             </Text>
           </Pressable>
         ))}
@@ -5620,7 +5559,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   cardBody: { padding: 23 },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   name: { fontSize: 24, fontWeight: "700", letterSpacing: -0.7 },
+  fitBadge: {
+    color: "#315A46",
+    backgroundColor: "#EEF4EF",
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    fontSize: 12,
+    fontWeight: "700",
+  },
   meta: { color: "#74786F", marginTop: 3 },
   intent: { color: "#5B665E", marginTop: 10, marginBottom: 16 },
   bio: { fontSize: 17, lineHeight: 25 },

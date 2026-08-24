@@ -3764,6 +3764,7 @@ function ProfileView({
                 Cancel
               </button>
               <button
+                className="profile-save-button"
                 disabled={!draftValid || profileSaving}
                 onClick={async () => {
                   setProfileSaving(true);
