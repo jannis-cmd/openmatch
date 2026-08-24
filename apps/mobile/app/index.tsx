@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
   AppState,
   Image,
   Linking,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -890,6 +892,44 @@ export default function App() {
       setDecisionAction(false);
     }
   };
+  const swipeX = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    swipeX.setValue(0);
+  }, [current?.profile.id, swipeX]);
+  const swipeResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          !decisionAction &&
+          Math.abs(gesture.dx) > 10 &&
+          Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
+        onPanResponderMove: (_, gesture) => swipeX.setValue(gesture.dx),
+        onPanResponderRelease: (_, gesture) => {
+          if (Math.abs(gesture.dx) < 75) {
+            Animated.spring(swipeX, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+            return;
+          }
+          const decision = gesture.dx > 0 ? "interested" : "passed";
+          Animated.timing(swipeX, {
+            toValue: gesture.dx > 0 ? 520 : -520,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => {
+            swipeX.setValue(0);
+            void decide(decision);
+          });
+        },
+        onPanResponderTerminate: () =>
+          Animated.spring(swipeX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start(),
+      }),
+    [decisionAction, swipeX, decide],
+  );
 
   if (apiConfiguration.error)
     return (
@@ -1351,7 +1391,24 @@ export default function App() {
                   {visibleIntroductions.length} remaining
                 </Text>
                 <Text style={styles.subtle}>A finite set. Take your time.</Text>
-                <View style={styles.card}>
+                <Animated.View
+                  accessibilityLabel={`Introduction: ${current.profile.name}. Swipe left for no or right for yes.`}
+                  style={[
+                    styles.card,
+                    {
+                      transform: [
+                        { translateX: swipeX },
+                        {
+                          rotate: swipeX.interpolate({
+                            inputRange: [-250, 0, 250],
+                            outputRange: ["-7deg", "0deg", "7deg"],
+                          }),
+                        },
+                      ],
+                    },
+                  ]}
+                  {...swipeResponder.panHandlers}
+                >
                   <View
                     style={[
                       styles.portrait,
@@ -1409,7 +1466,7 @@ export default function App() {
                     </View>
                     <PublicLifestyle profile={current.profile} />
                   </View>
-                </View>
+                </Animated.View>
                 <View style={styles.scoreCard}>
                   <Pressable
                     accessibilityRole="button"
