@@ -371,11 +371,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
       directoryParticipating = body.participating;
       return response({
         participating: directoryParticipating,
-        noticeVersion: "account-directory-prototype-0.2",
+        noticeVersion: "account-directory-prototype-0.3",
         updatedAt: "2026-08-12T12:00:00.000Z",
-        availableUntil: directoryParticipating
-          ? "2026-09-11T12:00:00.000Z"
-          : null,
+        availableUntil: null,
       });
     }
     if (path === "/v1/consents/directory")
@@ -385,11 +383,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
             ? null
             : {
                 participating: directoryParticipating,
-                noticeVersion: "account-directory-prototype-0.2",
+                noticeVersion: "account-directory-prototype-0.3",
                 updatedAt: "2026-08-12T12:00:00.000Z",
-                availableUntil: directoryParticipating
-                  ? "2026-09-11T12:00:00.000Z"
-                  : null,
+                availableUntil: null,
               },
       });
     if (path === "/v1/transparency/version")
@@ -651,9 +647,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         directoryConsent: body.joinDirectory
           ? {
               participating: true,
-              noticeVersion: "account-directory-prototype-0.2",
+              noticeVersion: "account-directory-prototype-0.3",
               updatedAt: "2026-08-12T12:00:00.000Z",
-              availableUntil: "2026-09-11T12:00:00.000Z",
+              availableUntil: null,
             }
           : null,
       });
@@ -1198,7 +1194,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() => expect(directoryParticipating).toBeNull());
   await waitFor(() => expect(screen.getByText("Sign out")).toBeTruthy());
   await fireEvent.press(screen.getByText("Profile"));
-  expect(screen.getByText("Account matching")).toBeTruthy();
+  expect(screen.getByText("Profile visibility")).toBeTruthy();
   expect(
     screen.getByText("Confirm your email before joining account matching."),
   ).toBeTruthy();
@@ -1256,7 +1252,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   ).toBeTruthy();
   cancelEmailSpy.mockRestore();
   failNextDirectorySave = true;
-  await fireEvent.press(screen.getByText("Enable for 30 days"));
+  await fireEvent.press(screen.getByText("Show my profile"));
   await waitFor(() =>
     expect(
       screen.getByText(
@@ -1265,9 +1261,9 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     ).toBeTruthy(),
   );
   expect(directoryParticipating).toBeNull();
-  await fireEvent.press(screen.getByText("Enable for 30 days"));
+  await fireEvent.press(screen.getByText("Show my profile"));
   await waitFor(() => expect(directoryParticipating).toBe(true));
-  expect(screen.getByText(/Available through/)).toBeTruthy();
+  expect(screen.getByText(/Visible to mutually eligible people/)).toBeTruthy();
   expect(screen.getByText("iPhone or iPad app · This session")).toBeTruthy();
   expect(screen.getByText("Web browser")).toBeTruthy();
   await fireEvent.press(screen.getByText("Sign out this session"));

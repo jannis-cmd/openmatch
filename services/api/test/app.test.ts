@@ -1231,18 +1231,14 @@ test("authenticated accounts have hashed credentials and isolated application da
       receipt: {
         noticeVersion: string;
         updatedAt: string;
-        availableUntil: string;
+        availableUntil: string | null;
       };
     };
     assert.equal(
       availability.receipt.noticeVersion,
-      "account-directory-prototype-0.2",
+      "account-directory-prototype-0.3",
     );
-    assert.equal(
-      Date.parse(availability.receipt.availableUntil) -
-        Date.parse(availability.receipt.updatedAt),
-      30 * 24 * 60 * 60 * 1000,
-    );
+    assert.equal(availability.receipt.availableUntil, null);
     const secondStore = accounts.accountStore(secondId);
     assert.ok(secondStore);
     secondStore.db
@@ -1253,18 +1249,18 @@ test("authenticated accounts have hashed credentials and isolated application da
           availableUntil: "2000-01-01T00:00:00.000Z",
         }),
       );
-    const expiredCandidateIntroductions = (await (
+    const legacyExpiryCandidateIntroductions = (await (
       await fetch(base + "/v1/introductions", {
         headers: auth(first.body.token!),
       })
     ).json()) as { items: unknown[] };
-    assert.equal(expiredCandidateIntroductions.items.length, 0);
-    const expiredViewerIntroductions = (await (
+    assert.equal(legacyExpiryCandidateIntroductions.items.length, 1);
+    const legacyExpiryViewerIntroductions = (await (
       await fetch(base + "/v1/introductions", {
         headers: auth(second.body.token!),
       })
     ).json()) as { items: unknown[] };
-    assert.equal(expiredViewerIntroductions.items.length, 0);
+    assert.equal(legacyExpiryViewerIntroductions.items.length, 1);
     await fetch(base + "/v1/consents/directory", {
       method: "PATCH",
       headers: auth(second.body.token!),

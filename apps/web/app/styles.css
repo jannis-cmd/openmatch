@@ -301,6 +301,46 @@ textarea {
   gap: 24px;
   align-items: flex-start;
 }
+.swipe-deck {
+  width: min(100%, 580px);
+  margin: 0 auto;
+}
+.swipe-card {
+  position: relative;
+  touch-action: pan-y;
+  transform-origin: 50% 90%;
+  will-change: transform;
+}
+.swipe-card-settled {
+  transition: transform 180ms ease;
+}
+.swipe-card:focus-visible {
+  outline: 3px solid #9fc1ae;
+  outline-offset: 4px;
+}
+.swipe-intent {
+  position: absolute;
+  z-index: 2;
+  top: 28px;
+  border: 2px solid currentColor;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 8px 14px;
+  font-size: 22px;
+  font-weight: 780;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.swipe-no {
+  right: 24px;
+  color: #93443d;
+  transform: rotate(7deg);
+}
+.swipe-yes {
+  left: 24px;
+  color: #246247;
+  transform: rotate(-7deg);
+}
 .profile-card,
 .match-panel,
 .settings-card {
@@ -349,6 +389,16 @@ textarea {
   font-size: 34px;
   letter-spacing: -0.04em;
   margin: 0;
+}
+.compact-fit {
+  display: inline-block;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: #eef3ee;
+  color: #365947;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 700;
 }
 .identity p,
 .intent {
@@ -435,6 +485,104 @@ textarea {
   padding: 30px;
   position: sticky;
   top: 24px;
+}
+.compact-match-panel {
+  position: static;
+  margin-top: 12px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.match-info-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 auto 14px;
+  border: 0;
+  background: transparent;
+  color: #536158;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.match-info-button > span {
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #7c8b81;
+  border-radius: 50%;
+  font-family: ui-serif, Georgia, serif;
+  font-weight: 700;
+}
+.match-details {
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid #dde2db;
+  border-radius: 16px;
+  background: #f8faf7;
+  color: #505a53;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.match-details > p:first-child {
+  margin-top: 0;
+  font-weight: 650;
+}
+.match-details ul {
+  margin: 12px 0;
+  padding: 0 0 0 20px;
+  border: 0;
+  line-height: 1.6;
+}
+.swipe-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.swipe-action {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid #cfd5ce;
+  border-radius: 999px;
+  background: #fff;
+  color: #26352d;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 720;
+  cursor: pointer;
+}
+.swipe-action > span {
+  font-size: 24px;
+  line-height: 1;
+}
+.swipe-action-no:hover {
+  border-color: #c98f89;
+  background: #fff6f4;
+  color: #8a3f38;
+}
+.swipe-action-yes {
+  border-color: #173f32;
+  background: #173f32;
+  color: #fff;
+}
+.swipe-action-yes:hover {
+  background: #245441;
+}
+.swipe-action:focus-visible {
+  outline: 3px solid #9fc1ae;
+  outline-offset: 3px;
+}
+.swipe-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 .score {
   font-size: 72px;
@@ -823,6 +971,33 @@ textarea {
   padding: 11px 12px;
   font: inherit;
 }
+.app-shell select,
+.auth-card select {
+  appearance: none;
+  min-height: 44px;
+  border: 1px solid #cfd2cb;
+  border-radius: 10px;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #536158 50%),
+    linear-gradient(135deg, #536158 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) calc(50% - 2px),
+    calc(100% - 12px) calc(50% - 2px);
+  background-repeat: no-repeat;
+  background-size:
+    5px 5px,
+    5px 5px;
+  padding: 11px 38px 11px 12px;
+  color: #222c26;
+  font: inherit;
+}
+.app-shell select:focus-visible,
+.auth-card select:focus-visible {
+  border-color: #517663;
+  outline: 3px solid #d9e7de;
+  outline-offset: 1px;
+}
 .optional {
   color: #6a6f68;
   font-size: 12px;
@@ -1106,6 +1281,25 @@ textarea {
   border-radius: 16px;
   background: #f7faf6;
 }
+.account-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: -12px 0 20px;
+}
+.account-shortcuts button {
+  border: 1px solid #cfd5ce;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px 16px;
+  color: #234636;
+  font: inherit;
+  font-weight: 680;
+  cursor: pointer;
+}
+.account-shortcuts button:hover {
+  background: #f4f8f4;
+}
 .preference-save-bar > span {
   color: #425148;
   font-weight: 650;
@@ -1140,6 +1334,16 @@ textarea {
   background: #e6eee8;
   color: #173d30;
   font-weight: 680;
+}
+.connections-view {
+  display: flex;
+  flex-direction: column;
+}
+.connections-view .conversation {
+  order: 1;
+}
+.connections-view .meeting-card {
+  order: 2;
 }
 .card-title h2,
 .connection-head h2 {
@@ -1188,6 +1392,19 @@ textarea {
   background: #dfeae3;
   border-radius: 16px 16px 4px 16px;
 }
+.conversation {
+  border-color: #cedbd2;
+}
+.composer {
+  position: sticky;
+  bottom: 14px;
+  padding: 10px;
+  border: 1px solid #d8ddd7;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 30px rgba(24, 31, 26, 0.08);
+  backdrop-filter: blur(12px);
+}
 .bubble.received {
   align-self: flex-start;
   background: #f1f1ed;
@@ -1202,8 +1419,7 @@ textarea {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
-  border-top: 1px solid #ecece7;
-  padding-top: 16px;
+  padding: 10px;
 }
 .composer input {
   border: 1px solid #cfd2cb;
@@ -1276,6 +1492,9 @@ textarea {
     padding: 22px;
   }
   .onboarding-profile-grid {
+    grid-template-columns: 1fr;
+  }
+  .account-shortcuts {
     grid-template-columns: 1fr;
   }
   .setup-completion {

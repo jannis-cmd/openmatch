@@ -143,7 +143,9 @@ export type ResearchConsentReceipt = {
 export type DirectoryConsentReceipt = {
   participating: boolean;
   noticeVersion:
-    "account-directory-prototype-0.1" | "account-directory-prototype-0.2";
+    | "account-directory-prototype-0.1"
+    | "account-directory-prototype-0.2"
+    | "account-directory-prototype-0.3";
   updatedAt: string;
   availableUntil?: string | null;
 };
@@ -155,14 +157,10 @@ export type SetupCommand = {
   prototypeDataUseAccepted: true;
   joinDirectory: boolean;
 };
-export const DIRECTORY_AVAILABILITY_DAYS = 30;
 export const directoryParticipationIsActive = (
   receipt: DirectoryConsentReceipt | null,
-  now = Date.now(),
-) =>
-  receipt?.participating === true &&
-  typeof receipt.availableUntil === "string" &&
-  Date.parse(receipt.availableUntil) > now;
+  _now = Date.now(),
+) => receipt?.participating === true;
 export type ReportUpdateKind =
   "additional_context" | "correction" | "withdrawal_request";
 
@@ -582,12 +580,9 @@ export class Store {
     const directoryConsent = command.joinDirectory
       ? {
           participating: true as const,
-          noticeVersion: "account-directory-prototype-0.2" as const,
+          noticeVersion: "account-directory-prototype-0.3" as const,
           updatedAt: acceptedAt.toISOString(),
-          availableUntil: new Date(
-            acceptedAt.getTime() +
-              DIRECTORY_AVAILABILITY_DAYS * 24 * 60 * 60 * 1000,
-          ).toISOString(),
+          availableUntil: null,
         }
       : null;
     this.db.exec("BEGIN IMMEDIATE");
@@ -648,14 +643,9 @@ export class Store {
     const updatedAt = new Date();
     const receipt: DirectoryConsentReceipt = {
       participating,
-      noticeVersion: "account-directory-prototype-0.2",
+      noticeVersion: "account-directory-prototype-0.3",
       updatedAt: updatedAt.toISOString(),
-      availableUntil: participating
-        ? new Date(
-            updatedAt.getTime() +
-              DIRECTORY_AVAILABILITY_DAYS * 24 * 60 * 60 * 1000,
-          ).toISOString()
-        : null,
+      availableUntil: null,
     };
     this.setState("directory_consent_receipt", receipt);
     this.clearIntroductionBatch();

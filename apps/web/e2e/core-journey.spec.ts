@@ -413,11 +413,11 @@ test("first run through a persistent connection and safety action", async ({
       name: /I understand this prototype stores/,
     })
     .check();
-  await page
-    .getByRole("checkbox", {
-      name: /I separately choose to join account matching/,
-    })
-    .check();
+  await expect(
+    page.getByRole("checkbox", {
+      name: /Show my profile in introductions after setup/,
+    }),
+  ).toBeChecked();
   let failOnboardingCompletion = true;
   await page.route("**/v1/setup", async (route) => {
     if (failOnboardingCompletion) {
@@ -444,7 +444,7 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Finish setup" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "3 remaining" }),
+    page.getByRole("heading", { name: "3 left" }),
   ).toBeVisible();
   await expect(page.getByText("Doesn’t smoke").first()).toBeVisible();
   await expect(page.getByText(/children/).first()).toBeVisible();
@@ -479,14 +479,12 @@ test("first run through a persistent connection and safety action", async ({
   expect(
     publicApiRequests.filter((url) => url.endsWith("/v1/accounts")),
   ).toHaveLength(1);
-  await page.getByRole("button", { name: "Your profile" }).click();
+  await page.getByRole("button", { name: "Account" }).click();
   await expect(
-    page.getByRole("heading", { name: "Account matching" }),
+    page.getByRole("heading", { name: "Profile visibility" }),
   ).toBeVisible();
   await expect(
-    page.getByText(
-      /Available through .* under account-directory-prototype-0.2/,
-    ),
+    page.getByText(/Visible to mutually eligible people/),
   ).toBeVisible();
   await page.route(
     "**/v1/consents/directory",
@@ -498,14 +496,14 @@ test("first run through a persistent connection and safety action", async ({
       }),
     { times: 1 },
   );
-  await page.getByRole("button", { name: "Stop account matching" }).click();
+  await page.getByRole("button", { name: "Pause profile visibility" }).click();
   await expect(
     page
       .getByRole("alert")
       .filter({ hasText: "Account matching was not changed" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Stop account matching" }),
+    page.getByRole("button", { name: "Pause profile visibility" }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
     page.getByRole("heading", { name: "Active sessions" }),
@@ -571,7 +569,7 @@ test("first run through a persistent connection and safety action", async ({
     .getByRole("button", { name: "I saved them—hide codes" })
     .click();
   await expect(recoveryCard.locator("li")).toHaveCount(0);
-  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
   await expect(page.getByLabel("Profile prompt")).toBeVisible();
   await expect(
     page.getByRole("checkbox", { name: "Care", exact: true }),
@@ -594,7 +592,7 @@ test("first run through a persistent connection and safety action", async ({
   await expect(page.getByLabel("Display name")).toHaveValue("Unsaved Taylor");
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Taylor, 31", level: 1 }),
+    page.getByRole("heading", { name: "Taylor, 31", level: 2 }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Today" }).click();
   const firstIntroduction = await page
@@ -611,22 +609,15 @@ test("first run through a persistent connection and safety action", async ({
       }),
     { times: 1 },
   );
+  await page.getByRole("button", { name: "Why this match?" }).click();
   await page.getByRole("button", { name: "Save for later" }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Introduction was not saved" }),
+    page.getByRole("alert").filter({ hasText: "This profile was not saved" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: firstIntroduction ?? "" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Save for later" }).click();
-  await expect(
-    page.getByRole("heading", { name: "2 remaining" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Saved (1)" }).click();
-  await expect(
-    page.getByRole("heading", { name: firstIntroduction ?? "" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Return to batch" }).click();
+  await page.getByRole("button", { name: "Hide match details" }).click();
   await expect(page.locator(".profile-card")).toBeVisible();
   for (let attempt = 0; attempt < 10; attempt += 1) {
     await expect(
@@ -643,7 +634,7 @@ test("first run through a persistent connection and safety action", async ({
     )
       break;
     if (await page.getByRole("heading", { name: "Noah, 34" }).isVisible()) {
-      await page.getByRole("button", { name: "Save for later" }).click();
+      await page.getByRole("button", { name: "No to Noah" }).click();
       await expect(
         page.getByRole("heading", { name: "Noah, 34" }),
       ).not.toBeVisible();
@@ -652,7 +643,7 @@ test("first run through a persistent connection and safety action", async ({
     const previousIntroduction = await page
       .locator(".profile-card h2")
       .textContent();
-    await page.getByRole("button", { name: "Pass" }).click();
+    await page.getByRole("button", { name: /^No to / }).click();
     if (previousIntroduction)
       await expect(
         page.getByRole("heading", { name: previousIntroduction }),
@@ -661,16 +652,13 @@ test("first run through a persistent connection and safety action", async ({
   await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
   await expect(page.getByText("Same approximate region")).toBeVisible();
   await expect(page.getByText("Ready to meet in person")).toBeVisible();
-  await page.getByRole("button", { name: "See the full calculation" }).click();
+  await page.getByRole("button", { name: "Why this match?" }).click();
   await expect(page.getByText(/Your directed fit:/)).toBeVisible();
   await expect(page.getByText(/Their directed fit:/)).toBeVisible();
   await expect(
     page.getByText(/Their factor weights are private personal inputs/),
   ).toBeVisible();
   await expect(page.getByText(/Harmonic mean:/)).toBeVisible();
-  await expect(page.getByText(/Selection: (score|exploration)/)).toBeVisible();
-  if (await page.getByText(/Selection: exploration/).isVisible())
-    await expect(page.getByText(/public seed \d{4}-\d{2}-\d{2}/)).toBeVisible();
   await expectAccessible(page);
 
   await page.route(
@@ -683,13 +671,13 @@ test("first run through a persistent connection and safety action", async ({
       }),
     { times: 1 },
   );
-  await page.getByRole("button", { name: "Interested" }).click();
+  await page.getByRole("button", { name: "Yes to Mara" }).click();
   await expect(
     page.getByRole("alert").filter({ hasText: "Your decision was not saved" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Mara, 30" })).toBeVisible();
-  await page.getByRole("button", { name: "Interested" }).click();
-  await page.getByRole("button", { name: /Connections · 1/ }).click();
+  await page.getByRole("button", { name: "Yes to Mara" }).click();
+  await page.getByRole("button", { name: /Matches · 1/ }).click();
   await expect(
     page.getByRole("heading", {
       name: "Would you like to plan a first meeting?",
@@ -757,10 +745,9 @@ test("first run through a persistent connection and safety action", async ({
   expect(safetyWarning).toContain("External link");
   expect(safetyWarning).toContain("These simple rules can be wrong");
   await expect(composer).toHaveValue("See https://example.com before we meet");
+  await page.locator(".conversation details summary").click();
   await expect(
-    page.getByRole("button", {
-      name: "Close politely with a standard message",
-    }),
+    page.getByRole("button", { name: "Close politely" }),
   ).toBeVisible();
   await page.route(
     "**/v1/connections/*/mute",
@@ -772,18 +759,18 @@ test("first run through a persistent connection and safety action", async ({
       }),
     { times: 1 },
   );
-  await page.getByRole("button", { name: "Mute conversation" }).click();
+  await page.getByRole("button", { name: "Mute", exact: true }).click();
   await expect(
     page
       .getByRole("alert")
       .filter({ hasText: "Mute preference was not saved" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Mute conversation" }),
+    page.getByRole("button", { name: "Mute", exact: true }),
   ).toHaveAttribute("aria-pressed", "false");
-  await page.getByRole("button", { name: "Mute conversation" }).click();
+  await page.getByRole("button", { name: "Mute", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Unmute conversation" }),
+    page.getByRole("button", { name: "Unmute", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Start from their profile" }).click();
   await expect(composer).toHaveValue(/You mentioned/);
@@ -824,7 +811,7 @@ test("first run through a persistent connection and safety action", async ({
     )
     .toContain("Hello from the repeatable journey");
   await page.reload();
-  await page.getByRole("button", { name: /Connections · 1/ }).click();
+  await page.getByRole("button", { name: /Matches · 1/ }).click();
   await expect(composer).toHaveValue("Hello from the repeatable journey");
   await page.getByRole("button", { name: "Send" }).click();
   await expect.poll(() => messageClientRequestIds.length).toBe(2);
@@ -906,7 +893,7 @@ test("first run through a persistent connection and safety action", async ({
     ).status(),
   ).toBe(204);
   await expect(
-    page.getByRole("heading", { name: "No open connections" }),
+    page.getByRole("heading", { name: "No matches yet" }),
   ).toBeVisible({ timeout: 12_000 });
   await expect(
     page.getByRole("heading", { name: "Closed conversations" }),
@@ -939,7 +926,7 @@ test("first run through a persistent connection and safety action", async ({
     if (await caughtUp.isVisible()) break;
     await expect(visibleCard).toBeVisible();
     const previousName = await visibleCard.textContent();
-    await page.getByRole("button", { name: "Pass" }).click();
+    await page.getByRole("button", { name: /^No to / }).click();
     if (previousName)
       await expect(
         page.getByRole("heading", { name: previousName }),
@@ -1053,7 +1040,7 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("combobox", { name: "Smoking boundary" }),
   ).toHaveValue("any");
 
-  await page.getByRole("button", { name: "Your profile" }).click();
+  await page.getByRole("button", { name: "Account" }).click();
   await expectAccessible(page);
   await expect(page.getByText(/Not enrolled/)).toBeVisible();
   await page.route(
@@ -1108,11 +1095,11 @@ test("first run through a persistent connection and safety action", async ({
     reportCard.getByText(/correction.*The timing in my original report/i),
   ).toBeVisible();
   await expect(page.getByText(/she\/her · Woman · Winterthur/)).toBeVisible();
-  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("textbox", { name: "Display name" }).fill("Taylor Two");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(
-    page.getByRole("heading", { name: "Taylor Two, 31", level: 1 }),
+    page.getByRole("heading", { name: "Taylor Two, 31", level: 2 }),
   ).toBeVisible();
   await page.route(
     "**/v1/account/status",
@@ -1191,7 +1178,7 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByText(/You do not need to file an OpenMatch report/),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Your profile" }).click();
+  await page.getByRole("button", { name: "Account" }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export my data" }).click();
   expect((await downloadPromise).suggestedFilename()).toBe(
@@ -1213,7 +1200,7 @@ test("first run through a persistent connection and safety action", async ({
     page.getByRole("alert").filter({ hasText: "Local data was not deleted" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Taylor Two, 31", level: 1 }),
+    page.getByRole("heading", { name: "Taylor Two, 31", level: 2 }),
   ).toBeVisible();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete local data" }).click();

@@ -255,6 +255,8 @@ function AppExperience({
   const [decisionAction, setDecisionAction] = useState(false);
   const [decisionError, setDecisionError] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
+  const [swipeOrigin, setSwipeOrigin] = useState<number | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [pastConnections, setPastConnections] = useState<Connection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState<
@@ -722,7 +724,7 @@ function AppExperience({
             <Nav
               active={view === "connections"}
               onClick={() => setView("connections")}
-              label={`Connections${connected ? ` · ${connections.length}` : ""}`}
+              label={`Matches${connected ? ` · ${connections.length}` : ""}`}
             />
             <Nav
               active={view === "preferences"}
@@ -732,7 +734,7 @@ function AppExperience({
             <Nav
               active={view === "profile"}
               onClick={() => setView("profile")}
-              label="Your profile"
+              label="Account"
             />
             <Nav
               active={view === "about"}
@@ -922,39 +924,66 @@ function AppExperience({
               )}
               {view === "today" && (
                 <>
-                  <div className="section-head">
+                  <div className="section-head introduction-head">
                     <div>
-                      <p className="eyebrow">
-                        {showSaved
-                          ? "Saved introductions"
-                          : "Your introductions"}
-                      </p>
+                      <p className="eyebrow">Your introductions</p>
                       <h1>
                         {current
-                          ? `${visibleIntroductions.length} remaining`
-                          : showSaved
-                            ? "Nothing saved"
-                            : "You’re all caught up"}
+                          ? `${visibleIntroductions.length} left`
+                          : "You’re all caught up"}
                       </h1>
                     </div>
-                    <div>
-                      <p className="calm-note">A finite set. Take your time.</p>
-                      <button
-                        className="text-button"
-                        onClick={() => {
-                          setDetails(false);
-                          setShowSaved(!showSaved);
-                        }}
-                      >
-                        {showSaved
-                          ? "Back to current batch"
-                          : `Saved (${savedIntroductions.length})`}
-                      </button>
-                    </div>
+                    <p className="calm-note">A finite set. Take your time.</p>
                   </div>
                   {current ? (
-                    <div className="profile-layout">
-                      <article className="profile-card">
+                    <div className="swipe-deck">
+                      <article
+                        className={`profile-card swipe-card ${swipeOrigin === null ? "swipe-card-settled" : ""}`}
+                        aria-label={`Introduction: ${current.profile.name}. Swipe left for no or right for yes.`}
+                        tabIndex={0}
+                        style={{
+                          transform: `translateX(${swipeOffset}px) rotate(${swipeOffset / 35}deg)`,
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "ArrowLeft") void decide("passed");
+                          if (event.key === "ArrowRight")
+                            void decide("interested");
+                        }}
+                        onPointerDown={(event) => {
+                          if (decisionAction) return;
+                          event.currentTarget.setPointerCapture(
+                            event.pointerId,
+                          );
+                          setSwipeOrigin(event.clientX);
+                          setSwipeOffset(0);
+                        }}
+                        onPointerMove={(event) => {
+                          if (swipeOrigin !== null)
+                            setSwipeOffset(event.clientX - swipeOrigin);
+                        }}
+                        onPointerCancel={() => {
+                          setSwipeOrigin(null);
+                          setSwipeOffset(0);
+                        }}
+                        onPointerUp={(event) => {
+                          const finalOffset =
+                            swipeOrigin === null
+                              ? 0
+                              : event.clientX - swipeOrigin;
+                          setSwipeOrigin(null);
+                          setSwipeOffset(0);
+                          if (finalOffset <= -90) void decide("passed");
+                          if (finalOffset >= 90) void decide("interested");
+                        }}
+                      >
+                        {Math.abs(swipeOffset) > 24 && (
+                          <span
+                            className={`swipe-intent ${swipeOffset < 0 ? "swipe-no" : "swipe-yes"}`}
+                            aria-hidden="true"
+                          >
+                            {swipeOffset < 0 ? "No" : "Yes"}
+                          </span>
+                        )}
                         <div
                           className="portrait"
                           style={{ background: current.profile.color }}
@@ -974,9 +1003,17 @@ function AppExperience({
                         </div>
                         <div className="profile-copy">
                           <div className="identity">
-                            <h2>
-                              {current.profile.name}, {current.profile.age}
-                            </h2>
+                            <div>
+                              <h2>
+                                {current.profile.name}, {current.profile.age}
+                              </h2>
+                              <span className="compact-fit">
+                                {Math.round(
+                                  current.explanation.finalScore * 100,
+                                )}
+                                % fit
+                              </span>
+                            </div>
                             <p>
                               {current.profile.pronouns} ·{" "}
                               {profileGenderLabel(current.profile)} ·{" "}
@@ -1000,42 +1037,34 @@ function AppExperience({
                           <PublicLifestyle profile={current.profile} />
                         </div>
                       </article>
-                      <aside className="match-panel">
-                        <p className="eyebrow">Why this introduction</p>
-                        {current.explanation.selectionMode ===
-                          "exploration" && (
-                          <div className="exploration-note" role="note">
-                            <strong>Public lottery slot</strong>
-                            <span>
-                              One place in this five-person batch is selected
-                              reproducibly from eligible profiles. It does not
-                              change anyone’s score.
-                            </span>
-                          </div>
-                        )}
-                        <div className="score">
-                          {Math.round(current.explanation.finalScore * 100)}
-                          <small>%</small>
-                        </div>
-                        <p className="score-label">
-                          fit with explicit preferences you both control—not
-                          predicted chemistry.
-                        </p>
-                        <ul>
-                          {current.reasons.map((reason) => (
-                            <li key={reason}>{reason}</li>
-                          ))}
-                        </ul>
+                      <aside className="match-panel compact-match-panel">
                         <button
-                          className="text-button"
+                          className="match-info-button"
+                          aria-expanded={details}
                           onClick={() => setDetails(!details)}
                         >
-                          {details
-                            ? "Hide calculation"
-                            : "See the full calculation"}
+                          <span aria-hidden="true">i</span>
+                          {details ? "Hide match details" : "Why this match?"}
                         </button>
                         {details && (
-                          <div className="calculation">
+                          <div className="match-details">
+                            <p>
+                              This is preference fit, not predicted chemistry.
+                            </p>
+                            <ul>
+                              {current.reasons.map((reason) => (
+                                <li key={reason}>{reason}</li>
+                              ))}
+                            </ul>
+                            {current.explanation.selectionMode ===
+                              "exploration" && (
+                              <p className="help">
+                                This profile also uses the batch’s transparent
+                                exploration place, which prevents a closed
+                                recommendation bubble. It does not change the
+                                fit score.
+                              </p>
+                            )}
                             <p>
                               <strong>
                                 Your directed fit:{" "}
@@ -1088,47 +1117,13 @@ function AppExperience({
                               % · Explicit inputs only · No undocumented system
                               factors.
                             </p>
-                            <p>
-                              Selection: {current.explanation.selectionMode} ·
-                              probability{" "}
-                              {Math.round(
-                                current.explanation.selectionProbability * 100,
-                              )}
-                              %
-                              {current.explanation.weeklySeed
-                                ? ` · public seed ${current.explanation.weeklySeed}`
-                                : ""}
-                            </p>
-                          </div>
-                        )}
-                        <div className="decision-row">
-                          <button
-                            className="pass"
-                            disabled={savedAction || decisionAction}
-                            onClick={async () => {
-                              setSavedAction(true);
-                              setSavedActionError(null);
-                              try {
-                                if (showSaved) {
-                                  await api.unsaveIntroduction(
-                                    current.profile.id,
-                                  );
-                                  setSavedIntroductions((items) =>
-                                    items.filter(
-                                      (item) =>
-                                        item.profile.id !== current.profile.id,
-                                    ),
-                                  );
-                                  setIntroductions((items) =>
-                                    items.some(
-                                      (item) =>
-                                        item.profile.id === current.profile.id,
-                                    )
-                                      ? items
-                                      : [current, ...items],
-                                  );
-                                  setShowSaved(false);
-                                } else {
+                            <button
+                              className="text-button"
+                              disabled={savedAction || decisionAction}
+                              onClick={async () => {
+                                setSavedAction(true);
+                                setSavedActionError(null);
+                                try {
                                   await api.saveIntroduction(
                                     current.profile.id,
                                   );
@@ -1146,35 +1141,71 @@ function AppExperience({
                                       ? items
                                       : [...items, current],
                                   );
-                                  setNotice(
-                                    `${current.profile.name} saved for this prototype batch.`,
+                                  setNotice(`${current.profile.name} saved.`);
+                                  setDetails(false);
+                                } catch {
+                                  setSavedActionError(
+                                    "This profile was not saved. Try again.",
                                   );
+                                } finally {
+                                  setSavedAction(false);
                                 }
-                                setDetails(false);
-                              } catch {
-                                setSavedActionError(
-                                  `${showSaved ? "Saved introduction was not returned to the batch" : "Introduction was not saved"}. The previous confirmed state is still active; retry when ready.`,
+                              }}
+                            >
+                              Save for later
+                            </button>
+                            <CandidateSafety
+                              name={current.profile.name}
+                              notice={notice}
+                              block={async () => {
+                                if (
+                                  window.confirm(
+                                    `Block ${current.profile.name}? They will no longer appear in your introductions.`,
+                                  )
+                                )
+                                  await runCrossAccountAction(
+                                    () => api.block(current.profile.id),
+                                    "The block could not be completed.",
+                                  );
+                              }}
+                              report={async (reason, reportDetails) => {
+                                const reportedProfileId = current.profile.id;
+                                const result = await api.report(
+                                  reportedProfileId,
+                                  reason,
+                                  reportDetails,
                                 );
-                              } finally {
-                                setSavedAction(false);
-                              }
-                            }}
-                          >
-                            {showSaved ? "Return to batch" : "Save for later"}
-                          </button>
+                                setNotice(
+                                  `Report received. Reference status: ${result.status}.`,
+                                );
+                                setIntroductions((items) =>
+                                  items.filter(
+                                    (item) =>
+                                      item.profile.id !== reportedProfileId,
+                                  ),
+                                );
+                              }}
+                            />
+                          </div>
+                        )}
+                        <div className="swipe-actions" aria-label="Your choice">
                           <button
-                            className="pass"
+                            className="swipe-action swipe-action-no"
                             disabled={savedAction || decisionAction}
                             onClick={() => decide("passed")}
+                            aria-label={`No to ${current.profile.name}`}
                           >
-                            Pass
+                            <span aria-hidden="true">×</span>
+                            No
                           </button>
                           <button
-                            className="interest"
+                            className="swipe-action swipe-action-yes"
                             disabled={savedAction || decisionAction}
                             onClick={() => decide("interested")}
+                            aria-label={`Yes to ${current.profile.name}`}
                           >
-                            Interested
+                            <span aria-hidden="true">♥</span>
+                            Yes
                           </button>
                         </div>
                         {savedAction && <p role="status">Saving choice…</p>}
@@ -1188,50 +1219,6 @@ function AppExperience({
                         <p className="private-note">
                           Your decision is private unless interest is mutual.
                         </p>
-                        <CandidateSafety
-                          name={current.profile.name}
-                          notice={notice}
-                          block={async () => {
-                            if (
-                              window.confirm(
-                                `Block ${current.profile.name}? They will no longer appear in your introductions.`,
-                              )
-                            ) {
-                              await runCrossAccountAction(
-                                () => api.block(current.profile.id),
-                                "The block could not be completed.",
-                              );
-                            }
-                          }}
-                          report={async (reason, reportDetails) => {
-                            const reportedProfileId = current.profile.id;
-                            const result = await api.report(
-                              reportedProfileId,
-                              reason,
-                              reportDetails,
-                            );
-                            setNotice(
-                              `Report received. This profile is concealed from future introductions. Reference status: ${result.status}.`,
-                            );
-                            setIntroductions((items) =>
-                              items.filter(
-                                (item) => item.profile.id !== reportedProfileId,
-                              ),
-                            );
-                            setSavedIntroductions((items) =>
-                              items.filter(
-                                (item) => item.profile.id !== reportedProfileId,
-                              ),
-                            );
-                            try {
-                              setReports((await api.reports()).items);
-                            } catch {
-                              setNotice(
-                                `Report received with status ${result.status}, but report history could not refresh. Check again shortly.`,
-                              );
-                            }
-                          }}
-                        />
                       </aside>
                     </div>
                   ) : (
@@ -1424,20 +1411,35 @@ function AppExperience({
                   }}
                   setMuted={async (muted) => {
                     if (selectedConnection) {
-                      await api.updateConnectionMute(
+                      const result = await api.updateConnectionMute(
                         selectedConnection.id,
                         muted,
                       );
-                      await load();
+                      setConnections((current) =>
+                        current.map((item) =>
+                          item.id === selectedConnection.id
+                            ? { ...item, muted: result.muted }
+                            : item,
+                        ),
+                      );
                     }
                   }}
                   setMeetingPreference={async (meetingPreference) => {
                     if (selectedConnection) {
-                      await api.updateMeetingPreference(
+                      const result = await api.updateMeetingPreference(
                         selectedConnection.id,
                         meetingPreference,
                       );
-                      await load();
+                      setConnections((current) =>
+                        current.map((item) =>
+                          item.id === selectedConnection.id
+                            ? {
+                                ...item,
+                                meetingPreference: result.meetingPreference,
+                              }
+                            : item,
+                        ),
+                      );
                     }
                   }}
                   setOutcome={async (kind, recorded) => {
@@ -1512,6 +1514,7 @@ function AppExperience({
               {view === "profile" && (
                 <ProfileView
                   profile={profile}
+                  openPreferences={() => setView("preferences")}
                   saveProfile={async (patch) => {
                     const saved = await api.updateProfile(patch);
                     setProfile(saved);
@@ -2600,7 +2603,9 @@ function OnboardingView({
 }) {
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
-  const [directoryAccepted, setDirectoryAccepted] = useState(false);
+  const [directoryAccepted, setDirectoryAccepted] = useState(
+    authenticated && directoryAvailable,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationAttempted, setValidationAttempted] = useState(false);
@@ -2849,13 +2854,10 @@ function OnboardingView({
                 disabled={!directoryAvailable}
                 onChange={(event) => setDirectoryAccepted(event.target.checked)}
               />
-              I separately choose to join account matching. After setup while
-              Active, my chosen public profile can be shown for 30 days to
-              mutually eligible accounts whose approximate city or region text
-              exactly matches mine. I renew explicitly; OpenMatch does not
-              record or publish my last-active time. My private preferences and
-              one-sided decisions are not shown. I can stop or renew this from
-              Profile. Thirty days is a prototype hypothesis.
+              Show my profile in introductions after setup. Only mutually
+              eligible people in my approximate region can see it. I can pause
+              this at any time in Account. My private preferences and one-sided
+              decisions are never shown.
               {!directoryAvailable &&
                 " Confirm your email from Profile before enabling this."}
             </label>
@@ -3569,6 +3571,7 @@ function PublicProfilePreview({
 
 function ProfileView({
   profile,
+  openPreferences,
   saveProfile,
   accountStatus,
   reports,
@@ -3599,6 +3602,7 @@ function ProfileView({
   deleteAccount,
 }: {
   profile: Profile;
+  openPreferences: () => void;
   saveProfile: (patch: Partial<Profile>) => Promise<void>;
   accountStatus: AccountStatus;
   reports: ReportRecord[];
@@ -3731,17 +3735,21 @@ function ProfileView({
 
   return (
     <div className="narrow">
-      <p className="eyebrow">Your profile</p>
-      <h1>
-        {profile.name}, {profile.age}
-      </h1>
+      <p className="eyebrow">Account</p>
+      <h1>Your account</h1>
       <p className="intro-copy">
-        This is what another person sees after you satisfy each other’s
-        boundaries.
+        Update your dating profile, matching preferences, visibility, and
+        sign-in settings whenever you want.
       </p>
+      <div className="account-shortcuts">
+        <button onClick={() => setEditing(true)}>Edit dating profile</button>
+        <button onClick={openPreferences}>Matching preferences</button>
+      </div>
       <section className="settings-card">
         <div className="card-title">
-          <h2>About you</h2>
+          <h2>
+            {profile.name}, {profile.age}
+          </h2>
           {editing ? (
             <div className="inline-actions">
               <button
@@ -4349,15 +4357,12 @@ function ProfileView({
         )}
       {deleteAccount && (
         <section className="settings-card">
-          <h2>Account matching</h2>
+          <h2>Profile visibility</h2>
           <p>
-            This is a separate, reversible choice. When enabled and your profile
-            is Active, your chosen public profile can appear for 30 days to
-            mutually eligible accounts whose approximate region text exactly
-            matches yours. Renewing is explicit: OpenMatch does not record or
-            publish when you last used the app. Private preferences and
-            one-sided decisions are not shown. Thirty days is a prototype
-            hypothesis, not a scientifically validated optimum.
+            When enabled and Active, your public dating profile can appear to
+            mutually eligible accounts in your approximate region. It stays on
+            until you pause or hide it here. Private preferences and one-sided
+            decisions are never shown.
           </p>
           <div className="data-actions">
             <button
@@ -4388,10 +4393,8 @@ function ProfileView({
               }}
             >
               {directoryParticipationIsActive(directoryConsent)
-                ? "Stop account matching"
-                : directoryConsent?.participating
-                  ? "Renew for 30 days"
-                  : "Enable for 30 days"}
+                ? "Pause profile visibility"
+                : "Show my profile"}
             </button>
           </div>
           {privacyAction === "directory" && (
@@ -4413,14 +4416,8 @@ function ProfileView({
                     !emailVerification.verifiedAt
                   ? "Confirm your email before joining account matching."
                   : directoryParticipationIsActive(directoryConsent)
-                    ? `Available through ${new Date(
-                        directoryConsent?.availableUntil ?? "",
-                      ).toLocaleDateString()} under ${directoryConsent?.noticeVersion}.`
-                    : directoryConsent?.participating
-                      ? "Availability expired. Your profile is excluded from new introductions until you renew."
-                      : directoryConsent
-                        ? `Disabled under ${directoryConsent.noticeVersion}.`
-                        : "Disabled. No account-matching consent has been recorded."}
+                    ? "Visible to mutually eligible people in your approximate region."
+                    : "Paused. Your profile is excluded from new introductions."}
           </p>
         </section>
       )}
@@ -5117,8 +5114,8 @@ function ConnectionsView({
       <div className="narrow">
         <div className="empty">
           <div className="empty-mark">○</div>
-          <h2>No open connections</h2>
-          <p>A connection appears only after mutual interest.</p>
+          <h2>No matches yet</h2>
+          <p>When interest is mutual, a private text chat appears here.</p>
         </div>
         <PastConnectionsView
           connections={pastConnections}
@@ -5128,14 +5125,12 @@ function ConnectionsView({
     );
   const name = connection.profile?.name ?? "Connection";
   return (
-    <div className="narrow">
-      <p className="eyebrow">
-        {connections.length === 1 ? "Connection" : "Connections"}
-      </p>
-      <h1>{name}</h1>
+    <div className="narrow connections-view">
+      <p className="eyebrow">Matches</p>
+      <h1>Your chats</h1>
       <p className="intro-copy">
-        You both expressed interest. Messages are text-only and have no read
-        receipts.
+        Mutual matches only. Messages are text-only: no photo uploads and no
+        read receipts.
       </p>
       {connections.length > 1 && (
         <div className="connection-picker" aria-label="Choose a connection">
@@ -5154,46 +5149,6 @@ function ConnectionsView({
           ))}
         </div>
       )}
-      <button
-        className="text-button"
-        onClick={() => {
-          if (
-            window.confirm(
-              `Send this message and close the conversation?\n\n“${POLITE_CLOSE_MESSAGE}”`,
-            )
-          )
-            void closePolitely();
-        }}
-      >
-        Close politely with a standard message
-      </button>
-      <button
-        className="text-button"
-        aria-pressed={connection.muted}
-        disabled={preferenceAction !== null}
-        onClick={async () => {
-          setPreferenceAction("mute");
-          setPreferenceError(null);
-          try {
-            await setMuted(!connection.muted);
-          } catch {
-            setPreferenceError(
-              "Mute preference was not saved. The previous confirmed state is still active; retry when ready.",
-            );
-          } finally {
-            setPreferenceAction(null);
-          }
-        }}
-      >
-        {connection.muted ? "Unmute conversation" : "Mute conversation"}
-      </button>
-      <p className="help">
-        {connection.muted
-          ? "Muted. Future message notifications would be suppressed. Messages remain available."
-          : "This prototype sends no notifications yet; the preference is stored for future delivery."}
-      </p>
-      {preferenceAction === "mute" && <p role="status">Saving mute…</p>}
-      {preferenceError && <p role="alert">{preferenceError}</p>}
       <section className="settings-card meeting-card">
         <p className="eyebrow">Optional next step</p>
         <h2>Would you like to plan a first meeting?</h2>
@@ -5327,6 +5282,37 @@ function ConnectionsView({
             <summary>Safety</summary>
             <button
               onClick={() => {
+                if (
+                  window.confirm(
+                    `Send this message and close the conversation?\n\n“${POLITE_CLOSE_MESSAGE}”`,
+                  )
+                )
+                  void closePolitely();
+              }}
+            >
+              Close politely
+            </button>
+            <button
+              aria-pressed={connection.muted}
+              disabled={preferenceAction !== null}
+              onClick={async () => {
+                setPreferenceAction("mute");
+                setPreferenceError(null);
+                try {
+                  await setMuted(!connection.muted);
+                } catch {
+                  setPreferenceError(
+                    "Mute preference was not saved. Try again.",
+                  );
+                } finally {
+                  setPreferenceAction(null);
+                }
+              }}
+            >
+              {connection.muted ? "Unmute" : "Mute"}
+            </button>
+            <button
+              onClick={() => {
                 if (window.confirm("Unmatch and close this conversation?"))
                   void unmatch();
               }}
@@ -5348,6 +5334,8 @@ function ConnectionsView({
             <button onClick={() => setReportOpen(!reportOpen)}>Report</button>
           </details>
         </div>
+        {preferenceAction === "mute" && <p role="status">Saving mute…</p>}
+        {preferenceError && <p role="alert">{preferenceError}</p>}
         {notice && <p role="status">{notice}</p>}
         {reportOpen && (
           <div className="conversation-report safety-form">
@@ -5674,12 +5662,11 @@ function AboutView({
             expiring session, and a scrypt-protected passphrase. Completed
             active accounts can currently meet only when their self-entered
             approximate region text matches exactly; the service does not
-            geocode or estimate distance. Account-matching availability expires
-            after 30 days unless explicitly renewed; no login history or public
-            last-active time is created. The duration is an unvalidated
-            prototype hypothesis. Passkeys, email-delivery monitoring,
-            provider-backed recovery notifications, and an independent security
-            review are still required before any real-person pilot.
+            geocode or estimate distance. Profile visibility remains on until
+            the person pauses or hides it; no public last-active time is
+            created. Passkeys, email-delivery monitoring, provider-backed
+            recovery notifications, and an independent security review are still
+            required before any real-person pilot.
           </p>
         ) : (
           <p>

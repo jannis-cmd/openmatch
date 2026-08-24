@@ -21,7 +21,7 @@ participatory threat modeling with affected communities.
 ## Initial retention proposal (requires legal and community review)
 
 - paused profile: hidden immediately, retained 90 days unless user selects earlier deletion;
-- account-matching availability: explicitly declared for 30 days, then excluded from new introductions until renewed; no login history or public last-active time is created;
+- account-matching visibility: explicitly enabled until the person pauses or hides it; no public last-active time is created;
 - deleted profile and preference records: purge within 30 days, backups age out within 90 days;
 - ordinary messages: user-controlled deletion, maximum 12 months after connection closes;
 - unresolved safety evidence: case-specific retention with notice where lawful and periodic review;

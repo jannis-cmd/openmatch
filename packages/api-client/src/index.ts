@@ -110,7 +110,9 @@ export type ResearchConsentReceipt = {
 export type DirectoryConsentReceipt = {
   participating: boolean;
   noticeVersion:
-    "account-directory-prototype-0.1" | "account-directory-prototype-0.2";
+    | "account-directory-prototype-0.1"
+    | "account-directory-prototype-0.2"
+    | "account-directory-prototype-0.3";
   updatedAt: string;
   availableUntil?: string | null;
 };
@@ -131,11 +133,8 @@ export type PreferencePoolPreview = {
 };
 export const directoryParticipationIsActive = (
   receipt: DirectoryConsentReceipt | null,
-  now = Date.now(),
-) =>
-  receipt?.participating === true &&
-  typeof receipt.availableUntil === "string" &&
-  Date.parse(receipt.availableUntil) > now;
+  _now = Date.now(),
+) => receipt?.participating === true;
 export type DeletionReceipt = {
   deleted: true;
   completedAt: string;

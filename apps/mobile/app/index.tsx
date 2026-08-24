@@ -1118,14 +1118,10 @@ export default function App() {
                   {directoryAccepted ? "☑" : "☐"}
                 </Text>
                 <Text style={styles.consentCopy}>
-                  I separately choose to join account matching. After setup
-                  while Active, my chosen public profile can be shown for 30
-                  days to mutually eligible accounts whose approximate city or
-                  region text exactly matches mine. I renew explicitly;
-                  OpenMatch does not record or publish my last-active time. My
-                  private preferences and one-sided decisions are not shown. I
-                  can stop or renew this from Profile. Thirty days is a
-                  prototype hypothesis.
+                  Show my profile in introductions after setup. Only mutually
+                  eligible people in my approximate region can see it. I can
+                  pause this at any time in Account. My private preferences and
+                  one-sided decisions are never shown.
                   {emailVerification?.deliveryConfigured &&
                   !emailVerification.verifiedAt
                     ? " Confirm your email from Profile before enabling this."
@@ -3030,24 +3026,18 @@ export default function App() {
               )}
               {accessMode === "account" && (
                 <View style={styles.scoreCard}>
-                  <Text style={styles.name}>Account matching</Text>
+                  <Text style={styles.name}>Profile visibility</Text>
                   <Text style={styles.scoreNote}>
-                    This is a separate, reversible choice. When enabled and your
-                    profile is Active, your chosen public profile can appear for
-                    30 days to mutually eligible accounts whose approximate
-                    region text exactly matches yours. Renewing is explicit:
-                    OpenMatch does not record or publish when you last used the
-                    app. Private preferences and one-sided decisions are not
-                    shown. Thirty days is a prototype hypothesis, not a
-                    scientifically validated optimum.
+                    When enabled and Active, your public dating profile can
+                    appear to mutually eligible accounts in your approximate
+                    region. It stays on until you pause or hide it here. Private
+                    preferences and one-sided decisions are never shown.
                   </Text>
                   <Action
                     label={
                       directoryParticipationIsActive(directoryConsent)
-                        ? "Stop account matching"
-                        : directoryConsent?.participating
-                          ? "Renew for 30 days"
-                          : "Enable for 30 days"
+                        ? "Pause profile visibility"
+                        : "Show my profile"
                     }
                     secondary
                     disabled={
@@ -3107,14 +3097,8 @@ export default function App() {
                             !emailVerification.verifiedAt
                           ? "Confirm your email before joining account matching."
                           : directoryParticipationIsActive(directoryConsent)
-                            ? `Available through ${new Date(
-                                directoryConsent?.availableUntil ?? "",
-                              ).toLocaleDateString()} under ${directoryConsent?.noticeVersion}.`
-                            : directoryConsent?.participating
-                              ? "Availability expired. Your profile is excluded from new introductions until you renew."
-                              : directoryConsent
-                                ? `Disabled under ${directoryConsent.noticeVersion}.`
-                                : "Disabled. No account-matching consent has been recorded."}
+                            ? "Visible to mutually eligible people in your approximate region."
+                            : "Paused. Your profile is excluded from new introductions."}
                   </Text>
                 </View>
               )}
@@ -4047,7 +4031,7 @@ export default function App() {
                 </Text>
                 <Text style={styles.scoreNote}>
                   {accessMode === "account"
-                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Account-matching availability expires after 30 days unless explicitly renewed; no login history or public last-active time is created. The duration is an unvalidated prototype hypothesis. Passkeys, email-delivery monitoring, provider-backed recovery notifications, and an independent security review are still required before a real-person pilot."
+                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Profile visibility remains on until the person pauses or hides it; no public last-active time is created. Passkeys, email-delivery monitoring, provider-backed recovery notifications, and an independent security review are still required before a real-person pilot."
                     : "The temporary bearer token only gates this shared local demo. It does not verify identity or isolate one person’s data from another client. Do not use this demo with real profiles."}
                 </Text>
               </View>

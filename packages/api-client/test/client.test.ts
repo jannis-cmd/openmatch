@@ -26,7 +26,7 @@ test("failed security-email operations fail closed while exact status is unavail
     assert.equal(securityNotificationDeliveryFallback(status), null);
 });
 
-test("directory availability requires an explicit unexpired window", () => {
+test("directory visibility stays active until explicitly paused", () => {
   const now = Date.parse("2026-08-13T12:00:00.000Z");
   assert.equal(
     directoryParticipationIsActive(
@@ -49,7 +49,7 @@ test("directory availability requires an explicit unexpired window", () => {
       },
       now,
     ),
-    false,
+    true,
   );
   assert.equal(
     directoryParticipationIsActive(
@@ -61,6 +61,15 @@ test("directory availability requires an explicit unexpired window", () => {
       },
       now,
     ),
+    true,
+  );
+  assert.equal(
+    directoryParticipationIsActive({
+      participating: false,
+      noticeVersion: "account-directory-prototype-0.3",
+      updatedAt: "2026-08-13T12:00:00.000Z",
+      availableUntil: null,
+    }),
     false,
   );
 });

@@ -314,7 +314,7 @@
       "retention": "prototype",
       "access": ["person", "service", "operator"],
       "fields": ["participating", "noticeVersion", "updatedAt", "availableUntil"],
-      "disclosure": "Defaults to no receipt and therefore no account-directory participation. It is separate from service data-use and research consent. Enabling records an explicit 30-day availability window; after it expires the profile is excluded until the person renews, without recording logins, activity, or a public last-active time. Thirty days is a prototype hypothesis, not a validated optimum. Withdrawing excludes the account from new candidate sets without deleting existing connections or messages."
+      "disclosure": "Defaults to no receipt and therefore no account-directory participation. It is separate from service data-use and research consent. Enabling keeps the profile visible to mutually eligible accounts until the person pauses or hides it, without publishing a last-active time. Withdrawing excludes the account from new candidate sets without deleting existing connections or messages."
     },
     {
       "id": "decisions",
