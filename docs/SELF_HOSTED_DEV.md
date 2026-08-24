@@ -15,9 +15,9 @@ tokens. OpenMatch stores only an identity mirror plus a hash of each token to
 route requests to isolated application stores. Password change and permanent
 account deletion are wired through GoTrue. The older OpenMatch recovery-code,
 primary-email-change, and backup-notification-address workflows are not yet
-migrated and remain a release blocker. Dating profiles and interactions still
-use per-account SQLite files; PostgreSQL currently holds the GoTrue schema and
-the reserved OpenMatch application schema only.
+migrated and remain a release blocker. Dating profiles and interactions use
+normalized, account-scoped tables in PostgreSQL's `app` schema. SQLite remains
+only for standalone regression tests and as an archived migration source.
 
 ## Start locally
 
@@ -89,6 +89,32 @@ An account-flow smoke test should register a unique development address, read
 its confirmation message in Mailpit, confirm the address, sign in, refresh the
 session, and verify that a password shorter than 15 characters is rejected.
 No seeded account should use a real person's address or production password.
+
+## SQLite application-data migration
+
+Stop API writes and create both an API-volume archive and a PostgreSQL dump
+before importing. Apply `infra/dev/postgres/migrations/001-application-data.sql`
+through the `app-migrations` Compose service, then run:
+
+```bash
+OPENMATCH_MIGRATION_APPLY=true \
+docker compose --env-file infra/dev/.env -f infra/dev/compose.yaml run --rm \
+  api node scripts/migrate-sqlite-app-data.mjs
+```
+
+The explicit apply flag prevents accidental writes. Each account is replaced
+inside one PostgreSQL transaction only when a matching `auth.users` UUID
+exists. The importer compares a canonical hash of every source row with the
+rows read back from PostgreSQL and records the verified hash and per-table
+counts in `app.sqlite_migration_audit`. Keep the pre-migration archives until a
+restore drill and a PostgreSQL-only API restart both pass. The migration is
+idempotent but must not run while either data source is accepting writes.
+
+The current synchronous compatibility bridge uses a dedicated worker and
+database connection for every loaded account. It is appropriate for the small
+private development pool, not for a public deployment. Replace it with an
+asynchronous pooled repository, transaction-scoped account context, reviewed
+database roles/RLS, load tests, and connection-budget monitoring before a pilot.
 
 ## Transfer path
 

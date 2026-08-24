@@ -77,6 +77,31 @@ services:
     networks:
       - private
 
+  app-migrations:
+    image: postgres:17-alpine
+    restart: "no"
+    depends_on:
+      auth:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-openmatch}
+      PGUSER: ${POSTGRES_USER:-openmatch_auth}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    command:
+      [
+        "psql",
+        "--set",
+        "ON_ERROR_STOP=1",
+        "--file",
+        "/migrations/001-application-data.sql",
+      ]
+    volumes:
+      - ./postgres/migrations:/migrations:ro
+    networks:
+      - private
+
   api-data-init:
     image: busybox:1.37
     restart: "no"
@@ -92,6 +117,8 @@ services:
     depends_on:
       auth:
         condition: service_healthy
+      app-migrations:
+        condition: service_completed_successfully
       api-data-init:
         condition: service_completed_successfully
     environment:
@@ -103,6 +130,7 @@ services:
       OPENMATCH_COMMIT_SHA: ${OPENMATCH_COMMIT_SHA:-}
       OPENMATCH_SUPABASE_AUTH_URL: http://auth:9999
       OPENMATCH_SUPABASE_JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      OPENMATCH_POSTGRES_URL: postgres://${POSTGRES_USER:-openmatch_auth}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-openmatch}
       OPENMATCH_ALLOWED_ORIGINS: ${OPENMATCH_ALLOWED_ORIGINS:?set OPENMATCH_ALLOWED_ORIGINS in .env}
       OPENMATCH_DB: /data/openmatch.sqlite
       OPENMATCH_ACCOUNTS_DB: /data/openmatch-accounts.sqlite

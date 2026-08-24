@@ -862,7 +862,11 @@ export class Accounts {
         this.dataDirectory
           ? join(this.dataDirectory, `${accountId}.sqlite`)
           : ":memory:",
-        { accountProfile: true },
+        {
+          accountProfile: true,
+          accountId,
+          postgresUrl: process.env.OPENMATCH_POSTGRES_URL ?? null,
+        },
       );
       this.stores.set(accountId, store);
     }
@@ -940,7 +944,7 @@ export class Accounts {
     };
   }
 
-  private eraseAccount(accountId: string) {
+  private eraseAccount(accountId: string, resetApplicationData = true) {
     const account = this.db
       .prepare("SELECT id FROM accounts WHERE id=?")
       .get(accountId) as { id: string } | undefined;
@@ -951,7 +955,7 @@ export class Accounts {
     for (const { id } of peerAccountIds)
       this.store(id).eraseDeletedAccount(accountId);
     const store = this.store(accountId);
-    store.reset();
+    if (resetApplicationData) store.reset();
     store.close();
     this.stores.delete(accountId);
     this.db
@@ -983,7 +987,7 @@ export class Accounts {
   }
 
   deleteExternalAccount(accountId: string) {
-    return this.eraseAccount(accountId);
+    return this.eraseAccount(accountId, false);
   }
 
   private sessionClient(value: unknown): SessionClient {

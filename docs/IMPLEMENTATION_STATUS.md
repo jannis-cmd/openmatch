@@ -16,10 +16,19 @@ out-of-band email confirmation, login, authenticated API access, sign-out,
 password change, and permanent credential/application-data deletion use the
 GoTrue identity boundary. Twenty fictional, fully onboarded accounts exercise
 the real reciprocal account-directory path. This is a development deployment:
-application profile/interaction data is still isolated in SQLite, transport is
-private Tailnet HTTP, and the custom recovery-code, primary-email-change, and
-backup-notification-address flows are not yet migrated to GoTrue. It is not a
-public beta or production system.
+application profile/interaction data is authoritative in normalized,
+account-scoped PostgreSQL tables. Twenty-one historical SQLite stores were
+imported transactionally with matching canonical source/destination hashes; the
+one obsolete synthetic smoke account was then removed from GoTrue, the local
+identity mirror, PostgreSQL application data, and migration audit, leaving the
+intended 20 fictional profiles and 20 audit rows. A PostgreSQL-only restart
+restored an existing profile and five introductions with zero active account
+SQLite files. Transport is private Tailnet HTTP, and
+the custom recovery-code, primary-email-change, and
+backup-notification-address flows are not yet migrated to GoTrue. The current
+synchronous per-account PostgreSQL worker bridge must become an asynchronous
+pooled repository before scale testing. It is not a public beta or production
+system.
 
 ## Implemented and verified
 

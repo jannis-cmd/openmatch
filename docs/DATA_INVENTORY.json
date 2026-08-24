@@ -1,17 +1,17 @@
 {
   "schemaVersion": "1.2.0",
-  "status": "local-prototype",
-  "updated": "2026-08-23",
-  "scope": "Fields persisted by the local OpenMatch API, held for an authenticated or enabled demo session, or created in a user export. Demo candidate fixtures are source code, not user records.",
+  "status": "self-hosted-development",
+  "updated": "2026-08-24",
+  "scope": "Fields persisted by the standalone or self-hosted OpenMatch API, held for an authenticated or enabled demo session, created during the audited SQLite-to-PostgreSQL migration, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
-    "prototype": "Kept in the local SQLite file until the person deletes their local data or the operator removes the file.",
-    "accountDeletion": "DELETE /v1/me synchronously resets only the current account's application data. For an authenticated account, DELETE /v1/account requires fresh current-passphrase verification, erases that account's delivered profile-linked decisions, connections, and messages from every other local account store, then synchronously removes credentials, confirmation and recovery-code hashes, all sessions, and its application-data file. The submitted passphrase is verified in memory and never stored or logged. Neither path retains a server-side receipt.",
-    "backups": "The prototype does not create application-managed backups. Host-level backups are outside this prototype and must be resolved before a pilot."
+    "prototype": "Self-hosted application rows remain in PostgreSQL until the person deletes them or the development operator removes the database. Standalone regression data remains in SQLite under the same logical policy.",
+    "accountDeletion": "DELETE /v1/me synchronously resets only the current account's application rows. DELETE /v1/account requires fresh password verification, erases delivered profile-linked copies from peer accounts, deletes the GoTrue user, and cascades deletion through the PostgreSQL app schema and local identity/session mirror. The submitted password is verified in memory and never stored or logged. Neither path retains a user-facing server receipt.",
+    "backups": "The migration created operator-controlled pre-migration SQLite and PostgreSQL backups. A reviewed encryption, access, expiry, restore-test, and deletion policy remains required before any real-person pilot."
   },
   "accessRoles": {
     "person": "The person using the explicit local demo session.",
     "deviceClient": "The installed OpenMatch client acting locally on the person's unlocked iOS or Android device.",
-    "service": "The local API process for the stated product function.",
+    "service": "The OpenMatch API and its account-scoped PostgreSQL connection for the stated product function.",
     "operator": "A person with filesystem access to the development machine. There is no production staff role model yet."
   },
   "collections": [
@@ -417,6 +417,15 @@
       "access": ["person", "service", "operator"],
       "fields": ["id", "reportId", "kind", "details", "createdAt"],
       "disclosure": "An update remains private with its report. A withdrawal request records the request but does not itself delete the report or promise moderator action."
+    },
+    {
+      "id": "sqliteMigrationAudit",
+      "storage": "app.sqlite_migration_audit in PostgreSQL",
+      "purpose": "Demonstrate that each historical account store was copied completely and unchanged into PostgreSQL.",
+      "retention": "Until the development migration is independently verified and its audit-retention policy is reviewed; it cascades with account deletion.",
+      "access": ["service", "operator"],
+      "fields": ["accountId", "sourceSha256", "rowCounts", "migratedAt"],
+      "disclosure": "Contains an opaque account UUID, a canonical hash over the migrated rows, per-table row counts, and migration time. It contains no password, bearer token, raw email, or additional profile content. The hash is verification metadata, not a public commitment and not included in personal export."
     },
     {
       "id": "exportMetadata",

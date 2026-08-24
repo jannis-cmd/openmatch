@@ -23,6 +23,10 @@ import {
   type Profile,
 } from "@openmatch/matching";
 import { migrateSqlite } from "./migrations.js";
+import {
+  PostgresDatabaseSync,
+  type ApplicationDatabase,
+} from "./postgres-sync.js";
 
 export const APPLICATION_SCHEMA_VERSION = 3;
 
@@ -163,17 +167,35 @@ export type ReportUpdateKind =
   "additional_context" | "correction" | "withdrawal_request";
 
 export class Store {
-  readonly db: DatabaseSync;
+  readonly db: ApplicationDatabase;
   private readonly accountProfile: boolean;
 
   constructor(
     path = process.env.OPENMATCH_DB ?? "./openmatch.sqlite",
-    options: { accountProfile?: boolean } = {},
+    options: {
+      accountProfile?: boolean;
+      accountId?: string;
+      postgresUrl?: string | null;
+    } = {},
   ) {
     this.accountProfile = options.accountProfile === true;
-    this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
-    const schemaVersion = migrateSqlite(this.db, "application data", [
+    const postgresUrl =
+      options.postgresUrl === undefined
+        ? this.accountProfile
+          ? (process.env.OPENMATCH_POSTGRES_URL ?? null)
+          : null
+        : options.postgresUrl;
+    if (postgresUrl) {
+      if (!options.accountId)
+        throw new Error("PostgreSQL application stores require an account ID");
+      this.db = new PostgresDatabaseSync(postgresUrl, options.accountId);
+      this.seed();
+      return;
+    }
+    const sqlite = new DatabaseSync(path);
+    this.db = sqlite as unknown as ApplicationDatabase;
+    sqlite.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+    const schemaVersion = migrateSqlite(sqlite, "application data", [
       (database) => {
         database.exec(`
       CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL);

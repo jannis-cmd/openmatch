@@ -2153,6 +2153,12 @@ test("the public data inventory covers every current storage and export field", 
     blocks: ["profileId", "createdAt"],
     reports: ["id", "profileId", "reason", "details", "status", "createdAt"],
     reportUpdates: ["id", "reportId", "kind", "details", "createdAt"],
+    sqliteMigrationAudit: [
+      "accountId",
+      "sourceSha256",
+      "rowCounts",
+      "migratedAt",
+    ],
     exportMetadata: ["schemaVersion", "algorithmVersion", "exportedAt"],
   };
   assert.deepEqual(

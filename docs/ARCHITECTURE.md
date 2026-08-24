@@ -32,7 +32,7 @@ Versions are provisional until an implementation ADR checks current support, acc
 
 ### Prototype persistence decision
 
-The development API uses Node's built-in SQLite interface directly. Both the account registry and every application-data store pass through a shared ordered migration runner using SQLite `user_version`. Each numbered schema step runs in `BEGIN IMMEDIATE`, records its version only in the same commit, rolls all DDL back on failure, and refuses a database created by newer unsupported code. Legacy unversioned databases are upgraded in place; tests cover the existing session-column migration, version recording, injected rollback after `ALTER TABLE`, and forward-version refusal. This is not yet fleet-wide production migration orchestration: backup/restore drills, preflight capacity checks, staged rollout, observability, downgrade policy, and the eventual PostgreSQL authorization migration remain required. A dependency-free typed client is shared by web and mobile so endpoint semantics do not drift.
+The standalone test API uses Node's built-in SQLite interface and retains its ordered `user_version` migration coverage. The self-hosted environment instead stores dating profiles, preferences, decisions, connections, messages, safety records, consent receipts, and matching audit records in normalized PostgreSQL tables under `app`. Every row carries the opaque GoTrue account UUID and cascades from `auth.users`. Account-filtered security-barrier views plus a connection-local account setting keep the existing deterministic domain store isolated while the API is migrated incrementally. Versioned plain SQL applies the schema before the API starts. A guarded importer replaces one account at a time in a transaction and records a canonical SHA-256 verification hash and row counts; it refuses source files without a corresponding GoTrue user. A dependency-free typed HTTP client remains shared by web and mobile so endpoint semantics do not drift.
 
 A self-hosted development boundary now provides PostgreSQL, Supabase Auth
 (GoTrue), captured SMTP mail, the OpenMatch API, and the web app without
@@ -43,10 +43,14 @@ user ID/email/verification state needed to locate the application store, and
 persists only a SHA-256 token hash for its local session index. The raw password
 is never copied into OpenMatch SQLite. Password change and credential deletion
 are reauthenticated against GoTrue; deletion also removes the account's local
-application data. Dating application data remains in per-account SQLite files
-during this development phase; moving the `app` schema and authorization rules
-to PostgreSQL is the next persistence migration. The stack and transfer
-contract are documented in `docs/SELF_HOSTED_DEV.md`.
+application data. Dating application data is now authoritative in the shared
+PostgreSQL `app` schema; archived SQLite files are migration inputs only. The
+current compatibility adapter executes synchronous store operations through a
+dedicated worker connection per loaded account. This preserves tested domain
+transactions but is not the final scalable access layer: an asynchronous,
+pooled repository and database-enforced role/RLS review are required before a
+pilot. The stack and transfer contract are documented in
+`docs/SELF_HOSTED_DEV.md`.
 
 The release gate is intentionally layered: pure matching invariants, API/client contract tests, a native component journey under `jest-expo`, and one Chromium journey that exercises the durable vertical slice and runs WCAG 2.2 A/AA rules at setup, explanation, and conversation states. Device-level assistive-technology and native end-to-end testing remain required before a pilot.
 
