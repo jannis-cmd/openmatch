@@ -2,7 +2,7 @@
 
 This file records reproducible provenance for archived owner-testing artifacts.
 Every listed binary is an immutable source snapshot. Android build 12 and iOS
-build 10 are the current owner-testing baselines; older Android and iOS
+build 12 are the current owner-testing baselines; older Android and iOS
 artifacts remain explicitly archived. Neither current build is an app-store
 approval or a claim of production readiness. The same facts are published in
 [`RELEASE_ARTIFACTS.json`](./RELEASE_ARTIFACTS.json) for machine verification.
@@ -42,17 +42,17 @@ install an APK. This is not a Google Play release: no production AAB from this
 revision, Play Console enrollment, data-safety declaration, tester track, or
 store review is claimed.
 
-### Signed iOS IPA — build 10
+### Signed iOS IPA — build 12
 
 - Purpose: internal TestFlight owner testing
-- Source commit: `260210398014484a4ca69474b5bc81fa9148720f`
+- Source commit: `3e1b7d2c618cbd3fb6be06f935a65f1e28d7f7e8`
 - Bundle identifier: `org.openmatch.app`
-- Version: `0.1.0` (`CFBundleVersion` 10)
+- Version: `0.1.0` (`CFBundleVersion` 12)
 - Runtime: Expo SDK 57 / React Native 0.86.2 / corrected Hermes `250829098.0.16`
 - App Store Connect app ID: `6801267398`
-- EAS submission: `631d324d-de3f-473c-9bc3-4a3aaaea956e`
-- Size: 17,215,629 bytes
-- SHA-256: `4a9654720b4035e6b234053714aaa00077421295ab669884747352c47c1dec8f`
+- EAS submission: `99a8879e-514f-4057-bbc0-14a75bd173c6`
+- Size: 17,251,691 bytes
+- SHA-256: `f3998d97f32a7067fb1553fb8c0bbf139f4e87edab4d4bce5986cd102f775add`
 - Availability: retained on the owner build Mac and available to the internal
   TestFlight group (`VALID`, `IN_BETA_TESTING`); it is not a public direct
   download
@@ -63,7 +63,9 @@ store review is claimed.
   origins; App Transport Security has no arbitrary-load or local-network
   exception; `ITSAppUsesNonExemptEncryption=false`; and privacy manifests are
   present in the app and relevant dependencies. Expo Doctor passed all 21
-  checks inside the isolated build environment.
+  checks inside the isolated build environment. This build includes the
+  standard email password-reset flow, WhyMatch branding, the current
+  profile/introduction/chat baseline, and the SDK 57 patch updates.
 
 Apple still controls TestFlight and App Store availability. This record proves
 what was built, uploaded, processed, and made available internally; it does not
@@ -91,7 +93,7 @@ scientific effectiveness.
 
 This archive cannot run on an iPhone and is not TestFlight-signed. It requires
 Xcode's iOS Simulator on a Mac. It is retained as an older independently
-inspectable compilation artifact; signed device build 10 now supersedes it for
+inspectable compilation artifact; signed device build 12 now supersedes it for
 TestFlight owner testing.
 
 ### Archived Android direct-install APK — build 10
@@ -168,7 +170,7 @@ data-safety declarations, tester setup, and submission have not been performed.
   `ITSAppUsesNonExemptEncryption` is false
 
 This archive cannot run on an iPhone and is not TestFlight-signed. It is an
-older source snapshot retained for provenance; current signed device build 10
+older source snapshot retained for provenance; current signed device build 12
 is available to the internal TestFlight group.
 
 ## Common limits

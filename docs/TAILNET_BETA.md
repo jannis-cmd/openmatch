@@ -4,8 +4,7 @@ This is an internal test arrangement, not public production hosting.
 
 ## Current endpoints
 
-- API: `https://janniss-macbook-air.cheetah-vernier.ts.net`
-- Web app and landing page: `https://janniss-macbook-air.cheetah-vernier.ts.net:8443`
+- API, web app, and landing page: `https://myna-1.cheetah-vernier.ts.net:8443`
 
 Both endpoints are restricted to devices signed into the `cheetah-vernier`
 tailnet. The iOS and Android production build profiles receive the API origin
@@ -17,10 +16,10 @@ Demo sessions use separate random bearer tokens but intentionally share one
 sample identity and dataset. They are suitable only for owner testing on this
 restricted tailnet and must be disabled before any public deployment.
 
-The Mac runs production builds of the API and web client as user LaunchAgents:
-
-- `org.openmatch.api` proxies local port `4000` through tailnet HTTPS port 443.
-- `org.openmatch.web` proxies local port `3000` through tailnet HTTPS port 8443.
+`myna-1` runs the self-hosted Docker development stack. Tailscale Serve
+terminates HTTPS on port 8443 and proxies one origin to the Caddy gateway;
+Caddy routes the website, WhyMatch API, and GoTrue Auth. Port 443 remains
+untouched because another server application already owns it.
 
 The API accepts browser requests only from the exact web-app origin above.
 Native clients do not send a browser `Origin` header.
@@ -30,28 +29,25 @@ Native clients do not send a browser `Origin` header.
 After a verified code change:
 
 1. Run the complete repository release gate.
-2. Build the API and web app. The web build must receive the tailnet API URL as
-   `NEXT_PUBLIC_OPENMATCH_API_URL`.
-   This host keeps that public value in ignored
-   `apps/web/.env.production.local`. The web LaunchAgent sets
-   `OPENMATCH_EXPECTED_WEB_API_ORIGIN`; startup fails instead of silently
-   serving an unconfigured account/demo bundle when the expected origin is not
-   embedded in the production client chunks.
-3. Update `OPENMATCH_COMMIT_SHA` in the API LaunchAgent to the reviewed commit.
-4. restart both LaunchAgents;
+2. Pull the reviewed commit in `/opt/openmatch`, set the HTTPS site/API/Auth
+   origins and the reviewed `OPENMATCH_COMMIT_SHA` in ignored
+   `infra/dev/.env`, and rebuild the affected Compose services.
+3. Restart the gateway after a Caddy routing change.
+4. Confirm `tailscale serve status` still routes HTTPS port 8443 to the gateway.
 5. verify local and tailnet `/health`, the web title, and the allowed CORS origin;
 6. create store builds only from the same committed revision.
 
 ## Explicit limits
 
-- The Mac must be powered on, awake, connected to the internet, signed in, and
-  running Tailscale.
+- `myna-1` must be powered on, connected to the internet, and running Tailscale
+  plus the Docker Compose services.
 - Test devices must be members of the same tailnet.
 - This setup has no redundant host, durable job queue, operational alerting,
   encrypted backup, restoration drill, or staffed incident response.
-- SMTP is not configured in the current host service. Inbox confirmation,
-  backup notification addresses, and security-email delivery therefore remain
-  visibly unavailable. They must not be represented as active.
+- Mailpit captures development confirmation and password-reset messages. It is
+  not production SMTP and is tailnet-private; no public tester should depend on
+  it. A production mail provider, bounce/complaint monitoring, and an operator
+  support path remain required.
 - Account-to-account changes use a durable local journal with idempotent replay
   after interruption. This has no cross-host worker, dead-letter support path,
   or production monitoring and is not a distributed transaction system.
@@ -59,8 +55,8 @@ After a verified code change:
   public deployment, moderation operation, DPIA, penetration test, or app-store
   launch review.
 
-If the Mac is lost or compromised, revoke EAS credentials and tailnet access,
-stop distribution, and treat the local account database as potentially
+If the server is lost or compromised, revoke EAS credentials and tailnet
+access, stop distribution, and treat the development account database as potentially
 exposed. Do not invite external testers until the security, moderation, legal,
 and service-availability prerequisites in `docs/IMPLEMENTATION_STATUS.md` are
 resolved.

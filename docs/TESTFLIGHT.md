@@ -11,7 +11,8 @@ contains no endpoint. EAS injects the selected HTTPS origin at build time.
 - Expo project ID: `a5c1bb2c-19ef-43bb-831e-a812f876ee87`
 - iOS bundle identifier: `org.openmatch.app`
 - Android package: `org.openmatch.app`
-- EAS `preview` and `production` environments contain the tailnet API origin.
+- EAS `preview` and `production` environments contain
+  `https://myna-1.cheetah-vernier.ts.net:8443` for both the API and website.
 - Android signing uses the remote EAS keystore.
 - Apple Developer Program membership is active for team `9TQ799RY97`.
 - EAS holds an active Apple Distribution certificate and App Store
@@ -23,14 +24,14 @@ contains no endpoint. EAS injects the selected HTTPS origin at build time.
   this listing name can be revised independently of the installed app name.
 - Full Xcode 26.6, its owner-accepted license and first-launch components,
   CocoaPods, and Fastlane are ready on the build Mac.
-- Local EAS produced signed IPA build 10 from commit `2602103` on Expo SDK 57 without consuming
+- Local EAS produced signed IPA build 12 from commit `3e1b7d2` on Expo SDK 57 without consuming
   hosted build quota. EAS submission
-  `631d324d-de3f-473c-9bc3-4a3aaaea956e` completed; App Store Connect reports
+  `99a8879e-514f-4057-bbc0-14a75bd173c6` completed; App Store Connect reports
   the build `VALID` and `IN_BETA_TESTING`.
 - The internal TestFlight group is `Team (Expo)` and includes the owner account.
 - The tailnet beta exposes a prototype privacy notice at
-  `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/privacy` and support
-  information at `https://janniss-macbook-air.cheetah-vernier.ts.net:8443/support`.
+  `https://myna-1.cheetah-vernier.ts.net:8443/privacy` and support information
+  at `https://myna-1.cheetah-vernier.ts.net:8443/support`.
   These are usable for owner/internal testing only. Store submission requires
   public HTTPS URLs plus an accountable operator and private contact channel.
 

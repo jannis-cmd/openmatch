@@ -80,7 +80,7 @@ test("records the current signed iOS artifact without implying public availabili
   const git = await workingGit();
   assert.equal(release.verifiedLocalArtifacts.length, 1);
   const ios = release.verifiedLocalArtifacts[0];
-  assert.equal(ios.id, "ios-ipa-build-10");
+  assert.equal(ios.id, "ios-ipa-build-12");
   assert.equal(ios.status, "available-in-internal-testflight");
   assert.equal(ios.publiclyDownloadable, false);
   assert.equal(ios.ascAppId, "6801267398");
@@ -92,7 +92,7 @@ test("records the current signed iOS artifact without implying public availabili
   assert.equal(ios.expoSdkVersion, "57.0.0");
   assert.match(release.buildAvailability.android, /Android APK build 12/i);
   assert.match(release.buildAvailability.android, /not a Google Play release/i);
-  assert.match(release.buildAvailability.ios, /Signed iOS IPA build 10/i);
+  assert.match(release.buildAvailability.ios, /Signed iOS IPA build 12/i);
   assert.match(release.buildAvailability.ios, /App Store Connect/i);
   assert.match(
     release.buildAvailability.ios,

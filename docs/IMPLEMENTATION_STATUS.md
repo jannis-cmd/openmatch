@@ -106,8 +106,8 @@ cd apps/mobile && pnpm dlx expo-doctor
 
 Apple membership, signing credentials, Xcode, CocoaPods, and Fastlane are
 active on the build Mac. A quota-free local EAS build produced signed iOS IPA
-build 10 from commit `2602103` on Expo SDK 57; its signature, provisioning, embedded source
-revision, transport policy, privacy manifests, and SHA-256 digest were checked
+build 12 from commit `3e1b7d2` on Expo SDK 57; its signature, provisioning,
+embedded source revision, transport policy, privacy manifests, and SHA-256 digest were checked
 before submission. App Store Connect now reports it `VALID` and
 `IN_BETA_TESTING` for the internal group. This is an owner-testing artifact,
 not a public App Store release.
