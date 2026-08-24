@@ -63,6 +63,14 @@ OPENMATCH_API_URL=http://100.94.214.92:54321
 OPENMATCH_SITE_URL=http://100.94.214.92:3000
 ```
 
+The current private HTTPS entry point is
+`https://myna-1.cheetah-vernier.ts.net:8443`. Tailscale Serve terminates TLS and
+proxies that origin to the gateway, which serves both the website and API.
+Port 8443 is intentional because another service on `myna-1` already owns 443.
+GoTrue's external/auth/site URLs and the web/mobile release configuration must
+use this HTTPS origin; keep the older HTTP origin allowlisted only while
+transitioning existing development browser sessions.
+
 ## Verification
 
 ```bash
