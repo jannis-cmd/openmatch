@@ -147,6 +147,27 @@ test("public privacy and support pages describe the real prototype", async ({
   await expect(
     page.getByRole("heading", { name: "Welcome back." }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "DE", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Willkommen zurück." }),
+  ).toBeVisible();
+  await expect(page.getByText("Bei WhyMatch anmelden.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Passwort anzeigen" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Passwort vergessen?" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Passwort zurücksetzen." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Zurück zur Anmeldung" }).click();
+  await page.getByRole("button", { name: "Konto erstellen" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Konto erstellen." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Create your account." }),
+  ).toBeVisible();
 });
 
 test("an incomplete account can delete itself from the public web path", async ({

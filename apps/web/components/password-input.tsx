@@ -19,6 +19,7 @@ export function PasswordInput({
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
   const action = visible ? hideLabel : showLabel;
+  const accessibleLabel = [action, visibilityLabel].filter(Boolean).join(" ");
 
   return (
     <span className="password-input-wrap">
@@ -26,7 +27,7 @@ export function PasswordInput({
       <button
         type="button"
         className="password-visibility"
-        aria-label={`${action} ${visibilityLabel}`}
+        aria-label={accessibleLabel}
         aria-pressed={visible}
         onClick={() => setVisible((current) => !current)}
       >

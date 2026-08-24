@@ -2287,6 +2287,122 @@ function AlgorithmGraphic() {
   );
 }
 
+const signInCopy = {
+  en: {
+    createTitle: "Create your account.",
+    requestResetTitle: "Reset your password.",
+    resetTitle: "Choose a new password.",
+    signInTitle: "Welcome back.",
+    createSubtitle: "Start your WhyMatch profile.",
+    requestResetSubtitle:
+      "Enter your email and we’ll send you a secure reset link.",
+    resetSubtitle: "Use at least 15 characters.",
+    signInSubtitle: "Sign in to WhyMatch.",
+    email: "Email",
+    emailPlaceholder: "you@example.com",
+    password: "Password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    showPassword: "Show",
+    hidePassword: "Hide",
+    passwordLengthReady: "Password length is ready.",
+    passwordProgress: (length: number) =>
+      `Use at least 15 characters (${length}/15).`,
+    repeatPassword: "Enter the same password again.",
+    passwordsMatch: "Passwords match.",
+    passwordsDiffer: "Passwords do not match.",
+    wait: "Please wait…",
+    create: "Create account",
+    sendReset: "Send reset link",
+    savePassword: "Save new password",
+    signIn: "Sign in",
+    existingAccount: "I already have an account",
+    createAccount: "Create an account",
+    forgotPassword: "Forgot password?",
+    backToSignIn: "Back to sign in",
+    backToWebsite: "Back to the website",
+    noConnection: "No connection was attempted.",
+    resetSent:
+      "If an account uses that email, a password-reset link has been sent.",
+    confirmationSent:
+      "Check your email and confirm the address. Then sign in here.",
+    passwordMismatch: "The passwords do not match.",
+    errors: {
+      account_exists: "An account already uses that email. Sign in instead.",
+      invalid_email: "Enter a valid email address.",
+      common_password: "Choose a less common password.",
+      invalid_password: "Use a password with at least 15 characters.",
+      email_not_confirmed: "Confirm your email address before signing in.",
+      rate_limited: "Too many reset attempts. Please wait and try again.",
+      invalid_recovery:
+        "This password-reset link is invalid or has expired. Request a new one.",
+      password_unchanged:
+        "Choose a new password different from the current one.",
+      reset_unavailable:
+        "Email password reset is not available on this service.",
+      invalid_credentials: "Email or password was not accepted.",
+    },
+  },
+  de: {
+    createTitle: "Konto erstellen.",
+    requestResetTitle: "Passwort zurücksetzen.",
+    resetTitle: "Neues Passwort wählen.",
+    signInTitle: "Willkommen zurück.",
+    createSubtitle: "Erstelle dein WhyMatch-Profil.",
+    requestResetSubtitle:
+      "Gib deine E-Mail-Adresse ein. Wir senden dir einen sicheren Link.",
+    resetSubtitle: "Verwende mindestens 15 Zeichen.",
+    signInSubtitle: "Bei WhyMatch anmelden.",
+    email: "E-Mail",
+    emailPlaceholder: "du@beispiel.ch",
+    password: "Passwort",
+    newPassword: "Neues Passwort",
+    confirmPassword: "Neues Passwort bestätigen",
+    showPassword: "Passwort anzeigen",
+    hidePassword: "Passwort ausblenden",
+    passwordLengthReady: "Das Passwort ist lang genug.",
+    passwordProgress: (length: number) =>
+      `Mindestens 15 Zeichen (${length}/15).`,
+    repeatPassword: "Gib dasselbe Passwort erneut ein.",
+    passwordsMatch: "Die Passwörter stimmen überein.",
+    passwordsDiffer: "Die Passwörter stimmen nicht überein.",
+    wait: "Einen Moment…",
+    create: "Konto erstellen",
+    sendReset: "Link senden",
+    savePassword: "Neues Passwort speichern",
+    signIn: "Anmelden",
+    existingAccount: "Ich habe bereits ein Konto",
+    createAccount: "Konto erstellen",
+    forgotPassword: "Passwort vergessen?",
+    backToSignIn: "Zurück zur Anmeldung",
+    backToWebsite: "Zurück zur Website",
+    noConnection: "Es wurde keine Verbindung versucht.",
+    resetSent:
+      "Falls ein Konto diese E-Mail-Adresse verwendet, wurde ein Link zum Zurücksetzen gesendet.",
+    confirmationSent:
+      "Öffne deine E-Mail und bestätige die Adresse. Melde dich danach hier an.",
+    passwordMismatch: "Die Passwörter stimmen nicht überein.",
+    errors: {
+      account_exists:
+        "Für diese E-Mail-Adresse besteht bereits ein Konto. Melde dich stattdessen an.",
+      invalid_email: "Gib eine gültige E-Mail-Adresse ein.",
+      common_password: "Wähle ein weniger häufig verwendetes Passwort.",
+      invalid_password: "Verwende ein Passwort mit mindestens 15 Zeichen.",
+      email_not_confirmed: "Bestätige deine E-Mail-Adresse vor der Anmeldung.",
+      rate_limited:
+        "Zu viele Versuche. Warte einen Moment und versuche es erneut.",
+      invalid_recovery:
+        "Dieser Link ist ungültig oder abgelaufen. Fordere einen neuen an.",
+      password_unchanged:
+        "Wähle ein Passwort, das sich vom bisherigen unterscheidet.",
+      reset_unavailable:
+        "Das Zurücksetzen per E-Mail ist auf diesem Dienst nicht verfügbar.",
+      invalid_credentials:
+        "E-Mail-Adresse oder Passwort wurde nicht akzeptiert.",
+    },
+  },
+} as const;
+
 function SignInPage({
   back,
   apiUrl,
@@ -2305,6 +2421,8 @@ function SignInPage({
   entryNotice: string | null;
   passwordResetToken: string | null;
 }) {
+  const { locale } = useLocale();
+  const t = signInCopy[locale];
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -2350,16 +2468,14 @@ function SignInPage({
             if (mode === "request-reset") {
               await api.requestPasswordReset(email);
               setMode("sign-in");
-              setAuthNotice(
-                "If an account uses that email, a password-reset link has been sent.",
-              );
+              setAuthNotice(t.resetSent);
               return;
             }
             if (mode === "reset") {
               if (!passwordResetToken)
                 throw new ApiError(400, "invalid_recovery");
               if (password !== confirmPassword) {
-                setAuthError("The passwords do not match.");
+                setAuthError(t.passwordMismatch);
                 return;
               }
               const session = await api.completePasswordReset(
@@ -2376,9 +2492,7 @@ function SignInPage({
             if ("confirmationRequired" in session) {
               setPassword("");
               setMode("sign-in");
-              setAuthNotice(
-                "Check your email and confirm the address. Then sign in here.",
-              );
+              setAuthNotice(t.confirmationSent);
               return;
             }
             continueToApp(session.token);
@@ -2386,26 +2500,26 @@ function SignInPage({
             const code = error instanceof ApiError ? error.code : "";
             setAuthError(
               code === "account_exists"
-                ? "An account already uses that email. Sign in instead."
+                ? t.errors.account_exists
                 : code === "invalid_email"
-                  ? "Enter a valid email address."
+                  ? t.errors.invalid_email
                   : code === "common_password"
-                    ? "Choose a less common password."
+                    ? t.errors.common_password
                     : code === "invalid_password"
-                      ? "Use a password with at least 15 characters."
+                      ? t.errors.invalid_password
                       : code === "email_not_confirmed"
-                        ? "Confirm your email address before signing in."
+                        ? t.errors.email_not_confirmed
                         : code === "password_reset_rate_limited" ||
                             code === "authentication_rate_limit_exceeded"
-                          ? "Too many reset attempts. Please wait and try again."
+                          ? t.errors.rate_limited
                           : code === "invalid_recovery"
-                            ? "This password-reset link is invalid or has expired. Request a new one."
+                            ? t.errors.invalid_recovery
                             : code === "password_unchanged"
-                              ? "Choose a new password different from the current one."
+                              ? t.errors.password_unchanged
                               : code === "password_reset_not_configured" ||
                                   code === "email_password_reset_not_available"
-                                ? "Email password reset is not available on this service."
-                                : "Email or password was not accepted.",
+                                ? t.errors.reset_unavailable
+                                : t.errors.invalid_credentials,
             );
           } finally {
             setSubmitting(false);
@@ -2424,35 +2538,37 @@ function SignInPage({
         )}
         <h1>
           {mode === "create"
-            ? "Create your account."
+            ? t.createTitle
             : mode === "request-reset"
-              ? "Reset your password."
+              ? t.requestResetTitle
               : mode === "reset"
-                ? "Choose a new password."
-                : "Welcome back."}
+                ? t.resetTitle
+                : t.signInTitle}
         </h1>
         <p>
           {mode === "create"
-            ? "Start your WhyMatch profile."
+            ? t.createSubtitle
             : mode === "request-reset"
-              ? "Enter your email and we’ll send you a secure reset link."
+              ? t.requestResetSubtitle
               : mode === "reset"
-                ? "Use at least 15 characters."
-                : "Sign in to WhyMatch."}
+                ? t.resetSubtitle
+                : t.signInSubtitle}
         </p>
         {demoError && (
-          <p role="status">{demoError} No connection was attempted.</p>
+          <p role="status">
+            {demoError} {t.noConnection}
+          </p>
         )}
         {mode !== "reset" && (
           <>
-            <label htmlFor="sign-in-email">Email</label>
+            <label htmlFor="sign-in-email">{t.email}</label>
             <input
               id="sign-in-email"
               type="email"
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
+              placeholder={t.emailPlaceholder}
               required
             />
           </>
@@ -2460,11 +2576,19 @@ function SignInPage({
         {mode !== "request-reset" && (
           <>
             <label htmlFor="sign-in-password">
-              {mode === "reset" ? "New password" : "Password"}
+              {mode === "reset" ? t.newPassword : t.password}
             </label>
             <PasswordInput
               id="sign-in-password"
-              visibilityLabel={mode === "reset" ? "new password" : "password"}
+              visibilityLabel={
+                locale === "de"
+                  ? ""
+                  : mode === "reset"
+                    ? "new password"
+                    : "password"
+              }
+              showLabel={t.showPassword}
+              hideLabel={t.hidePassword}
               autoComplete={
                 mode === "create" || mode === "reset"
                   ? "new-password"
@@ -2486,18 +2610,20 @@ function SignInPage({
                 aria-live="polite"
               >
                 {passwordLongEnough
-                  ? "Password length is ready."
-                  : `Use at least 15 characters (${password.length}/15).`}
+                  ? t.passwordLengthReady
+                  : t.passwordProgress(password.length)}
               </p>
             )}
           </>
         )}
         {mode === "reset" && (
           <>
-            <label htmlFor="confirm-reset-password">Confirm new password</label>
+            <label htmlFor="confirm-reset-password">{t.confirmPassword}</label>
             <PasswordInput
               id="confirm-reset-password"
-              visibilityLabel="password confirmation"
+              visibilityLabel={locale === "de" ? "" : "password confirmation"}
+              showLabel={t.showPassword}
+              hideLabel={t.hidePassword}
               autoComplete="new-password"
               minLength={15}
               maxLength={128}
@@ -2512,10 +2638,10 @@ function SignInPage({
               aria-live="polite"
             >
               {!confirmPassword
-                ? "Enter the same password again."
+                ? t.repeatPassword
                 : resetPasswordsMatch
-                  ? "Passwords match."
-                  : "Passwords do not match."}
+                  ? t.passwordsMatch
+                  : t.passwordsDiffer}
             </p>
           </>
         )}
@@ -2530,14 +2656,14 @@ function SignInPage({
           }
         >
           {submitting
-            ? "Please wait…"
+            ? t.wait
             : mode === "create"
-              ? "Create account"
+              ? t.create
               : mode === "request-reset"
-                ? "Send reset link"
+                ? t.sendReset
                 : mode === "reset"
-                  ? "Save new password"
-                  : "Sign in"}
+                  ? t.savePassword
+                  : t.signIn}
         </button>
         {(mode === "sign-in" || mode === "create") && (
           <button
@@ -2548,9 +2674,7 @@ function SignInPage({
               setMode(mode === "create" ? "sign-in" : "create");
             }}
           >
-            {mode === "create"
-              ? "I already have an account"
-              : "Create an account"}
+            {mode === "create" ? t.existingAccount : t.createAccount}
           </button>
         )}
         {mode === "sign-in" && (
@@ -2563,7 +2687,7 @@ function SignInPage({
               setMode("request-reset");
             }}
           >
-            Forgot password?
+            {t.forgotPassword}
           </button>
         )}
         {mode === "request-reset" && (
@@ -2575,11 +2699,11 @@ function SignInPage({
               setMode("sign-in");
             }}
           >
-            Back to sign in
+            {t.backToSignIn}
           </button>
         )}
         <button className="back-action" type="button" onClick={back}>
-          Back to the website
+          {t.backToWebsite}
         </button>
       </form>
     </main>
