@@ -74,42 +74,42 @@ export function smtpAccountEmailSenders(
       send(
         email,
         purpose === "account_confirmation"
-          ? "Confirm your OpenMatch email"
-          : "Confirm your OpenMatch sign-in email change",
+          ? "Confirm your WhyMatch email"
+          : "Confirm your WhyMatch sign-in email change",
         [
           purpose === "email_change_current"
-            ? "Confirm that you requested to replace this OpenMatch sign-in email."
+            ? "Confirm that you requested to replace this WhyMatch sign-in email."
             : purpose === "email_change_new"
-              ? "Confirm this new OpenMatch sign-in email."
-              : "Confirm that you can receive OpenMatch account messages.",
+              ? "Confirm this new WhyMatch sign-in email."
+              : "Confirm that you can receive WhyMatch account messages.",
           "",
           `Confirmation code: ${code}`,
           `Expires: ${expiresAt}`,
           "",
           "If you did not create this account, you can ignore this message.",
-          "OpenMatch will never ask you to send this code to another person.",
+          "WhyMatch will never ask you to send this code to another person.",
         ],
       ),
     security: ({ email, event, occurredAt }) => {
       const description = {
-        password_changed: "Your OpenMatch password was changed.",
+        password_changed: "Your WhyMatch password was changed.",
         recovery_codes_replaced:
-          "A new set of OpenMatch recovery codes was created. Every older recovery code is now invalid.",
+          "A new set of WhyMatch recovery codes was created. Every older recovery code is now invalid.",
         account_recovered:
-          "Your OpenMatch account was recovered with an offline recovery code. The password changed, every previous session ended, and every recovery code is now invalid.",
+          "Your WhyMatch account was recovered with an offline recovery code. The password changed, every previous session ended, and every recovery code is now invalid.",
         primary_email_changed:
-          "Your OpenMatch primary sign-in email was changed. Every other session was ended.",
+          "Your WhyMatch primary sign-in email was changed. Every other session was ended.",
         notification_address_added:
-          "A confirmed backup notification email was added to your OpenMatch account.",
+          "A confirmed backup notification email was added to your WhyMatch account.",
         notification_address_removed:
-          "The backup notification email was removed from your OpenMatch account.",
+          "The backup notification email was removed from your WhyMatch account.",
       }[event];
-      return send(email, "Security change to your OpenMatch account", [
+      return send(email, "Security change to your WhyMatch account", [
         description,
         `Time: ${occurredAt}`,
         "",
         "This message contains no password, recovery code, device details, or sign-in link.",
-        "If you did not make this change, open OpenMatch directly, change the password, replace recovery codes, and revoke sessions you do not recognize.",
+        "If you did not make this change, open WhyMatch directly, change the password, replace recovery codes, and revoke sessions you do not recognize.",
         "This development service does not yet have a staffed account-takeover support channel.",
       ]);
     },

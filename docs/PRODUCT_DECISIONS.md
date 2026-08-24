@@ -1,4 +1,4 @@
-# OpenMatch product decisions
+# WhyMatch product decisions
 
 Status: baseline decisions for the bilingual prototype. Every item can be changed through a public proposal with evidence and a migration plan.
 
@@ -7,7 +7,7 @@ Status: baseline decisions for the bilingual prototype. Every item can be change
 - German (`de`) is the default for the current Swiss beta; English (`en`) is the complete second launch language.
 - Locale selection accepts BCP 47 tags such as `de-CH` and `en-GB`, resolves them to the current base-language catalogs, and keeps language separate from location, nationality, ethnicity, and matching.
 - The UI provides an explicit language choice. New languages add a catalog and review; stored canonical option IDs are never translated, so adding a language does not corrupt filters or analytics.
-- Free text remains in the language written by the person. OpenMatch does not silently translate or classify it for ranking.
+- Free text remains in the language written by the person. WhyMatch does not silently translate or classify it for ranking.
 
 ## Profile and preference defaults
 

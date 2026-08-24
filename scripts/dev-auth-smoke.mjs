@@ -10,7 +10,7 @@ if (!authUrl || !mailpitUrl) {
 }
 
 const email = `smoke-${randomUUID()}@openmatch.test`;
-const password = `OpenMatch-${randomUUID()}-dev`;
+const password = `WhyMatch-${randomUUID()}-dev`;
 const post = (path, body) =>
   fetch(authUrl + path, {
     method: "POST",

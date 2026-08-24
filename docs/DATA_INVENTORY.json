@@ -2,7 +2,7 @@
   "schemaVersion": "1.2.0",
   "status": "self-hosted-development",
   "updated": "2026-08-24",
-  "scope": "Fields persisted by the standalone or self-hosted OpenMatch API, held for an authenticated or enabled demo session, created during the audited SQLite-to-PostgreSQL migration, or created in a user export. Demo candidate fixtures are source code, not user records.",
+  "scope": "Fields persisted by the standalone or self-hosted WhyMatch API, held for an authenticated or enabled demo session, created during the audited SQLite-to-PostgreSQL migration, or created in a user export. Demo candidate fixtures are source code, not user records.",
   "retentionPolicy": {
     "prototype": "Self-hosted application rows remain in PostgreSQL until the person deletes them or the development operator removes the database. Standalone regression data remains in SQLite under the same logical policy.",
     "accountDeletion": "DELETE /v1/me synchronously resets only the current account's application rows. DELETE /v1/account requires fresh password verification, erases delivered profile-linked copies from peer accounts, deletes the GoTrue user, and cascades deletion through the PostgreSQL app schema and local identity/session mirror. The submitted password is verified in memory and never stored or logged. Neither path retains a user-facing server receipt.",
@@ -10,19 +10,19 @@
   },
   "accessRoles": {
     "person": "The person using the explicit local demo session.",
-    "deviceClient": "The installed OpenMatch client acting locally on the person's unlocked iOS or Android device.",
-    "service": "The OpenMatch API and its account-scoped PostgreSQL connection for the stated product function.",
+    "deviceClient": "The installed WhyMatch client acting locally on the person's unlocked iOS or Android device.",
+    "service": "The WhyMatch API and its account-scoped PostgreSQL connection for the stated product function.",
     "operator": "A person with filesystem access to the development machine. There is no production staff role model yet."
   },
   "collections": [
     {
       "id": "accounts",
-      "storage": "Standalone mode: accounts table in authentication SQLite. Self-hosted mode: auth.users in GoTrue/PostgreSQL plus a credential-free OpenMatch identity mirror.",
+      "storage": "Standalone mode: accounts table in authentication SQLite. Self-hosted mode: auth.users in GoTrue/PostgreSQL plus a credential-free WhyMatch identity mirror.",
       "purpose": "Identify a private account; credential verification is performed by the configured identity mode.",
       "retention": "Until the person deletes the authenticated account or the operator removes the authentication database.",
       "access": ["service", "operator"],
       "fields": ["id", "email", "passwordHash", "passwordSalt", "createdAt", "emailVerifiedAt"],
-      "disclosure": "In self-hosted mode GoTrue owns the password hash and confirmation state; OpenMatch mirrors opaque ID, normalized email and confirmation time and writes only fixed non-secret external-identity sentinels into legacy non-null columns. In standalone mode the documented salted-scrypt implementation remains available. Plaintext passwords are used only for the request and never persisted by OpenMatch or included in export."
+      "disclosure": "In self-hosted mode GoTrue owns the password hash and confirmation state; WhyMatch mirrors opaque ID, normalized email and confirmation time and writes only fixed non-secret external-identity sentinels into legacy non-null columns. In standalone mode the documented salted-scrypt implementation remains available. Plaintext passwords are used only for the request and never persisted by WhyMatch or included in export."
     },
     {
       "id": "accountEmailVerifications",
@@ -62,12 +62,12 @@
     },
     {
       "id": "accountSessions",
-      "storage": "GoTrue session state plus a SHA-256 token-hash routing index in OpenMatch SQLite",
+      "storage": "GoTrue session state plus a SHA-256 token-hash routing index in WhyMatch SQLite",
       "purpose": "Authorize one account-specific client session and route every protected operation to that account's isolated store.",
       "retention": "At most 12 hours by default, until sign-out, or until the account record is removed.",
       "access": ["service", "operator"],
       "fields": ["id", "tokenHash", "accountId", "client", "expiresAt", "createdAt"],
-      "disclosure": "In self-hosted mode GoTrue returns the raw bearer token to the client and OpenMatch persists only its SHA-256 hash for account-store routing; every protected request is also checked with GoTrue. The local index records only opaque session ID, broad allowlisted client type, creation and expiry. Password change replaces every local session index entry. OpenMatch does not add IP address, exact device model, user agent, fingerprint, or activity history. Session records and credentials are excluded from application-data export."
+      "disclosure": "In self-hosted mode GoTrue returns the raw bearer token to the client and WhyMatch persists only its SHA-256 hash for account-store routing; every protected request is also checked with GoTrue. The local index records only opaque session ID, broad allowlisted client type, creation and expiry. Password change replaces every local session index entry. WhyMatch does not add IP address, exact device model, user agent, fingerprint, or activity history. Session records and credentials are excluded from application-data export."
     },
     {
       "id": "adminAccounts",
@@ -434,7 +434,7 @@
       "retention": "Not retained by the service.",
       "access": ["person"],
       "fields": ["schemaVersion", "algorithmVersion", "exportedAt"],
-      "disclosure": "The service generates this metadata inside the requested export and does not persist another copy. On mobile, OpenMatch writes the export to its private cache only long enough to open the system share sheet, then attempts deletion even if sharing fails. A copy saved or sent through another app is controlled by that destination."
+      "disclosure": "The service generates this metadata inside the requested export and does not persist another copy. On mobile, WhyMatch writes the export to its private cache only long enough to open the system share sheet, then attempts deletion even if sharing fails. A copy saved or sent through another app is controlled by that destination."
     }
   ]
 }

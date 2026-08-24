@@ -1,10 +1,10 @@
-# OpenMatch product specification
+# WhyMatch product specification
 
 Status: Draft 0.1 — 12 August 2026
 
 ## 1. Product definition
 
-OpenMatch is a nonprofit public-interest introduction service for adults. It provides a small, understandable set of reciprocal introductions, safe communication, and an easy path to meeting offline. It deliberately avoids infinite browsing, advertisements, premium visibility, streaks, coins, boosts, popularity scores, and engagement notifications.
+WhyMatch is a nonprofit public-interest introduction service for adults. It provides a small, understandable set of reciprocal introductions, safe communication, and an easy path to meeting offline. It deliberately avoids infinite browsing, advertisements, premium visibility, streaks, coins, boosts, popularity scores, and engagement notifications.
 
 The app does **not** promise to predict love. Evidence shows that pre-meeting romantic desire is difficult to predict from self-report traits and that relationship-specific dynamics become more informative only after a relationship exists. The product therefore calls results “introductions,” never “scientific compatibility guarantees.”
 
@@ -150,7 +150,7 @@ Submitting a report immediately conceals that profile from the reporter's future
 - Location is stored at coarse regional/geohash precision; public distance is bucketed and never continuously updated.
 - No read receipts, online status, precise last-active time, contact discovery, or screenshot alerts in MVP.
 - Crisis and local support resources are accessible without filing a report.
-- The executable prototype provides a Switzerland-scoped no-report help path publicly and in every client. It distinguishes 117/144 emergencies from the non-emergency 142 victim-support line and warns that calls/external sites can leave records outside OpenMatch.
+- The executable prototype provides a Switzerland-scoped no-report help path publicly and in every client. It distinguishes 117/144 emergencies from the non-emergency 142 victim-support line and warns that calls/external sites can leave records outside WhyMatch.
 - Safety advisory council includes women, LGBTQIA+ people, disabled people, racialized communities, and survivors; contributors are compensated.
 
 ### 4.7 Transparency center

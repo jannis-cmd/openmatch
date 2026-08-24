@@ -1,6 +1,6 @@
 # Public web deployment
 
-The OpenMatch web app has two deliberately separate modes:
+The WhyMatch web app has two deliberately separate modes:
 
 1. **Public site only (recommended now):** build without
    `NEXT_PUBLIC_OPENMATCH_API_URL`. The complete landing page, research links,

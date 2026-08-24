@@ -6,7 +6,7 @@ const mailpitUrl = process.env.OPENMATCH_MAILPIT_URL;
 if (!apiUrl || !mailpitUrl)
   throw new Error("Set OPENMATCH_API_URL and OPENMATCH_MAILPIT_URL.");
 
-const password = `OpenMatch-${randomUUID()}-postgres`;
+const password = `WhyMatch-${randomUUID()}-postgres`;
 const people = [0, 1].map((candidateIndex) => ({
   candidate: demoCandidates[candidateIndex],
   email: `postgres-smoke-${randomUUID()}@openmatch.test`,

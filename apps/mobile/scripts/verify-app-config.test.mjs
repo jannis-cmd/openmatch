@@ -55,7 +55,7 @@ test("uses stable production identities without development network exceptions",
   );
   assert.deepEqual(imagePickerPlugin?.[1], {
     photosPermission:
-      "OpenMatch accesses only the photo you choose for your dating profile.",
+      "WhyMatch accesses only the photo you choose for your dating profile.",
     cameraPermission: false,
     microphonePermission: false,
   });

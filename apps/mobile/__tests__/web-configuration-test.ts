@@ -14,7 +14,7 @@ test("distributed builds fail closed without a public HTTPS origin", () => {
   expect(resolveWebConfiguration("http://openmatch.example", false)).toEqual({
     url: null,
     error:
-      "Preview and production builds require an HTTPS OpenMatch public website URL.",
+      "Preview and production builds require an HTTPS WhyMatch public website URL.",
   });
 });
 

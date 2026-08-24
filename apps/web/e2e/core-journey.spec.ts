@@ -21,7 +21,7 @@ test("public privacy and support pages describe the real prototype", async ({
   const manifestResponse = await request.get("/manifest.webmanifest");
   expect(manifestResponse.ok()).toBe(true);
   await expect(manifestResponse.json()).resolves.toMatchObject({
-    name: "OpenMatch",
+    name: "WhyMatch",
     display: "standalone",
     start_url: "/",
     icons: [
@@ -66,7 +66,7 @@ test("public privacy and support pages describe the real prototype", async ({
     page.getByRole("link", { name: /Product boundaries/ }),
   ).toHaveAttribute("href", /PRODUCT_BOUNDARIES\.json/);
   await page.keyboard.press("Tab");
-  const firstFocus = page.getByRole("link", { name: "OpenMatch home" });
+  const firstFocus = page.getByRole("link", { name: "WhyMatch home" });
   await expect(firstFocus).toBeFocused();
   expect(
     await firstFocus.evaluate(
@@ -195,7 +195,7 @@ test("an incomplete account can delete itself from the public web path", async (
   page.once("dialog", (dialog) => dialog.accept());
   await deleteButton.click();
   await expect(
-    page.getByRole("heading", { name: "Made to help you leave." }),
+    page.getByRole("heading", { name: "You know why you match" }),
   ).toBeVisible();
   const revoked = await request.get(apiBase + "/v1/me", {
     headers: { authorization: `Bearer ${originalToken}` },
@@ -277,7 +277,7 @@ test("first run through a persistent connection and safety action", async ({
   expect(landingHeaders["x-frame-options"]).toBe("DENY");
   expect(landingHeaders["x-powered-by"]).toBeUndefined();
   await expect(
-    page.getByRole("heading", { name: "Made to help you leave." }),
+    page.getByRole("heading", { name: "You know why you match" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
@@ -331,7 +331,7 @@ test("first run through a persistent connection and safety action", async ({
   expect(publicApiRequests).toEqual([]);
   await expectAccessible(page);
   await page.getByRole("button", { name: "Sign in" }).first().click();
-  await expect(page.getByText("Sign in to OpenMatch.")).toBeVisible();
+  await expect(page.getByText("Sign in to WhyMatch.")).toBeVisible();
   await expectAccessible(page);
   await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByRole("textbox", { name: "Email" }).fill("taylor@example.com");
@@ -1178,7 +1178,7 @@ test("first run through a persistent connection and safety action", async ({
     }),
   ).toBeVisible();
   await expect(
-    page.getByText(/You do not need to file an OpenMatch report/),
+    page.getByText(/You do not need to file a WhyMatch report/),
   ).toBeVisible();
   await page.getByRole("button", { name: "Account" }).click();
   const downloadPromise = page.waitForEvent("download");

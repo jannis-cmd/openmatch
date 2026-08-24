@@ -188,9 +188,7 @@ export function createApp(
           ? new SupabaseIdentity()
           : null));
   if (identity && !accounts)
-    throw new Error(
-      "Supabase identity requires the OpenMatch account registry",
-    );
+    throw new Error("Supabase identity requires the WhyMatch account registry");
   const demoSessionsEnabled =
     options.demoSessionsEnabled ??
     process.env.OPENMATCH_ENABLE_DEMO_SESSIONS === "true";

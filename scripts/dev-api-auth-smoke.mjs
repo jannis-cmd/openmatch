@@ -6,8 +6,8 @@ if (!apiUrl || !mailpitUrl)
   throw new Error("Set OPENMATCH_API_URL and OPENMATCH_MAILPIT_URL.");
 
 const email = `api-smoke-${randomUUID()}@openmatch.test`;
-const password = `OpenMatch-${randomUUID()}-dev`;
-const changedPassword = `OpenMatch-${randomUUID()}-changed`;
+const password = `WhyMatch-${randomUUID()}-dev`;
+const changedPassword = `WhyMatch-${randomUUID()}-changed`;
 const post = (path, body, token) =>
   fetch(apiUrl + path, {
     method: "POST",

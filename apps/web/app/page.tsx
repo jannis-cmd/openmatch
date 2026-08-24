@@ -525,7 +525,7 @@ function AppExperience({
       setDatingDataSettings(nextDatingDataModel.settings);
     } catch {
       setError(
-        "OpenMatch could not reach its configured service. Check your connection and retry.",
+        "WhyMatch could not reach its configured service. Check your connection and retry.",
       );
     } finally {
       setLoading(false);
@@ -809,9 +809,9 @@ function AppExperience({
             if (authToken) void api.signOut().finally(exit);
             else exit();
           }}
-          aria-label="OpenMatch home"
+          aria-label="WhyMatch home"
         >
-          OpenMatch
+          WhyMatch
         </button>
         <span className="nonprofit">Nonprofit · Open source</span>
         <LanguageSwitch />
@@ -862,8 +862,8 @@ function AppExperience({
                 {accountDeliveryStatus.pendingCount === 1
                   ? " is"
                   : "s are"}{" "}
-                still queued. OpenMatch keeps it in order and does not discard
-                it automatically. Retry shortly; do not assume the other person
+                still queued. WhyMatch keeps it in order and does not discard it
+                automatically. Retry shortly; do not assume the other person
                 received it yet.
               </span>
               <button onClick={() => void load()}>Check delivery again</button>
@@ -1786,7 +1786,7 @@ function AppExperience({
                   deleteData={async () => {
                     if (
                       window.confirm(
-                        "Delete all local OpenMatch demo data? This cannot be undone.",
+                        "Delete all local WhyMatch demo data? This cannot be undone.",
                       )
                     ) {
                       setDeletionReceipt(await api.deleteAccountData());
@@ -1798,7 +1798,7 @@ function AppExperience({
                       ? async (currentPassword) => {
                           if (
                             window.confirm(
-                              "Delete this OpenMatch account, credentials, sessions, and all application data? This cannot be undone.",
+                              "Delete this WhyMatch account, credentials, sessions, and all application data? This cannot be undone.",
                             )
                           ) {
                             await api.deleteAccount(currentPassword);
@@ -1870,8 +1870,8 @@ function LandingPage({
           help: "Hilfe",
           signIn: "Anmelden",
           eyebrow: "Ein gemeinnütziger Kennenlerndienst",
-          title: "Damit du uns nicht mehr brauchst.",
-          copy: "OpenMatch zeigt wenige, durchdachte Vorschläge, erklärt jeden davon und hat keinen Grund, dich swipen zu lassen. Keine Werbung. Kein Premium-Ranking. Kein versteckter Score.",
+          title: "You know why you match",
+          copy: "WhyMatch zeigt wenige, durchdachte Vorschläge, erklärt jeden davon und hat keinen Grund, dich swipen zu lassen. Keine Werbung. Kein Premium-Ranking. Kein versteckter Score.",
           demo: "Private Demo testen",
           matching: "Matching verstehen",
           source: "Open Source",
@@ -1888,8 +1888,8 @@ function LandingPage({
           help: "Get help",
           signIn: "Sign in",
           eyebrow: "A nonprofit introduction service",
-          title: "Made to help you leave.",
-          copy: "OpenMatch offers a small number of thoughtful introductions, explains every one, and has no reason to keep you swiping. No ads. No premium ranking. No hidden score.",
+          title: "You know why you match",
+          copy: "WhyMatch offers a small number of thoughtful introductions, explains every one, and has no reason to keep you swiping. No ads. No premium ranking. No hidden score.",
           demo: "Try the private demo",
           matching: "See how matching works",
           source: "Open source",
@@ -1900,9 +1900,9 @@ function LandingPage({
   return (
     <main className="landing-shell">
       <header className="landing-nav">
-        <a className="landing-brand" href="#top" aria-label="OpenMatch home">
+        <a className="landing-brand" href="#top" aria-label="WhyMatch home">
           <Mark />
-          OpenMatch
+          WhyMatch
         </a>
         <nav aria-label="Website navigation">
           <a href="#how">{t.how}</a>
@@ -1942,7 +1942,7 @@ function LandingPage({
             {demoError} No connection was attempted.
           </p>
         )}
-        <div className="hero-proof" aria-label="OpenMatch commitments">
+        <div className="hero-proof" aria-label="WhyMatch commitments">
           <span>{t.source}</span>
           <span>{t.nonprofit}</span>
           <span>{t.finite}</span>
@@ -1988,7 +1988,7 @@ function LandingPage({
           <p className="landing-eyebrow">The whole matching idea</p>
           <h2>Five understandable steps. No black box.</h2>
           <p>
-            OpenMatch does not claim to calculate love. It helps find people
+            WhyMatch does not claim to calculate love. It helps find people
             whose stated needs fit in both directions, then gets out of the way.
           </p>
         </div>
@@ -2016,7 +2016,7 @@ function LandingPage({
             answers alone.
           </p>
           <p>
-            So OpenMatch uses evidence to remove obvious incompatibilities and
+            So WhyMatch uses evidence to remove obvious incompatibilities and
             create plausible introductions—not to label anyone a soulmate. We
             publish the sources, uncertainties, decisions, and revisions.
           </p>
@@ -2211,7 +2211,7 @@ function LandingPage({
 
       <footer className="landing-footer">
         <div>
-          <strong>OpenMatch</strong>
+          <strong>WhyMatch</strong>
           <span>Nonprofit · Open source · In development</span>
         </div>
         <div>
@@ -2259,7 +2259,7 @@ function AlgorithmGraphic() {
   return (
     <div
       className="algorithm-flow"
-      aria-label="The five OpenMatch matching steps"
+      aria-label="The five WhyMatch matching steps"
     >
       {steps.map((step, index) => (
         <div className="algorithm-step" key={step.number}>
@@ -2317,7 +2317,7 @@ function SignInPage({
         <LanguageSwitch />
       </div>
       <button className="sign-in-brand" onClick={back}>
-        <Mark /> OpenMatch
+        <Mark /> WhyMatch
       </button>
       <form
         className="sign-in-card"
@@ -2391,10 +2391,10 @@ function SignInPage({
         </h1>
         <p>
           {mode === "create"
-            ? "Start your OpenMatch profile."
+            ? "Start your WhyMatch profile."
             : mode === "recover"
               ? "Enter a recovery code you previously saved and choose a new password."
-              : "Sign in to OpenMatch."}
+              : "Sign in to WhyMatch."}
         </p>
         {demoError && (
           <p role="status">{demoError} No connection was attempted.</p>
@@ -3049,7 +3049,7 @@ function OnboardingView({
             onClick={() => {
               if (
                 !window.confirm(
-                  "Delete this incomplete OpenMatch account, credentials, sessions, and all application data? This cannot be undone.",
+                  "Delete this incomplete WhyMatch account, credentials, sessions, and all application data? This cannot be undone.",
                 )
               )
                 return;
@@ -3584,7 +3584,7 @@ function sessionClientLabel(client: AccountSession["client"]) {
   if (client === "web") return "Web browser";
   if (client === "ios") return "iPhone or iPad app";
   if (client === "android") return "Android app";
-  return "Earlier OpenMatch client";
+  return "Earlier WhyMatch client";
 }
 
 type VisibleProfile = Pick<
@@ -4033,8 +4033,8 @@ function ProfileView({
           ) : emailVerification.deliveryConfigured ? (
             <>
               <p>
-                Enter the eight-digit code sent by OpenMatch. It expires after
-                24 hours and works once. Never send it to another person.
+                Enter the eight-digit code sent by WhyMatch. It expires after 24
+                hours and works once. Never send it to another person.
               </p>
               <form
                 className="profile-fields"
@@ -4726,7 +4726,7 @@ function ProfileView({
       <section className="settings-card">
         <h2>Optional research</h2>
         <p>
-          Research participation is separate from using OpenMatch and defaults
+          Research participation is separate from using WhyMatch and defaults
           off. No study is active in this prototype, and this choice never
           changes your introductions.
         </p>
@@ -5363,7 +5363,7 @@ function ConnectionsView({
         )}
         <p className="help">
           These milestones are not a satisfaction scale, proof, or a statement
-          from both people. OpenMatch keeps them distinct rather than turning
+          from both people. WhyMatch keeps them distinct rather than turning
           them into one engagement score.
         </p>
       </section>
@@ -5569,7 +5569,7 @@ function PastConnectionsView({
       <h2>Closed conversations</h2>
       <p>
         Messaging stays closed. Your private milestone journal remains
-        inspectable and correctable until you delete it or your OpenMatch data.
+        inspectable and correctable until you delete it or your WhyMatch data.
       </p>
       {connections.map((connection) => (
         <div className="suggestion" key={connection.id}>
@@ -5788,7 +5788,7 @@ function AboutView({
         </p>
         <p>
           If you are in immediate danger, contact your local emergency services.
-          OpenMatch cannot provide emergency help.
+          WhyMatch cannot provide emergency help.
         </p>
         <a
           href="https://rainn.org/strategies-to-reduce-risk-increase-safety/tips-for-safer-dating-online-and-in-person/"
@@ -5816,8 +5816,8 @@ function SafetySupportCard() {
       <p className="eyebrow">Help without reporting here</p>
       <h2 id="support-heading">Independent support in Switzerland</h2>
       <p>
-        You do not need to file an OpenMatch report or tell us what happened.
-        OpenMatch cannot provide emergency help.
+        You do not need to file a WhyMatch report or tell us what happened.
+        WhyMatch cannot provide emergency help.
       </p>
       <div className="support-grid">
         <a href="tel:117">
@@ -5846,9 +5846,9 @@ function SafetySupportCard() {
       </div>
       <p className="support-caveat">
         These numbers are for Switzerland. Elsewhere, use local emergency and
-        victim-support services. Calling or opening another site leaves
-        OpenMatch and may appear in device, phone-provider, or website records.
-        OpenMatch sends no report or profile data when you use these links.
+        victim-support services. Calling or opening another site leaves WhyMatch
+        and may appear in device, phone-provider, or website records. WhyMatch
+        sends no report or profile data when you use these links.
       </p>
     </section>
   );

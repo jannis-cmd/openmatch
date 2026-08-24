@@ -90,5 +90,5 @@ jobs:
             openmatch-android-0.1.0-build-12.sha256 \
             signing-verification.txt \
             --target "$SOURCE_REVISION" \
-            --title "OpenMatch Android owner build 12" \
+            --title "WhyMatch Android owner build 12" \
             --notes "Standalone Expo SDK 57 owner-testing APK built from $SOURCE_REVISION. It uses the stable EAS Android signing identity and connects only to the documented private tailnet service. This is not a Google Play release."

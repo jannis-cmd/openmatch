@@ -11,7 +11,7 @@ export function resolveApiConfiguration(
     return {
       url: null,
       error:
-        "This build has no OpenMatch service URL. The distributor must configure EXPO_PUBLIC_OPENMATCH_API_URL before building it.",
+        "This build has no WhyMatch service URL. The distributor must configure EXPO_PUBLIC_OPENMATCH_API_URL before building it.",
     };
   }
   let parsed: URL;
@@ -20,7 +20,7 @@ export function resolveApiConfiguration(
   } catch {
     return {
       url: null,
-      error: "The configured OpenMatch service URL is invalid.",
+      error: "The configured WhyMatch service URL is invalid.",
     };
   }
   if (
@@ -33,7 +33,7 @@ export function resolveApiConfiguration(
     return {
       url: null,
       error:
-        "The OpenMatch service URL must be a plain origin without credentials, a path, query, or fragment.",
+        "The WhyMatch service URL must be a plain origin without credentials, a path, query, or fragment.",
     };
   if (development) {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
@@ -45,7 +45,7 @@ export function resolveApiConfiguration(
     return {
       url: null,
       error:
-        "Preview and production builds require an HTTPS OpenMatch service URL.",
+        "Preview and production builds require an HTTPS WhyMatch service URL.",
     };
   }
   return { url: parsed.origin, error: null };

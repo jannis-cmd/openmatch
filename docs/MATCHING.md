@@ -35,7 +35,7 @@ or more potentially overlapping discovery groups: women, men, and nonbinary
 people. They separately choose, in private, which groups they are open to
 meeting. Both routing groups and groups sought remain private. A pair is
 eligible only when each person's routing selection intersects the other's
-groups sought. OpenMatch does not request sex assigned
+groups sought. WhyMatch does not request sex assigned
 at birth, infer identity from names/photos/pronouns, or translate an orientation
 label into eligibility.
 

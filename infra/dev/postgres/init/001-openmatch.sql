@@ -16,4 +16,4 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 COMMENT ON SCHEMA auth IS
   'Owned and migrated by Supabase Auth. Application code must not write here.';
 COMMENT ON SCHEMA app IS
-  'OpenMatch application data. Changes are applied by versioned SQL migrations.';
+  'WhyMatch application data. Changes are applied by versioned SQL migrations.';

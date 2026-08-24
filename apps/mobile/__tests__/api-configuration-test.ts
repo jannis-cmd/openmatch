@@ -14,7 +14,7 @@ test("preview and production fail closed without HTTPS", () => {
   expect(resolveApiConfiguration("http://192.168.1.134:4000", false)).toEqual({
     url: null,
     error:
-      "Preview and production builds require an HTTPS OpenMatch service URL.",
+      "Preview and production builds require an HTTPS WhyMatch service URL.",
   });
 });
 

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy — OpenMatch",
+  title: "Privacy — WhyMatch",
   description:
-    "A plain-language explanation of what the OpenMatch prototype stores and why.",
+    "A plain-language explanation of what the WhyMatch prototype stores and why.",
 };
 
 export default function PrivacyPage() {
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
             <span />
             <span />
           </span>
-          OpenMatch
+          WhyMatch
         </a>
         <a href="/support">Support</a>
       </nav>
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         <p className="landing-eyebrow">Prototype privacy notice</p>
         <h1>Your private life is not the product.</h1>
         <p className="document-lead">
-          OpenMatch is an open-source prototype, not a public dating service.
+          WhyMatch is an open-source prototype, not a public dating service.
           This notice describes the software and the current owner-only tailnet
           beta as of 12 August 2026. It is not a substitute for the controller
           identity, contact details, jurisdiction-specific notice, and legal
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
           for an introduction after separate directory consent and during a
           visibility setting you explicitly enable. Pausing it stops new
           introductions without creating a public last-active time. Public
-          fields include your self-written gender description; OpenMatch never
+          fields include your self-written gender description; WhyMatch never
           infers it. Your self-routing groups and the groups of people you are
           open to meeting both remain private matching inputs. A mutually
           interested person receives messages you deliberately send. The current
@@ -95,11 +95,11 @@ export default function PrivacyPage() {
           account from Profile. Local deletion is synchronous and removes the
           account credentials and isolated application store. The prototype
           labels each export with its schema, matching-method version, and
-          creation time. On iOS and Android, OpenMatch creates the JSON file in
+          creation time. On iOS and Android, WhyMatch creates the JSON file in
           its private cache for the system share sheet and attempts to delete
           that temporary copy whether sharing succeeds or fails. A destination
           app controls any copy you choose to save or send. Separately, choosing
-          a profile photo uses the browser or system photo picker; OpenMatch
+          a profile photo uses the browser or system photo picker; WhyMatch
           compresses that selected image and stores it with the public profile.
           The prototype currently has no application-managed backups;
           infrastructure and third-party records require a reviewed retention

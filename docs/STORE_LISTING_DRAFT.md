@@ -1,29 +1,28 @@
 # Mobile store listing draft
 
-Status: internal draft for OpenMatch 0.1.0. Do not submit unchanged until every
+Status: internal draft for WhyMatch 0.1.0. Do not submit unchanged until every
 placeholder and disclosure has been reviewed against the deployed service.
 
 ## Shared public copy
 
 ### Name
 
-OpenMatch
+WhyMatch
 
 ### Short description / subtitle
 
-Transparent introductions, not endless swiping
+You know why you match
 
 ### Promotional sentence
 
-A small set of reciprocal introductions, with every matching input and score
-explained.
+Transparent introductions, with every matching input and score explained.
 
 ### Full description
 
-OpenMatch is an open-source introduction app designed to help compatible people
+WhyMatch is an open-source introduction app designed to help compatible people
 meet—not keep them browsing.
 
-You set your own profile, boundaries, and priorities. OpenMatch first checks
+You set your own profile, boundaries, and priorities. WhyMatch first checks
 that important boundaries work in both directions. It then orders eligible
 introductions with a simple public formula that considers both people’s stated
 preferences. You can inspect every contribution to your score.
@@ -45,7 +44,7 @@ Current features include:
 - public source code, research evidence, algorithm decisions, data inventory,
   privacy notice, and known limitations.
 
-OpenMatch does not claim to calculate love, attraction, relationship success,
+WhyMatch does not claim to calculate love, attraction, relationship success,
 or safety. Research can help identify obvious incompatibilities and guide
 testable product choices, but chemistry still requires human judgment and a
 real interaction.
@@ -76,7 +75,7 @@ reviewers and public users cannot be expected to join a private tailnet.
 
 ## App Review notes draft
 
-OpenMatch is a transparent, finite-introduction prototype. It does not sell
+WhyMatch is a transparent, finite-introduction prototype. It does not sell
 subscriptions, rankings, boosts, advertisements, or digital goods. All matching
 inputs are entered by the user. The deterministic matching source and formula
 are public. No message text is used for matching or analytics.
@@ -103,7 +102,7 @@ Email: `[PRIVATE_REVIEW_CONTACT_EMAIL]`
 
 Use real UI with synthetic profiles and no personal tester data.
 
-1. Landing / mission: “Made to help you leave.”
+1. Landing / mission: “You know why you match.”
 2. Finite introductions: one profile with visible score and no infinite feed.
 3. Full calculation: both directed fits, harmonic mean, and selection mode.
 4. Preferences: mutual boundaries separated from ordering priorities.
@@ -163,7 +162,7 @@ monitoring, and support vendors before answering the Play Console form.
 
 ## Content and age-rating review
 
-OpenMatch is adults-only and should not be represented as suitable for
+WhyMatch is adults-only and should not be represented as suitable for
 children. User-generated profiles, dating conversations, and safety reports can
 contain mature themes. Final age-rating answers require review of store-specific
 questionnaires and the actual moderation operation.

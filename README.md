@@ -1,6 +1,6 @@
-# OpenMatch
+# WhyMatch
 
-OpenMatch is a proposed nonprofit, open-source dating service whose only product goal is to help compatible people meet safely and leave the app.
+**You know why you match.** WhyMatch is a proposed nonprofit, open-source dating service whose only product goal is to help compatible people meet safely and leave the app.
 
 This repository is an initial, research-backed specification and executable skeleton—not a claim that romantic compatibility can currently be predicted with scientific certainty.
 
@@ -71,7 +71,7 @@ The repository now contains a thin, local-first vertical slice:
 - profile and privacy views;
 - a versioned structured dating-data model with per-field importance, private-by-default learning controls, pair-specific prediction/audit records, export, and deletion;
 - self-service JSON export and synchronous local demo-data deletion with a non-retained completion receipt;
-- optional email/password accounts; the portable self-hosted mode uses Supabase Auth (GoTrue) for credentials, confirmation and tokens while OpenMatch stores a minimal identity/session mirror, and the standalone legacy test mode retains the documented scrypt/recovery-code implementation; both use account-isolated application data and device-secure iOS/Android session restoration;
+- optional email/password accounts; the portable self-hosted mode uses Supabase Auth (GoTrue) for credentials, confirmation and tokens while WhyMatch stores a minimal identity/session mirror, and the standalone legacy test mode retains the documented scrypt/recovery-code implementation; both use account-isolated application data and device-secure iOS/Android session restoration;
 - the same shared matching package on web, iOS, Android, and API;
 - a SQLite development API with profile, preferences, introductions, decisions, reset, and transparency endpoints.
 

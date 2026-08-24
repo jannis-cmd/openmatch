@@ -9,7 +9,7 @@ Last searched: 12 August 2026. This is a broad evidence map for product discover
 - Source: *Psychological Science in the Public Interest*. [APS overview](https://www.psychologicalscience.org/publications/journals/pspi/online-dating.html), [full text](https://faculty.wcas.northwestern.edu/eli-finkel/documents/2012_FinkelEastwickKarneyReisSprecher_PSPI.pdf)
 - Value: separates the demonstrated benefit of access to candidates from the much weaker evidence behind proprietary compatibility claims. It also warns that extensive profile browsing can encourage objectifying, assessment-oriented choice.
 - Limitation: published before swipe apps and modern recommender systems; it cannot evaluate unpublished contemporary systems.
-- Product implication: make a narrow claim—OpenMatch assists introductions—and require prospective evidence for every compatibility claim.
+- Product implication: make a narrow claim—WhyMatch assists introductions—and require prospective evidence for every compatibility claim.
 
 ### Joel, Eastwick & Finkel (2017) — Is romantic desire predictable?
 
@@ -136,14 +136,14 @@ Last searched: 12 August 2026. This is a broad evidence map for product discover
 - Source: *Journal of Personality and Social Psychology*. [Open full text](https://pmc.ncbi.nlm.nih.gov/articles/PMC2891543/)
 - Value: dyadic longitudinal studies connect compassionate goals, reciprocal responsiveness, and relationship quality.
 - Limitation: roommate/close-relationship development, not an online prematch predictor; causal pathways remain bounded by study design.
-- Product implication: optional educational content can encourage respectful responsiveness, but OpenMatch should not score people as “kind” from text.
+- Product implication: optional educational content can encourage respectful responsiveness, but WhyMatch should not score people as “kind” from text.
 
 ### Relationship-quality meeting-venue studies
 
 - Sources: Cacioppo et al. (2013), [PNAS open article](https://pmc.ncbi.nlm.nih.gov/articles/PMC3690854/); Hu, Zhu & Zhang (2024), [PubMed](https://pubmed.ncbi.nlm.nih.gov/39058656/)
 - Value: asks whether relationships originating online and offline differ in satisfaction or dissolution.
 - Limitation: conflicting/small associations, selection and cohort effects, changing platforms, self-report, and potential industry conflicts make causal claims inappropriate.
-- Product implication: do not market online meeting as superior; publish OpenMatch-specific longitudinal outcomes with complete caveats.
+- Product implication: do not market online meeting as superior; publish WhyMatch-specific longitudinal outcomes with complete caveats.
 
 ## 6. Safety, harassment, fraud, and verification
 
@@ -288,7 +288,7 @@ Last searched: 12 August 2026. This is a broad evidence map for product discover
 - Limitation: qualitative/critical evidence does not prescribe one mathematical remedy.
 - Product implication: audit the entire opportunity pipeline, avoid race-based ranking, and give affected groups governance power rather than imposing a purely technical fairness fix.
 
-## 11. Evidence gaps most valuable to OpenMatch
+## 11. Evidence gaps most valuable to WhyMatch
 
 1. Prospective prediction of **mutually wanted second dates**, not likes or replies.
 2. Longitudinal, diverse, out-of-sample evidence for prematch factors.

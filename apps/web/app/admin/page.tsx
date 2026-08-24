@@ -144,12 +144,12 @@ export default function AdminPage() {
   return (
     <main className="admin-shell">
       <header className="admin-header">
-        <a href="/">OpenMatch</a>
+        <a href="/">WhyMatch</a>
         <LanguageSwitch />
       </header>
       {!overview ? (
         <form className="admin-login" onSubmit={signIn}>
-          <p className="eyebrow">OpenMatch</p>
+          <p className="eyebrow">WhyMatch</p>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
           <label>

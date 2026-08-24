@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Support — OpenMatch",
+  title: "Support — WhyMatch",
   description:
-    "Current OpenMatch prototype support, safety, and account-help information.",
+    "Current WhyMatch prototype support, safety, and account-help information.",
 };
 
 export default function SupportPage() {
@@ -15,7 +15,7 @@ export default function SupportPage() {
             <span />
             <span />
           </span>
-          OpenMatch
+          WhyMatch
         </a>
         <a href="/privacy">Privacy</a>
       </nav>
@@ -24,7 +24,7 @@ export default function SupportPage() {
         <p className="landing-eyebrow">Prototype support</p>
         <h1>Help, without pretending we are ready.</h1>
         <p className="document-lead">
-          OpenMatch is currently an owner-only prototype. There is no staffed
+          WhyMatch is currently an owner-only prototype. There is no staffed
           customer-support or moderation team, no guaranteed response time, and
           no public registration. These are release blockers, not fine print.
         </p>
@@ -49,7 +49,7 @@ export default function SupportPage() {
         </div>
         <p>
           Elsewhere, use local emergency and victim-support services. Calls can
-          remain visible in a device call history. OpenMatch receives no report
+          remain visible in a device call history. WhyMatch receives no report
           or profile information when you use these links.
         </p>
 
@@ -94,8 +94,8 @@ export default function SupportPage() {
 
         <h2>Before real people can join</h2>
         <p>
-          OpenMatch still needs a private support address, trained moderation
-          and appeals, published response targets, incident handling,
+          WhyMatch still needs a private support address, trained moderation and
+          appeals, published response targets, incident handling,
           jurisdiction-specific emergency resources, and an accountable legal
           operator. Until those exist, this page documents a prototype rather
           than promising a service operation.

@@ -28,7 +28,7 @@ tooling. As of this review, the registry advisory declares every published
 version through 2.0.2 vulnerable and names no patched version. It concerns
 parsing crafted ICNS, JXL, or HEIF files.
 
-OpenMatch does not accept or parse user-uploaded images at runtime, and the
+WhyMatch does not accept or parse user-uploaded images at runtime, and the
 current source tree contains only reviewed repository assets. This limits the
 current exposure to a developer or cloud builder processing a malicious source
 asset; it does not remove the vulnerability. Do not build unreviewed branches

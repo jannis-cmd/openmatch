@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { LocaleProvider } from "../lib/locale";
 
 export const metadata: Metadata = {
-  title: "OpenMatch — Made to help you leave",
+  title: "WhyMatch — You know why you match",
   description:
-    "A nonprofit, open-source introduction service with transparent matching and no infinite feed.",
+    "You know why you match. A nonprofit, open-source introduction service with transparent matching and no infinite feed.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "OpenMatch",
+    title: "WhyMatch",
   },
 };
 

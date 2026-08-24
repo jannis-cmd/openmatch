@@ -1,6 +1,6 @@
 # Self-hosted development services
 
-OpenMatch development uses a deliberately small, Supabase-compatible service
+WhyMatch development uses a deliberately small, Supabase-compatible service
 set: PostgreSQL, Supabase Auth (GoTrue), a narrow Caddy gateway, and Mailpit.
 It omits Studio, Realtime, Analytics, Storage, and PostgREST until the product
 actually needs them. This keeps the shared development server small and makes
@@ -11,9 +11,9 @@ deployment. It has no high availability, managed backups, production mail,
 security monitoring, or incident response.
 
 In this mode GoTrue owns user credentials, email confirmation, and access
-tokens. OpenMatch stores only an identity mirror plus a hash of each token to
+tokens. WhyMatch stores only an identity mirror plus a hash of each token to
 route requests to isolated application stores. Password change and permanent
-account deletion are wired through GoTrue. The older OpenMatch recovery-code,
+account deletion are wired through GoTrue. The older WhyMatch recovery-code,
 primary-email-change, and backup-notification-address workflows are not yet
 migrated and remain a release blocker. Dating profiles and interactions use
 normalized, account-scoped tables in PostgreSQL's `app` schema. SQLite remains
@@ -30,7 +30,7 @@ docker compose --env-file infra/dev/.env -f infra/dev/compose.yaml ps
 The generated configuration binds to `127.0.0.1`:
 
 - Auth: `http://127.0.0.1:54321/auth/v1`
-- OpenMatch API: `http://127.0.0.1:54321`
+- WhyMatch API: `http://127.0.0.1:54321`
 - Web app: `http://127.0.0.1:3000`
 - Mailpit inbox: `http://127.0.0.1:8025`
 - PostgreSQL: private Docker network only
@@ -71,7 +71,7 @@ OPENMATCH_MAILPIT_URL=http://127.0.0.1:8025 \
 node scripts/dev-auth-smoke.mjs
 ```
 
-The full OpenMatch API flow and the fictional 20-profile pool can be checked
+The full WhyMatch API flow and the fictional 20-profile pool can be checked
 without placing a password in the repository:
 
 ```bash
@@ -119,7 +119,7 @@ database roles/RLS, load tests, and connection-budget monitoring before a pilot.
 ## Transfer path
 
 Application schema changes belong in versioned, plain SQL migrations. GoTrue
-owns the `auth` schema; OpenMatch owns the `app` schema. Application tables
+owns the `auth` schema; WhyMatch owns the `app` schema. Application tables
 should reference `auth.users(id)` using opaque UUIDs but must not store dating
 profile fields in auth user metadata.
 

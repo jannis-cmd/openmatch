@@ -101,9 +101,9 @@ if (isDirectRun) {
   const platform = process.argv[2];
   const errors = assessLocalRelease(platform);
   if (errors.length) {
-    console.error(`OpenMatch ${platform ?? "local"} release preflight failed:`);
+    console.error(`WhyMatch ${platform ?? "local"} release preflight failed:`);
     for (const error of errors) console.error(`- ${error}`);
     process.exit(1);
   }
-  console.log(`OpenMatch ${platform} local release prerequisites are ready.`);
+  console.log(`WhyMatch ${platform} local release prerequisites are ready.`);
 }

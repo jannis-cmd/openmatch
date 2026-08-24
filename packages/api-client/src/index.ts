@@ -222,7 +222,7 @@ export class ApiError extends Error {
     readonly retryAfterSeconds: number | null = null,
     readonly operation: "decision" | "message" | "report" | null = null,
   ) {
-    super(`OpenMatch API request failed (${status}: ${code})`);
+    super(`WhyMatch API request failed (${status}: ${code})`);
   }
 }
 

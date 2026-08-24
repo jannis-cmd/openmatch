@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "OpenMatch",
-    short_name: "OpenMatch",
+    name: "WhyMatch",
+    short_name: "WhyMatch",
     description:
-      "A nonprofit, open-source introduction service with transparent matching and no infinite feed.",
+      "You know why you match. A nonprofit, open-source introduction service with transparent matching.",
     start_url: "/",
     scope: "/",
     display: "standalone",

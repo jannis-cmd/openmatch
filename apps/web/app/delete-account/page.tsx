@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Delete your account — OpenMatch",
+  title: "Delete your account — WhyMatch",
   description:
-    "Sign in to permanently delete an OpenMatch account and its associated prototype data.",
+    "Sign in to permanently delete a WhyMatch account and its associated prototype data.",
 };
 
 export default function DeleteAccountPage() {
@@ -15,7 +15,7 @@ export default function DeleteAccountPage() {
             <span />
             <span />
           </span>
-          OpenMatch
+          WhyMatch
         </a>
         <a href="/privacy">Privacy</a>
       </nav>
@@ -24,7 +24,7 @@ export default function DeleteAccountPage() {
         <p className="landing-eyebrow">Account deletion</p>
         <h1>Delete your account, not just hide it.</h1>
         <p className="document-lead">
-          OpenMatch lets you permanently delete your complete account without
+          WhyMatch lets you permanently delete your complete account without
           contacting support. Sign in below and you will go directly to the
           deletion control in Profile.
         </p>
@@ -50,7 +50,7 @@ export default function DeleteAccountPage() {
             complete.
           </li>
           <li>
-            OpenMatch has no subscriptions, purchases, advertising account, or
+            WhyMatch has no subscriptions, purchases, advertising account, or
             application-managed backup to cancel or retain.
           </li>
         </ul>
@@ -67,7 +67,7 @@ export default function DeleteAccountPage() {
         <h2>Current service boundary</h2>
         <p>
           This URL is functional on the current private tailnet beta. It is not
-          yet a public deletion URL for a store launch: OpenMatch still needs a
+          yet a public deletion URL for a store launch: WhyMatch still needs a
           publicly reachable service, accountable operator, private support
           contact, and reviewed legal retention policy before public
           registration.

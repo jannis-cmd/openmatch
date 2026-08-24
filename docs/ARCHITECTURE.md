@@ -35,13 +35,13 @@ Versions are provisional until an implementation ADR checks current support, acc
 The standalone test API uses Node's built-in SQLite interface and retains its ordered `user_version` migration coverage. The self-hosted environment instead stores dating profiles, preferences, decisions, connections, messages, safety records, consent receipts, and matching audit records in normalized PostgreSQL tables under `app`. Every row carries the opaque GoTrue account UUID and cascades from `auth.users`. Account-filtered security-barrier views plus a connection-local account setting keep the existing deterministic domain store isolated while the API is migrated incrementally. Versioned plain SQL applies the schema before the API starts. A guarded importer replaces one account at a time in a transaction and records a canonical SHA-256 verification hash and row counts; it refuses source files without a corresponding GoTrue user. A dependency-free typed HTTP client remains shared by web and mobile so endpoint semantics do not drift.
 
 A self-hosted development boundary now provides PostgreSQL, Supabase Auth
-(GoTrue), captured SMTP mail, the OpenMatch API, and the web app without
+(GoTrue), captured SMTP mail, the WhyMatch API, and the web app without
 exposing PostgreSQL outside Docker. When `OPENMATCH_SUPABASE_AUTH_URL` is set,
 GoTrue is authoritative for user passwords, inbox confirmation, and bearer
 tokens. The API validates every token against GoTrue, mirrors only the opaque
 user ID/email/verification state needed to locate the application store, and
 persists only a SHA-256 token hash for its local session index. The raw password
-is never copied into OpenMatch SQLite. Password change and credential deletion
+is never copied into WhyMatch SQLite. Password change and credential deletion
 are reauthenticated against GoTrue; deletion also removes the account's local
 application data. Dating application data is now authoritative in the shared
 PostgreSQL `app` schema; archived SQLite files are migration inputs only. The
@@ -58,7 +58,7 @@ The development API has no universal credential. Its explicitly enabled local
 demo mode issues random 256-bit bearer tokens but still targets one shared demo
 identity. In standalone legacy mode, separately enabled prototype accounts use
 a per-account salted scrypt password hash. In self-hosted mode, GoTrue owns the
-password hash and confirmation state while OpenMatch retains only an identity
+password hash and confirmation state while WhyMatch retains only an identity
 mirror and hashed session index. Both route requests to account-specific SQLite
 stores. Web and production
 mobile builds expose create/sign-in flows. Native account tokens use device-only

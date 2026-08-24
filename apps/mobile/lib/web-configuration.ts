@@ -11,7 +11,7 @@ export function resolveWebConfiguration(
     return {
       url: null,
       error:
-        "This build has no OpenMatch public website URL. Privacy and support links are unavailable.",
+        "This build has no WhyMatch public website URL. Privacy and support links are unavailable.",
     };
   }
 
@@ -19,7 +19,7 @@ export function resolveWebConfiguration(
   try {
     parsed = new URL(value);
   } catch {
-    return { url: null, error: "The OpenMatch public website URL is invalid." };
+    return { url: null, error: "The WhyMatch public website URL is invalid." };
   }
 
   if (
@@ -32,7 +32,7 @@ export function resolveWebConfiguration(
     return {
       url: null,
       error:
-        "The OpenMatch public website URL must be a plain origin without credentials, a path, query, or fragment.",
+        "The WhyMatch public website URL must be a plain origin without credentials, a path, query, or fragment.",
     };
 
   if (development) {
@@ -45,7 +45,7 @@ export function resolveWebConfiguration(
     return {
       url: null,
       error:
-        "Preview and production builds require an HTTPS OpenMatch public website URL.",
+        "Preview and production builds require an HTTPS WhyMatch public website URL.",
     };
   }
 

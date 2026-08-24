@@ -105,7 +105,7 @@ function sessionClientLabel(client: AccountSession["client"]) {
   if (client === "web") return "Web browser";
   if (client === "ios") return "iPhone or iPad app";
   if (client === "android") return "Android app";
-  return "Earlier OpenMatch client";
+  return "Earlier WhyMatch client";
 }
 
 const CONNECTION_OUTCOME_OPTIONS: ReadonlyArray<
@@ -563,7 +563,7 @@ export default function App() {
         setDatingDataSettings(nextDatingDataModel.settings);
     } catch {
       setError(
-        "OpenMatch could not reach its configured service. Check your connection and retry.",
+        "WhyMatch could not reach its configured service. Check your connection and retry.",
       );
     } finally {
       setLoading(false);
@@ -1003,7 +1003,7 @@ export default function App() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.brand}>OpenMatch</Text>
+          <Text style={styles.brand}>WhyMatch</Text>
           <Text style={styles.nonprofit}>Nonprofit · Open</Text>
         </View>
         <ScrollView contentContainerStyle={styles.page}>
@@ -1228,7 +1228,7 @@ export default function App() {
                 onPress={() =>
                   Alert.alert(
                     "Delete incomplete account?",
-                    "This removes credentials, sessions, and all OpenMatch application data. You do not need to complete setup first. It cannot be undone.",
+                    "This removes credentials, sessions, and all WhyMatch application data. You do not need to complete setup first. It cannot be undone.",
                     [
                       { text: "Cancel", style: "cancel" },
                       {
@@ -1284,7 +1284,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.brand}>OpenMatch</Text>
+        <Text style={styles.brand}>WhyMatch</Text>
         <Text style={styles.nonprofit}>Nonprofit · Open</Text>
         <View style={styles.mobileLanguages}>
           {(["de", "en"] as const).map((language) => (
@@ -1319,7 +1319,7 @@ export default function App() {
                   {accountDeliveryStatus.pendingCount === 1
                     ? " is"
                     : "s are"}{" "}
-                  still queued. OpenMatch keeps it in order and does not discard
+                  still queued. WhyMatch keeps it in order and does not discard
                   it automatically. Do not assume the other person received it
                   yet.
                 </Text>
@@ -2034,7 +2034,7 @@ export default function App() {
                     )}
                     <Text style={styles.mathNote}>
                       These milestones are not a satisfaction scale, proof, or a
-                      statement from both people. OpenMatch keeps them distinct
+                      statement from both people. WhyMatch keeps them distinct
                       rather than turning them into one engagement score.
                     </Text>
                   </View>
@@ -2508,7 +2508,7 @@ export default function App() {
                   ) : emailVerification.deliveryConfigured ? (
                     <>
                       <Text style={styles.scoreNote}>
-                        Enter the eight-digit code sent by OpenMatch. It expires
+                        Enter the eight-digit code sent by WhyMatch. It expires
                         after 24 hours and works once. Never send it to another
                         person.
                       </Text>
@@ -3134,7 +3134,7 @@ export default function App() {
                             secondary
                             onPress={() =>
                               void Share.share({
-                                title: "OpenMatch recovery codes",
+                                title: "WhyMatch recovery codes",
                                 message: recoveryCodes.join("\n"),
                               })
                             }
@@ -3323,7 +3323,7 @@ export default function App() {
                   <Text style={styles.name}>Active sessions</Text>
                   <Text style={styles.scoreNote}>
                     See where your account is signed in and end sessions you no
-                    longer recognize. OpenMatch stores only the broad client
+                    longer recognize. WhyMatch stores only the broad client
                     type—not an IP address, device fingerprint, activity
                     history, or exact device model.
                   </Text>
@@ -3374,7 +3374,7 @@ export default function App() {
               <View style={styles.scoreCard}>
                 <Text style={styles.name}>Optional research</Text>
                 <Text style={styles.scoreNote}>
-                  Research participation is separate from using OpenMatch and
+                  Research participation is separate from using WhyMatch and
                   defaults off. No study is active in this prototype, and this
                   choice never changes your introductions.
                 </Text>
@@ -3631,7 +3631,7 @@ export default function App() {
                       .then(shareDataExport)
                       .then(() =>
                         setExportNotice(
-                          "Export share sheet closed. OpenMatch removed its temporary copy.",
+                          "Export share sheet closed. WhyMatch removed its temporary copy.",
                         ),
                       )
                       .catch((exportError: unknown) =>
@@ -3661,7 +3661,7 @@ export default function App() {
                   onPress={() =>
                     Alert.alert(
                       "Delete local data?",
-                      "This permanently clears the OpenMatch demo on this service.",
+                      "This permanently clears the WhyMatch demo on this service.",
                       [
                         { text: "Cancel", style: "cancel" },
                         {
@@ -3737,7 +3737,7 @@ export default function App() {
                       onPress={() =>
                         Alert.alert(
                           "Delete account permanently?",
-                          "This removes credentials, sessions, and all OpenMatch application data. It cannot be undone.",
+                          "This removes credentials, sessions, and all WhyMatch application data. It cannot be undone.",
                           [
                             { text: "Cancel", style: "cancel" },
                             {
@@ -4083,7 +4083,7 @@ export default function App() {
                 </Text>
                 <Text style={styles.scoreNote}>
                   If you are in immediate danger, contact your local emergency
-                  services. OpenMatch cannot provide emergency help.
+                  services. WhyMatch cannot provide emergency help.
                 </Text>
                 <Action
                   label="Open RAINN safer-dating guidance"
@@ -4110,8 +4110,8 @@ export default function App() {
                   Independent support in Switzerland
                 </Text>
                 <Text style={styles.scoreNote}>
-                  You do not need to file an OpenMatch report or tell us what
-                  happened. OpenMatch cannot provide emergency help.
+                  You do not need to file a WhyMatch report or tell us what
+                  happened. WhyMatch cannot provide emergency help.
                 </Text>
                 <Action
                   label="Immediate danger · Police 117"
@@ -4142,8 +4142,8 @@ export default function App() {
                 <Text style={styles.mathNote}>
                   These numbers are for Switzerland. Elsewhere, use local
                   emergency and victim-support services. Calling or opening
-                  another site leaves OpenMatch and may appear in device,
-                  phone-provider, or website records. OpenMatch sends no report
+                  another site leaves WhyMatch and may appear in device,
+                  phone-provider, or website records. WhyMatch sends no report
                   or profile data when you use these links.
                 </Text>
               </View>
@@ -4268,7 +4268,8 @@ function MobileAuthentication({
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.authPage}>
-        <Text style={styles.brand}>OpenMatch</Text>
+        <Text style={styles.brand}>WhyMatch</Text>
+        <Text style={styles.brandTagline}>You know why you match</Text>
         <Text style={styles.title}>
           {mode === "create"
             ? "Create your account."
@@ -4278,10 +4279,10 @@ function MobileAuthentication({
         </Text>
         <Text style={styles.subtle}>
           {mode === "create"
-            ? "Start your OpenMatch profile."
+            ? "Start your WhyMatch profile."
             : mode === "recover"
               ? "Enter a recovery code you previously saved and choose a new password."
-              : "Sign in to OpenMatch."}
+              : "Sign in to WhyMatch."}
         </Text>
         {notice && <Text style={styles.mathNote}>{notice}</Text>}
         {authNotice && <Text style={styles.mathNote}>{authNotice}</Text>}
@@ -4401,7 +4402,7 @@ function PastConnectionsJournal({
       <Text style={styles.name}>Closed conversations</Text>
       <Text style={styles.scoreNote}>
         Messaging stays closed. Your private milestone journal remains
-        inspectable and correctable until you delete it or your OpenMatch data.
+        inspectable and correctable until you delete it or your WhyMatch data.
       </Text>
       {connections.map((connection) => (
         <View style={styles.prototypeConsent} key={connection.id}>
@@ -4519,7 +4520,7 @@ function PreferencesScreen({
           <View style={styles.statusCopy}>
             <Text style={styles.statusTitle}>Unsaved preference changes</Text>
             <Text style={styles.mathNote}>
-              Changes affect matching only after OpenMatch confirms the complete
+              Changes affect matching only after WhyMatch confirms the complete
               save.
             </Text>
             {saveError && (
@@ -5588,6 +5589,12 @@ const styles = StyleSheet.create({
     borderColor: "#DFDFD8",
   },
   brand: { fontSize: 19, fontWeight: "700", letterSpacing: -0.6 },
+  brandTagline: {
+    color: "#557064",
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: -6,
+  },
   nonprofit: { marginLeft: "auto", fontSize: 11, color: "#757970" },
   mobileLanguages: { flexDirection: "row", gap: 8, marginLeft: 12 },
   mobileLanguage: { color: "#757970", fontSize: 11, fontWeight: "700" },

@@ -38,7 +38,7 @@ export async function shareDataExport(
     created = true;
     file.write(`${JSON.stringify(data, null, 2)}\n`);
     await dependencies.shareFile(file.uri, {
-      dialogTitle: "Save or share your OpenMatch data",
+      dialogTitle: "Save or share your WhyMatch data",
       mimeType: "application/json",
       UTI: "public.json",
     });

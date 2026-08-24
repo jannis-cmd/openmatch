@@ -49,10 +49,10 @@ if (process.env.EAS_BUILD === "true" || process.env.EAS_BUILD === "1") {
 
   if (error || webError || sourceError) {
     console.error(
-      `OpenMatch mobile configuration error: ${error ?? webError ?? sourceError}`,
+      `WhyMatch mobile configuration error: ${error ?? webError ?? sourceError}`,
     );
     process.exit(1);
   }
 
-  console.log("OpenMatch mobile HTTPS service configuration validated.");
+  console.log("WhyMatch mobile HTTPS service configuration validated.");
 }
