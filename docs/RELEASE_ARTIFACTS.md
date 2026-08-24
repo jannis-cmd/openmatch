@@ -1,46 +1,43 @@
 # Verified mobile artifacts
 
 This file records reproducible provenance for archived owner-testing artifacts.
-Every listed binary is an immutable source snapshot. Android build 12 and iOS
+Every listed binary is an immutable source snapshot. Android build 13 and iOS
 build 12 are the current owner-testing baselines; older Android and iOS
 artifacts remain explicitly archived. Neither current build is an app-store
 approval or a claim of production readiness. The same facts are published in
 [`RELEASE_ARTIFACTS.json`](./RELEASE_ARTIFACTS.json) for machine verification.
 
-## OpenMatch 0.1.0
+## WhyMatch 0.1.0
 
-### Signed Android APK — build 12
+### Signed Android APK — build 13
 
 - Purpose: direct installation for private owner testing
-- Source commit: `260210398014484a4ca69474b5bc81fa9148720f`
+- Source commit: `82a5e1a05e41595183e1a72d630287359d6a28e2`
 - Package: `org.openmatch.app`
-- Version: `0.1.0` (`versionCode` 12)
+- Version: `0.1.0` (`versionCode` 13)
 - Runtime: Expo SDK 57 / React Native 0.86.2 / corrected Hermes `250829098.0.16`
-- Release: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-12>
-- APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-12/openmatch-android-0.1.0-build-12.apk>
-- Build workflow: <https://github.com/jannis-cmd/openmatch/actions/runs/31817416931>
-- Signing/release workflow: <https://github.com/jannis-cmd/openmatch/actions/runs/31819280112>
-- Size: 98,013,247 bytes
-- SHA-256: `dbfe31e424698ab69169761bb815c4a9460ee742323b9dc69d3ffa562b4aa167`
+- Release: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-13>
+- APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-13/whymatch-android-0.1.0-build-13-82a5e1a.apk>
+- Size: 97,988,243 bytes
+- SHA-256: `376b3fb42675c539c4bc186e88195b7acebfaf9426a1fa280c829777d5e91a1c`
 - Signing certificate SHA-256: `C4:73:46:D5:C2:B9:75:88:8C:66:A3:5F:62:04:F9:18:D9:1B:B8:C7:72:9F:B5:9F:6C:A6:84:8D:1A:63:F2:9D`
 - Availability: public direct download for owner testing; not Google Play
 
-GitHub's licensed Android toolchain built the standalone release APK from the
-exact named commit after the hosted EAS free-plan quota was exhausted. A
-separate least-privilege workflow restored the existing EAS Android signing
-identity from encrypted repository secrets, aligned and signed the APK,
-verified one signer with APK signature schemes v2 and v3, checked the complete
-ZIP archive and embedded JavaScript bundle, and published the APK, checksum,
-and signing report as one immutable release. Re-downloading the public asset
-produced the exact recorded size and checksum; `assets/app.config` records
-versionCode 12, Expo SDK 57, and the complete source revision.
+Local EAS built the standalone release APK from the exact named commit without
+using hosted build quota. The build used the existing remote EAS Android
+signing identity, and the resulting certificate digest exactly matches builds
+11 and 12. Verification checked APK signature scheme v2, package and version,
+the minimal effective permission set, the complete source revision in
+`assets/app.config`, and the intended HTTPS origin in the Hermes bundle. The
+GitHub release records the same artifact digest and size.
 
-The build includes the current structured profile and photo flow. It connects
-only to the documented private tailnet service, so the Android device must be a
-member of `cheetah-vernier`. Android may require explicit browser permission to
-install an APK. This is not a Google Play release: no production AAB from this
-revision, Play Console enrollment, data-safety declaration, tester track, or
-store review is claimed.
+The build includes the standard email password-reset flow and the current
+profile, photo, introduction, chat, safety, export, and transparency baseline.
+It connects only to the documented private tailnet service, so the Android
+device must be a member of `cheetah-vernier`. Android may require explicit
+browser permission to install an APK. This is not a Google Play release: no
+production AAB from this revision, Play Console enrollment, data-safety
+declaration, tester track, or store review is claimed.
 
 ### Signed iOS IPA — build 12
 

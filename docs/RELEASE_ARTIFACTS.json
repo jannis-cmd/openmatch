@@ -21,13 +21,29 @@
   ],
   "artifacts": [
     {
+      "id": "android-apk-build-13",
+      "platform": "android",
+      "kind": "apk",
+      "version": "0.1.0",
+      "buildNumber": "13",
+      "sourceCommit": "82a5e1a05e41595183e1a72d630287359d6a28e2",
+      "status": "current-owner-testing-baseline",
+      "directlyInstallable": true,
+      "url": "https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-13/whymatch-android-0.1.0-build-13-82a5e1a.apk",
+      "releaseUrl": "https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-13",
+      "sizeBytes": 97988243,
+      "sha256": "376b3fb42675c539c4bc186e88195b7acebfaf9426a1fa280c829777d5e91a1c",
+      "signingCertificateSha256": "c47346d5c2b975888c66a35f6204f918d91bb8c7729fb59f6ca6848d1a63f29d",
+      "expoSdkVersion": "57.0.0"
+    },
+    {
       "id": "android-apk-build-12",
       "platform": "android",
       "kind": "apk",
       "version": "0.1.0",
       "buildNumber": "12",
       "sourceCommit": "260210398014484a4ca69474b5bc81fa9148720f",
-      "status": "current-owner-testing-baseline",
+      "status": "archived-source-snapshot",
       "directlyInstallable": true,
       "url": "https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-12/openmatch-android-0.1.0-build-12.apk",
       "releaseUrl": "https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-12",
@@ -108,7 +124,7 @@
     }
   ],
   "buildAvailability": {
-    "android": "Stable-signed Android APK build 12 is publicly downloadable for private owner testing. It contains the current structured profile and photo flow on Expo SDK 57 with the corrected Hermes runtime, embeds its exact source revision, and connects only to the documented tailnet service. The APK is not a Google Play release; a production AAB, Play Console setup, store review, and public service remain outstanding.",
+    "android": "Stable-signed WhyMatch Android APK build 13 is publicly downloadable for private owner testing. It was built locally from deployed source commit 82a5e1a on Expo SDK 57, contains the standard email password-reset flow and current profile, introduction, chat, safety, export, and transparency baseline, embeds its exact source revision, and connects only to the documented tailnet service. The APK is not a Google Play release; a production AAB, Play Console setup, store review, and public service remain outstanding.",
     "ios": "Signed iOS IPA build 12 was produced locally from commit 3e1b7d2 on Expo SDK 57, verified, uploaded to App Store Connect, and is VALID and IN_BETA_TESTING for the internal TestFlight group. It contains the standard email password-reset flow, the WhyMatch rebrand, the current profile/introduction/chat baseline, and the reviewed SDK patch updates. The build used active Apple distribution credentials and did not consume hosted EAS build quota. It is not a public App Store release."
   }
 }

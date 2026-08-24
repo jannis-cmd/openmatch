@@ -114,11 +114,11 @@ not a public App Store release.
 
 Android release profiles now explicitly produce an installable APK for preview
 and an AAB for production, and EAS refuses release work from an uncommitted
-source tree. Temurin Java 17 is installed on the build Mac. Current owner APK
-build 12 was compiled on GitHub's licensed Android runner from Expo SDK 57, signed with the
-stable EAS identity from encrypted repository secrets, independently
-re-downloaded and verified, and published at the immutable
-`android-baseline-build-12` GitHub release. It remains a private-tailnet owner
+source tree. Temurin Java 17 and the Android SDK are installed on the build Mac.
+Current owner APK build 13 was compiled locally from deployed source commit
+`82a5e1a` on Expo SDK 57, signed with the stable EAS identity, independently
+verified, and published at the immutable `android-baseline-build-13` GitHub
+release. It remains a private-tailnet owner
 build, not a Google Play release; the production AAB, Play Console account and
 declarations, tester track, and store review are still outstanding.
 

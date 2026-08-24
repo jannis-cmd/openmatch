@@ -109,10 +109,10 @@ Use this internal build for a small, consented pilot before App Store review.
 
 For an installable Android APK:
 
-- Current owner build: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-12>
-- Direct APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-12/openmatch-android-0.1.0-build-12.apk>
+- Current owner build: <https://github.com/jannis-cmd/openmatch/releases/tag/android-baseline-build-13>
+- Direct APK: <https://github.com/jannis-cmd/openmatch/releases/download/android-baseline-build-13/whymatch-android-0.1.0-build-13-82a5e1a.apk>
 
-Build 12 is the current Expo SDK 57 stable-signed baseline. Open the APK link on an Android
+Build 13 is the current Expo SDK 57 stable-signed baseline. Open the APK link on an Android
 device in the same tailnet; Android may require explicit browser permission to
 install it. Its public checksum, signing report, exact source revision, and
 verification record are in [`RELEASE_ARTIFACTS.md`](./RELEASE_ARTIFACTS.md).
