@@ -34,12 +34,12 @@ export default function PrivacyPage() {
         <h2>What the prototype stores</h2>
         <p>
           If you use an account, the service stores your normalized email,
-          protected passphrase verifier, confirmation and recovery-code
-          verifiers, sessions, optional backup notification email, profile,
-          preferences, consent receipts, introductions, decisions, saved
-          profiles, connections, text messages, meeting-planning preference,
-          blocks, and reports. The private demo uses one shared sample identity
-          and dataset instead of an isolated personal account.
+          protected password verifier, confirmation and recovery-code verifiers,
+          sessions, optional backup notification email, profile, preferences,
+          consent receipts, introductions, decisions, saved profiles,
+          connections, text messages, meeting-planning preference, blocks, and
+          reports. The private demo uses one shared sample identity and dataset
+          instead of an isolated personal account.
         </p>
         <p>
           Approximate city or region is self-entered. The prototype does not

@@ -311,6 +311,7 @@ export default function App() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
+  const [showRecoverySettings, setShowRecoverySettings] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationNotice, setVerificationNotice] = useState<string | null>(
     null,
@@ -1204,11 +1205,11 @@ export default function App() {
               <Text style={styles.name}>Leave without completing setup</Text>
               <Text style={styles.scoreNote}>
                 You do not need to finish a profile or accept prototype data use
-                to delete this account. Re-enter the current passphrase, then
+                to delete this account. Re-enter the current password, then
                 confirm permanent deletion.
               </Text>
               <TextInput
-                accessibilityLabel="Current passphrase to delete incomplete account"
+                accessibilityLabel="Current password to delete incomplete account"
                 autoCapitalize="none"
                 autoComplete="current-password"
                 secureTextEntry
@@ -1251,7 +1252,7 @@ export default function App() {
                               setDataActionError(
                                 error instanceof ApiError &&
                                   error.code === "invalid_current_password"
-                                  ? "The current passphrase was not accepted. The account was not deleted."
+                                  ? "The current password was not accepted. The account was not deleted."
                                   : "The account was not deleted. You remain signed in and can retry when ready.",
                               ),
                             )
@@ -2604,7 +2605,7 @@ export default function App() {
                 <View style={styles.scoreCard}>
                   <Text style={styles.name}>Change sign-in email</Text>
                   <Text style={styles.scoreNote}>
-                    This passphrase-only account requires one code from the
+                    This password-only account requires one code from the
                     current inbox and one from the proposed inbox. Nothing
                     changes until both are accepted; every other session is then
                     signed out.
@@ -2757,9 +2758,9 @@ export default function App() {
                         onChangeText={setChangedEmail}
                         style={styles.textField}
                       />
-                      <Text style={styles.setting}>Current passphrase</Text>
+                      <Text style={styles.setting}>Current password</Text>
                       <TextInput
-                        accessibilityLabel="Passphrase to change sign-in email"
+                        accessibilityLabel="Password to change sign-in email"
                         autoComplete="current-password"
                         secureTextEntry
                         value={emailChangePassword}
@@ -2793,7 +2794,7 @@ export default function App() {
                               setEmailChangeError(
                                 error instanceof ApiError &&
                                   error.code === "invalid_current_password"
-                                  ? "The current passphrase was not accepted."
+                                  ? "The current password was not accepted."
                                   : error instanceof ApiError &&
                                       error.code === "email_change_unavailable"
                                     ? "That address cannot be used. Nothing changed."
@@ -2826,8 +2827,8 @@ export default function App() {
                   <Text style={styles.scoreNote}>
                     Add one independently confirmed inbox for sparse account
                     security notices. It cannot sign in, recover the account,
-                    affect matching, or prove identity. Your current passphrase
-                    is required to add, replace, or remove it.
+                    affect matching, or prove identity. Your current password is
+                    required to add, replace, or remove it.
                   </Text>
                   {notificationEmail.email ? (
                     <>
@@ -2840,9 +2841,9 @@ export default function App() {
                           notificationEmail.verifiedAt!,
                         ).toLocaleString()}
                       </Text>
-                      <Text style={styles.setting}>Current passphrase</Text>
+                      <Text style={styles.setting}>Current password</Text>
                       <TextInput
-                        accessibilityLabel="Passphrase to remove backup email"
+                        accessibilityLabel="Password to remove backup email"
                         autoCapitalize="none"
                         autoComplete="current-password"
                         secureTextEntry
@@ -2884,7 +2885,7 @@ export default function App() {
                                         error instanceof ApiError &&
                                           error.code ===
                                             "invalid_current_password"
-                                          ? "The current passphrase was not accepted."
+                                          ? "The current password was not accepted."
                                           : "The backup security email could not be removed.",
                                       ),
                                     );
@@ -2955,9 +2956,9 @@ export default function App() {
                         onChangeText={setBackupEmail}
                         style={styles.textField}
                       />
-                      <Text style={styles.setting}>Current passphrase</Text>
+                      <Text style={styles.setting}>Current password</Text>
                       <TextInput
-                        accessibilityLabel="Passphrase to add backup email"
+                        accessibilityLabel="Password to add backup email"
                         autoCapitalize="none"
                         autoComplete="current-password"
                         secureTextEntry
@@ -2990,7 +2991,7 @@ export default function App() {
                               setBackupError(
                                 error instanceof ApiError &&
                                   error.code === "invalid_current_password"
-                                  ? "The current passphrase was not accepted."
+                                  ? "The current password was not accepted."
                                   : error instanceof ApiError &&
                                       error.code === "primary_email_unverified"
                                     ? "Confirm the primary account email first."
@@ -3096,115 +3097,127 @@ export default function App() {
               )}
               {accessMode === "account" && (
                 <View style={styles.scoreCard}>
-                  <Text style={styles.name}>Recovery codes</Text>
-                  <Text style={styles.scoreNote}>
-                    Recovery codes let you replace a forgotten passphrase
-                    without email. Each code works once. Creating a new set
-                    invalidates the old one. Store them outside this device,
-                    ideally in a password manager. OpenMatch cannot restore lost
-                    codes.
-                  </Text>
-                  {recoveryCodes.length ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showRecoverySettings }}
+                    style={styles.advancedSettingsHeader}
+                    onPress={() =>
+                      setShowRecoverySettings((current) => !current)
+                    }
+                  >
+                    <Text style={styles.name}>Account recovery</Text>
+                    <Text style={styles.advancedSettingsHint}>
+                      {showRecoverySettings ? "Hide" : "Optional  +"}
+                    </Text>
+                  </Pressable>
+                  {showRecoverySettings && (
                     <>
-                      <Text
-                        accessibilityLiveRegion="polite"
-                        style={styles.setting}
-                      >
-                        Copy these now. They will not be shown again.
+                      <Text style={styles.scoreNote}>
+                        Save one-time recovery codes in your password manager in
+                        case you forget your password.
                       </Text>
-                      {recoveryCodes.map((code) => (
-                        <Text key={code} selectable style={styles.codeText}>
-                          {code}
-                        </Text>
-                      ))}
-                      <Action
-                        label="Share or save codes"
-                        secondary
-                        onPress={() =>
-                          void Share.share({
-                            title: "OpenMatch recovery codes",
-                            message: recoveryCodes.join("\n"),
-                          })
-                        }
-                      />
-                      <Action
-                        label="I saved them—hide codes"
-                        secondary
-                        onPress={() => setRecoveryCodes([])}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <Text style={styles.setting}>Current passphrase</Text>
-                      <TextInput
-                        accessibilityLabel="Passphrase for recovery codes"
-                        autoCapitalize="none"
-                        autoComplete="current-password"
-                        secureTextEntry
-                        value={recoveryPassword}
-                        maxLength={128}
-                        onChangeText={setRecoveryPassword}
-                        style={styles.textField}
-                      />
-                      <Action
-                        label="Create new recovery codes"
-                        secondary
-                        disabled={!recoveryPassword}
-                        onPress={() => {
-                          setRecoveryError(null);
-                          setRecoveryNotice(null);
-                          void api
-                            .generateRecoveryCodes(recoveryPassword)
-                            .then(({ codes, securityNotification }) => {
-                              setRecoveryPassword("");
-                              setRecoveryCodes(codes);
-                              setRecoveryNotice(
-                                "Every older recovery code is now invalid." +
-                                  recordSecurityNotification(
-                                    securityNotification,
+                      {recoveryCodes.length ? (
+                        <>
+                          <Text
+                            accessibilityLiveRegion="polite"
+                            style={styles.setting}
+                          >
+                            Copy these now. They will not be shown again.
+                          </Text>
+                          {recoveryCodes.map((code) => (
+                            <Text key={code} selectable style={styles.codeText}>
+                              {code}
+                            </Text>
+                          ))}
+                          <Action
+                            label="Share or save codes"
+                            secondary
+                            onPress={() =>
+                              void Share.share({
+                                title: "OpenMatch recovery codes",
+                                message: recoveryCodes.join("\n"),
+                              })
+                            }
+                          />
+                          <Action
+                            label="I saved them—hide codes"
+                            secondary
+                            onPress={() => setRecoveryCodes([])}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={styles.setting}>Current password</Text>
+                          <TextInput
+                            accessibilityLabel="Password for recovery codes"
+                            autoCapitalize="none"
+                            autoComplete="current-password"
+                            secureTextEntry
+                            value={recoveryPassword}
+                            maxLength={128}
+                            onChangeText={setRecoveryPassword}
+                            style={styles.textField}
+                          />
+                          <Action
+                            label="Create new recovery codes"
+                            secondary
+                            disabled={!recoveryPassword}
+                            onPress={() => {
+                              setRecoveryError(null);
+                              setRecoveryNotice(null);
+                              void api
+                                .generateRecoveryCodes(recoveryPassword)
+                                .then(({ codes, securityNotification }) => {
+                                  setRecoveryPassword("");
+                                  setRecoveryCodes(codes);
+                                  setRecoveryNotice(
+                                    "Every older recovery code is now invalid." +
+                                      recordSecurityNotification(
+                                        securityNotification,
+                                      ),
+                                  );
+                                })
+                                .catch((error) =>
+                                  setRecoveryError(
+                                    error instanceof ApiError &&
+                                      error.code === "invalid_current_password"
+                                      ? "The current password was not accepted."
+                                      : "Recovery codes could not be created.",
                                   ),
-                              );
-                            })
-                            .catch((error) =>
-                              setRecoveryError(
-                                error instanceof ApiError &&
-                                  error.code === "invalid_current_password"
-                                  ? "The current passphrase was not accepted."
-                                  : "Recovery codes could not be created.",
-                              ),
-                            );
-                        }}
-                      />
+                                );
+                            }}
+                          />
+                        </>
+                      )}
+                      {recoveryNotice && (
+                        <Text
+                          accessibilityLiveRegion="polite"
+                          style={styles.mathNote}
+                        >
+                          {recoveryNotice}
+                        </Text>
+                      )}
+                      {recoveryError && (
+                        <Text
+                          accessibilityRole="alert"
+                          style={styles.errorText}
+                        >
+                          {recoveryError}
+                        </Text>
+                      )}
                     </>
-                  )}
-                  {recoveryNotice && (
-                    <Text
-                      accessibilityLiveRegion="polite"
-                      style={styles.mathNote}
-                    >
-                      {recoveryNotice}
-                    </Text>
-                  )}
-                  {recoveryError && (
-                    <Text accessibilityRole="alert" style={styles.errorText}>
-                      {recoveryError}
-                    </Text>
                   )}
                 </View>
               )}
               {accessMode === "account" && (
                 <View style={styles.scoreCard}>
-                  <Text style={styles.name}>Change passphrase</Text>
+                  <Text style={styles.name}>Change password</Text>
                   <Text style={styles.scoreNote}>
-                    Enter your current passphrase, then choose at least 15
-                    characters. Spaces and password managers are welcome; there
-                    are no symbol or periodic-change rules. A successful change
-                    signs out every other session and securely replaces this
-                    session.
+                    Change the password you use to sign in.
                   </Text>
-                  <Text style={styles.setting}>Current passphrase</Text>
+                  <Text style={styles.setting}>Current password</Text>
                   <TextInput
-                    accessibilityLabel="Current passphrase"
+                    accessibilityLabel="Current password"
                     autoCapitalize="none"
                     autoComplete="current-password"
                     secureTextEntry
@@ -3213,9 +3226,9 @@ export default function App() {
                     onChangeText={setCurrentPassword}
                     style={styles.textField}
                   />
-                  <Text style={styles.setting}>New passphrase</Text>
+                  <Text style={styles.setting}>New password</Text>
                   <TextInput
-                    accessibilityLabel="New passphrase"
+                    accessibilityLabel="New password"
                     autoCapitalize="none"
                     autoComplete="new-password"
                     secureTextEntry
@@ -3224,9 +3237,9 @@ export default function App() {
                     onChangeText={setNewPassword}
                     style={styles.textField}
                   />
-                  <Text style={styles.setting}>Confirm new passphrase</Text>
+                  <Text style={styles.setting}>Confirm new password</Text>
                   <TextInput
-                    accessibilityLabel="Confirm new passphrase"
+                    accessibilityLabel="Confirm new password"
                     autoCapitalize="none"
                     autoComplete="new-password"
                     secureTextEntry
@@ -3236,7 +3249,7 @@ export default function App() {
                     style={styles.textField}
                   />
                   <Action
-                    label="Change passphrase"
+                    label="Change password"
                     secondary
                     disabled={
                       !currentPassword ||
@@ -3247,7 +3260,7 @@ export default function App() {
                       setPasswordNotice(null);
                       setPasswordError(null);
                       if (newPassword !== confirmPassword) {
-                        setPasswordError("The new passphrases do not match.");
+                        setPasswordError("The new passwords do not match.");
                         return;
                       }
                       void api
@@ -3260,7 +3273,7 @@ export default function App() {
                             setNewPassword("");
                             setConfirmPassword("");
                             setPasswordNotice(
-                              "Passphrase changed. Every other session was signed out." +
+                              "Password changed. Every other session was signed out." +
                                 recordSecurityNotification(
                                   session.securityNotification,
                                 ),
@@ -3270,7 +3283,7 @@ export default function App() {
                             setAuthToken(null);
                             setAccessMode("signed-out");
                             setPasswordError(
-                              "The passphrase changed, but this device could not protect the new session. Sign in again.",
+                              "The password changed, but this device could not protect the new session. Sign in again.",
                             );
                           }
                         })
@@ -3278,14 +3291,14 @@ export default function App() {
                           setPasswordError(
                             error instanceof ApiError &&
                               error.code === "invalid_current_password"
-                              ? "The current passphrase was not accepted."
+                              ? "The current password was not accepted."
                               : error instanceof ApiError &&
                                   error.code === "common_password"
-                                ? "Choose a less common passphrase."
+                                ? "Choose a less common password."
                                 : error instanceof ApiError &&
                                     error.code === "password_unchanged"
-                                  ? "Choose a passphrase different from the current one."
-                                  : "The passphrase could not be changed.",
+                                  ? "Choose a password different from the current one."
+                                  : "The password could not be changed.",
                           ),
                         );
                     }}
@@ -3701,11 +3714,11 @@ export default function App() {
                   <View style={styles.scoreCard}>
                     <Text style={styles.name}>Permanent account deletion</Text>
                     <Text style={styles.scoreNote}>
-                      Re-enter your passphrase first. This protects against
+                      Re-enter your password first. This protects against
                       deletion from a borrowed or hijacked signed-in device.
                     </Text>
                     <TextInput
-                      accessibilityLabel="Current passphrase to delete account"
+                      accessibilityLabel="Current password to delete account"
                       autoCapitalize="none"
                       autoComplete="current-password"
                       secureTextEntry
@@ -3751,7 +3764,7 @@ export default function App() {
                                       error instanceof ApiError &&
                                         error.code ===
                                           "invalid_current_password"
-                                        ? "The current passphrase was not accepted. The account was not deleted."
+                                        ? "The current password was not accepted. The account was not deleted."
                                         : "The account was not deleted. You remain signed in and can retry when ready.",
                                     ),
                                   )
@@ -4023,7 +4036,7 @@ export default function App() {
                 </Text>
                 <Text style={styles.scoreNote}>
                   {accessMode === "account"
-                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected passphrase. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Profile visibility remains on until the person pauses or hides it; no public last-active time is created. Passkeys, email-delivery monitoring, provider-backed recovery notifications, and an independent security review are still required before a real-person pilot."
+                    ? "This account has isolated application data, an expiring random session stored in device-secure storage, and a scrypt-protected password. Completed active accounts can currently meet only when their self-entered approximate region text matches exactly; the service does not geocode or estimate distance. Profile visibility remains on until the person pauses or hides it; no public last-active time is created. Passkeys, email-delivery monitoring, provider-backed recovery notifications, and an independent security review are still required before a real-person pilot."
                     : "The temporary bearer token only gates this shared local demo. It does not verify identity or isolate one person’s data from another client. Do not use this demo with real profiles."}
                 </Text>
               </View>
@@ -4266,7 +4279,9 @@ function MobileAuthentication({
         <Text style={styles.subtle}>
           {mode === "create"
             ? "Start your OpenMatch profile."
-            : "Sign in to OpenMatch."}
+            : mode === "recover"
+              ? "Enter a recovery code you previously saved and choose a new password."
+              : "Sign in to OpenMatch."}
         </Text>
         {notice && <Text style={styles.mathNote}>{notice}</Text>}
         {authNotice && <Text style={styles.mathNote}>{authNotice}</Text>}
@@ -4335,7 +4350,7 @@ function MobileAuthentication({
           onPress={() => void submit()}
         />
         <Action
-          label={mode === "recover" ? "Back to sign in" : "Use a recovery code"}
+          label={mode === "recover" ? "Back to sign in" : "Forgot password?"}
           secondary
           onPress={() => {
             setAuthError(null);
@@ -4359,9 +4374,7 @@ function MobileAuthentication({
           <Action label="Use local demo" secondary onPress={tryDemo} />
         )}
         <Text style={styles.mathNote}>
-          Account sessions currently last up to 12 hours. Recovery codes are
-          one-time secrets, not email verification or identity proofing. Do not
-          use a valuable password in this prototype.
+          Use a unique password. Recovery codes are optional.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -5805,6 +5818,17 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   scoreNote: { color: "#646860", fontSize: 15, lineHeight: 22 },
+  advancedSettingsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  advancedSettingsHint: {
+    color: "#557064",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   reason: { paddingTop: 11, fontSize: 15, color: "#334A3E" },
   link: { color: "#286249", fontWeight: "600", paddingTop: 20 },
   math: {

@@ -155,7 +155,7 @@ test("an incomplete account can delete itself from the public web path", async (
 }) => {
   const apiBase = "http://127.0.0.1:4000";
   const email = "incomplete-delete@example.org";
-  const password = "an incomplete deletion passphrase";
+  const password = "an incomplete deletion password";
   const created = await request.post(apiBase + "/v1/accounts", {
     data: { email, password, client: "web" },
   });
@@ -173,14 +173,14 @@ test("an incomplete account can delete itself from the public web path", async (
     page.getByRole("heading", { name: "Set your boundaries." }),
   ).toBeVisible();
   const deletionPassword = page.getByLabel(
-    "Current passphrase to delete incomplete account",
+    "Current password to delete incomplete account",
   );
   const deleteButton = page.getByRole("button", {
     name: "Delete incomplete account",
   });
   await expect(deleteButton).toBeDisabled();
 
-  await deletionPassword.fill("the wrong current passphrase");
+  await deletionPassword.fill("the wrong current password");
   page.once("dialog", (dialog) => dialog.accept());
   await deleteButton.click();
   await expect(
@@ -217,7 +217,7 @@ test("first run through a persistent connection and safety action", async ({
     const created = await request.post(apiBase + "/v1/accounts", {
       data: {
         email: name.toLowerCase() + "@peer.example.org",
-        password: "a browser peer passphrase",
+        password: "a browser peer password",
         client: "web",
       },
     });
@@ -335,9 +335,7 @@ test("first run through a persistent connection and safety action", async ({
   await expectAccessible(page);
   await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByRole("textbox", { name: "Email" }).fill("taylor@example.com");
-  await page
-    .getByLabel("Password")
-    .fill("a repeatable browser test passphrase");
+  await page.getByLabel("Password").fill("a repeatable browser test password");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
@@ -362,15 +360,18 @@ test("first run through a persistent connection and safety action", async ({
   await genderProfile
     .getByRole("checkbox", { name: "Women", exact: true })
     .check();
+  await page.getByRole("combobox", { name: "Relationship intention" }).click();
   await page
-    .getByRole("combobox", { name: "Relationship intention" })
-    .selectOption({ label: "Still figuring it out" });
+    .getByRole("option", { name: "Still figuring it out", exact: true })
+    .click();
+  await page.getByRole("combobox", { name: "Relationship intention" }).click();
   await page
-    .getByRole("combobox", { name: "Relationship intention" })
-    .selectOption({ label: "Long-term relationship" });
+    .getByRole("option", { name: "Long-term relationship", exact: true })
+    .click();
+  await page.getByRole("combobox", { name: "Meeting readiness" }).click();
   await page
-    .getByRole("combobox", { name: "Meeting readiness" })
-    .selectOption({ label: "Ready to meet in person" });
+    .getByRole("option", { name: "Ready to meet in person", exact: true })
+    .click();
   await page.getByLabel("Your answer").fill("Building a welcoming table.");
   await page.getByRole("checkbox", { name: "Care", exact: true }).check();
   await page.getByRole("checkbox", { name: "Curiosity", exact: true }).check();
@@ -443,9 +444,7 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Finish setup" }).click();
 
-  await expect(
-    page.getByRole("heading", { name: "3 left" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "3 left" })).toBeVisible();
   await expect(page.getByText("Doesn’t smoke").first()).toBeVisible();
   await expect(page.getByText(/children/).first()).toBeVisible();
   await expect(page.getByText(/schedule/).first()).toBeVisible();
@@ -528,36 +527,35 @@ test("first run through a persistent connection and safety action", async ({
   });
   await expect(permanentDelete).toBeDisabled();
   await page
-    .getByLabel("Current passphrase to delete account")
-    .fill("a repeatable browser test passphrase");
+    .getByLabel("Current password to delete account")
+    .fill("a repeatable browser test password");
   await expect(permanentDelete).toBeEnabled();
-  await page.getByLabel("Current passphrase to delete account").fill("");
+  await page.getByLabel("Current password to delete account").fill("");
   await expect(
     page.getByRole("button", { name: /Revoke Web browser session/ }),
   ).toHaveCount(0);
-  const passphraseCard = page
-    .getByRole("heading", { name: "Change passphrase" })
+  const passwordCard = page
+    .getByRole("heading", { name: "Password", exact: true })
     .locator("..");
-  await passphraseCard
-    .getByLabel("Current passphrase")
-    .fill("a repeatable browser test passphrase");
+  await passwordCard
+    .getByLabel("Current password")
+    .fill("a repeatable browser test password");
   await page
-    .getByLabel("New passphrase", { exact: true })
-    .fill("a replacement browser test passphrase");
+    .getByLabel("New password", { exact: true })
+    .fill("a replacement browser test password");
   await page
-    .getByLabel("Confirm new passphrase")
-    .fill("a replacement browser test passphrase");
-  await page.getByRole("button", { name: "Change passphrase" }).click();
+    .getByLabel("Confirm new password")
+    .fill("a replacement browser test password");
+  await page.getByRole("button", { name: "Change password" }).click();
   await expect(
-    page.getByText(/Passphrase changed. Every other session was signed out/),
+    page.getByText(/Password changed. Every other session was signed out/),
   ).toBeVisible();
   await expect(page.getByText("Web browser · This session")).toBeVisible();
-  const recoveryCard = page
-    .getByRole("heading", { name: "Recovery codes" })
-    .locator("..");
+  const recoveryCard = page.locator("details.account-advanced");
+  await recoveryCard.getByText("Account recovery").click();
   await recoveryCard
-    .getByLabel("Current passphrase")
-    .fill("a replacement browser test passphrase");
+    .getByLabel("Current password")
+    .fill("a replacement browser test password");
   await recoveryCard
     .getByRole("button", { name: "Create new recovery codes" })
     .click();
@@ -857,7 +855,10 @@ test("first run through a persistent connection and safety action", async ({
 
   await page.getByText("Safety").click();
   await page.getByRole("button", { name: "Report" }).click();
-  await page.getByLabel("Reason").selectOption({ label: "Offline safety" });
+  await page.getByLabel("Reason").click();
+  await page
+    .getByRole("option", { name: "Offline safety", exact: true })
+    .click();
   await page
     .getByLabel("Details optional")
     .fill("Conversation context for the report");
@@ -999,9 +1000,8 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByText(/0 decision examples are currently stored/),
   ).toBeVisible();
-  await page
-    .getByRole("combobox", { name: "Smoking boundary" })
-    .selectOption("any");
+  await page.getByRole("combobox", { name: "Smoking boundary" }).click();
+  await page.getByRole("option", { name: "No boundary", exact: true }).click();
   await expect(page.getByText("Unsaved preference changes")).toBeVisible();
   await page.route(
     "**/v1/preferences",
@@ -1021,24 +1021,23 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await expect(
     page.getByRole("combobox", { name: "Smoking boundary" }),
-  ).toHaveValue("any");
+  ).toContainText("No boundary");
   await page.getByRole("button", { name: "Cancel changes" }).click();
   await expect(
     page.getByRole("combobox", { name: "Smoking boundary" }),
-  ).toHaveValue("no");
+  ).toContainText("Non-smoking only");
   await expect(
     page.getByText("Preferences match the saved version"),
   ).toBeVisible();
-  await page
-    .getByRole("combobox", { name: "Smoking boundary" })
-    .selectOption("any");
+  await page.getByRole("combobox", { name: "Smoking boundary" }).click();
+  await page.getByRole("option", { name: "No boundary", exact: true }).click();
   await page.getByRole("button", { name: "Save preferences" }).click();
   await expect(
     page.getByText("Preferences match the saved version"),
   ).toBeVisible();
   await expect(
     page.getByRole("combobox", { name: "Smoking boundary" }),
-  ).toHaveValue("any");
+  ).toContainText("No boundary");
 
   await page.getByRole("button", { name: "Account" }).click();
   await expectAccessible(page);
@@ -1083,7 +1082,10 @@ test("first run through a persistent connection and safety action", async ({
   await reportCard
     .getByRole("button", { name: "Add context or correction" })
     .click();
-  await reportCard.getByLabel("Update type").selectOption("correction");
+  await reportCard.getByLabel("Update type").click();
+  await reportCard
+    .getByRole("option", { name: "Correction", exact: true })
+    .click();
   await reportCard
     .getByLabel("What should be added to the record?")
     .fill("The timing in my original report was imprecise.");
@@ -1214,7 +1216,7 @@ test("first run through a persistent connection and safety action", async ({
   const replacementSession = await request.post(apiBase + "/v1/sessions", {
     data: {
       email: "taylor@example.com",
-      password: "a replacement browser test passphrase",
+      password: "a replacement browser test password",
       client: "web",
     },
   });

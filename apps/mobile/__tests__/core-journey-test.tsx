@@ -1130,7 +1130,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(clearSessionToken).toHaveBeenCalled();
   expect(screen.getByLabelText("Email")).toBeTruthy();
   expect(screen.getByLabelText("Password")).toBeTruthy();
-  await fireEvent.press(screen.getByText("Use a recovery code"));
+  await fireEvent.press(screen.getByText("Forgot password?"));
   expect(screen.getByText("Recover your account.")).toBeTruthy();
   expect(screen.getByLabelText("Unused recovery code")).toBeTruthy();
   await fireEvent.press(screen.getByText("Back to sign in"));
@@ -1142,7 +1142,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   );
   await fireEvent.changeText(
     screen.getByLabelText("Password"),
-    "a native test passphrase",
+    "a native test password",
   );
   (clearPendingMessageAttempts as jest.Mock).mockClear();
   (persistSessionToken as jest.Mock).mockClear();
@@ -1163,15 +1163,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   });
   expect(incompleteDelete.props.accessibilityState.disabled).toBe(true);
   await fireEvent.changeText(
-    screen.getByLabelText("Current passphrase to delete incomplete account"),
-    "a native test passphrase",
+    screen.getByLabelText("Current password to delete incomplete account"),
+    "a native test password",
   );
   expect(
     screen.getByRole("button", { name: "Delete incomplete account" }).props
       .accessibilityState.disabled,
   ).toBe(false);
   await fireEvent.changeText(
-    screen.getByLabelText("Current passphrase to delete incomplete account"),
+    screen.getByLabelText("Current password to delete incomplete account"),
     "",
   );
   await fireEvent.press(screen.getByText("See my introductions"));
@@ -1189,15 +1189,15 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   });
   expect(permanentDelete.props.accessibilityState.disabled).toBe(true);
   await fireEvent.changeText(
-    screen.getByLabelText("Current passphrase to delete account"),
-    "a native test passphrase",
+    screen.getByLabelText("Current password to delete account"),
+    "a native test password",
   );
   expect(
     screen.getByRole("button", { name: "Delete account permanently" }).props
       .accessibilityState.disabled,
   ).toBe(false);
   await fireEvent.changeText(
-    screen.getByLabelText("Current passphrase to delete account"),
+    screen.getByLabelText("Current password to delete account"),
     "",
   );
   await fireEvent.changeText(
@@ -1214,8 +1214,8 @@ test("first run uses explicit accessible controls and opens introductions", asyn
     "new-native@example.org",
   );
   await fireEvent.changeText(
-    screen.getByLabelText("Passphrase to change sign-in email"),
-    "a native test passphrase",
+    screen.getByLabelText("Password to change sign-in email"),
+    "a native test password",
   );
   await fireEvent.press(screen.getByText("Send both confirmation codes"));
   await waitFor(() => expect(emailChangePending).toBe(true));
@@ -1254,30 +1254,31 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   await waitFor(() => expect(otherSessionRevoked).toBe(true));
   await waitFor(() => expect(screen.queryByText("Web browser")).toBeNull());
   await fireEvent.changeText(
-    screen.getByLabelText("Current passphrase"),
-    "a native test passphrase",
+    screen.getByLabelText("Current password"),
+    "a native test password",
   );
   await fireEvent.changeText(
-    screen.getByLabelText("New passphrase"),
-    "a replacement native passphrase",
+    screen.getByLabelText("New password"),
+    "a replacement native password",
   );
   await fireEvent.changeText(
-    screen.getByLabelText("Confirm new passphrase"),
-    "a replacement native passphrase",
+    screen.getByLabelText("Confirm new password"),
+    "a replacement native password",
   );
   await fireEvent.press(
-    screen.getByRole("button", { name: "Change passphrase" }),
+    screen.getByRole("button", { name: "Change password" }),
   );
   await waitFor(() => expect(passwordChanged).toBe(true));
   await waitFor(() =>
     expect(persistSessionToken).toHaveBeenCalledWith("p".repeat(43)),
   );
   expect(
-    screen.getByText(/Passphrase changed. Every other session was signed out/),
+    screen.getByText(/Password changed. Every other session was signed out/),
   ).toBeTruthy();
+  await fireEvent.press(screen.getByText("Account recovery"));
   await fireEvent.changeText(
-    screen.getByLabelText("Passphrase for recovery codes"),
-    "a replacement native passphrase",
+    screen.getByLabelText("Password for recovery codes"),
+    "a replacement native password",
   );
   await fireEvent.press(screen.getByText("Create new recovery codes"));
   await waitFor(() => expect(recoveryCodesGenerated).toBe(true));

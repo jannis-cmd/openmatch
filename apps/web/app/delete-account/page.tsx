@@ -36,7 +36,7 @@ export default function DeleteAccountPage() {
         <h2>What happens</h2>
         <ul>
           <li>
-            You re-enter the current passphrase and confirm the irreversible
+            You re-enter the current password and confirm the irreversible
             action. A signed-in session alone is not enough.
           </li>
           <li>
@@ -58,7 +58,7 @@ export default function DeleteAccountPage() {
         <h2>If you cannot sign in</h2>
         <p>
           Use “Recover account” on the sign-in screen with one of the offline
-          recovery codes you previously saved. Recovery replaces the passphrase,
+          recovery codes you previously saved. Recovery replaces the password,
           invalidates every older session and recovery code, and then lets you
           return here. There is no staffed identity-recovery or
           deletion-by-email channel in this owner-only prototype.

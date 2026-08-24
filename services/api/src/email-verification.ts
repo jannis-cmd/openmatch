@@ -92,11 +92,11 @@ export function smtpAccountEmailSenders(
       ),
     security: ({ email, event, occurredAt }) => {
       const description = {
-        password_changed: "Your OpenMatch passphrase was changed.",
+        password_changed: "Your OpenMatch password was changed.",
         recovery_codes_replaced:
           "A new set of OpenMatch recovery codes was created. Every older recovery code is now invalid.",
         account_recovered:
-          "Your OpenMatch account was recovered with an offline recovery code. The passphrase changed, every previous session ended, and every recovery code is now invalid.",
+          "Your OpenMatch account was recovered with an offline recovery code. The password changed, every previous session ended, and every recovery code is now invalid.",
         primary_email_changed:
           "Your OpenMatch primary sign-in email was changed. Every other session was ended.",
         notification_address_added:
@@ -108,8 +108,8 @@ export function smtpAccountEmailSenders(
         description,
         `Time: ${occurredAt}`,
         "",
-        "This message contains no passphrase, recovery code, device details, or sign-in link.",
-        "If you did not make this change, open OpenMatch directly, change the passphrase, replace recovery codes, and revoke sessions you do not recognize.",
+        "This message contains no password, recovery code, device details, or sign-in link.",
+        "If you did not make this change, open OpenMatch directly, change the password, replace recovery codes, and revoke sessions you do not recognize.",
         "This development service does not yet have a staffed account-takeover support channel.",
       ]);
     },

@@ -1,6 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Children,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import releaseArtifacts from "../../../docs/RELEASE_ARTIFACTS.json";
 import { resolveWebApiConfiguration } from "../lib/api-configuration.mjs";
 import { LanguageSwitch, useLocale } from "../lib/locale";
@@ -83,6 +94,98 @@ const operationLimitMessage = (error: unknown, fallback: string) => {
     : " Try again after the short waiting period.";
   return `This action is temporarily limited to protect people and the service.${wait}`;
 };
+
+type AppSelectProps = {
+  value: string | number;
+  onChange: (event: { target: { value: string } }) => void;
+  children: ReactNode;
+  id?: string;
+  disabled?: boolean;
+};
+
+function AppSelect({
+  value,
+  onChange,
+  children,
+  id,
+  disabled = false,
+}: AppSelectProps) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const generatedId = useId();
+  const listboxId = `${generatedId}-listbox`;
+  const options = Children.toArray(children)
+    .filter(isValidElement)
+    .map((child) => {
+      const option = child as ReactElement<{
+        value?: string | number;
+        children?: ReactNode;
+      }>;
+      const label = String(option.props.children ?? "");
+      return {
+        label,
+        value: String(option.props.value ?? label),
+      };
+    });
+  const selected =
+    options.find((option) => option.value === String(value)) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [open]);
+
+  return (
+    <div className="app-select" ref={root}>
+      <button
+        id={id}
+        type="button"
+        role="combobox"
+        className="app-select-trigger"
+        aria-controls={listboxId}
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+      >
+        <span>{selected?.label}</span>
+        <span className="app-select-chevron" aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="app-select-menu" id={listboxId} role="listbox">
+          {options.map((option) => (
+            <button
+              type="button"
+              role="option"
+              aria-selected={option.value === String(value)}
+              className="app-select-option"
+              key={option.value}
+              onClick={() => {
+                onChange({ target: { value: option.value } });
+                setOpen(false);
+              }}
+            >
+              <span>{option.label}</span>
+              {option.value === String(value) && (
+                <span aria-hidden="true">✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Home() {
   const demoConfiguration = useMemo(
@@ -2289,7 +2392,9 @@ function SignInPage({
         <p>
           {mode === "create"
             ? "Start your OpenMatch profile."
-            : "Sign in to OpenMatch."}
+            : mode === "recover"
+              ? "Enter a recovery code you previously saved and choose a new password."
+              : "Sign in to OpenMatch."}
         </p>
         {demoError && (
           <p role="status">{demoError} No connection was attempted.</p>
@@ -2369,7 +2474,7 @@ function SignInPage({
             setMode(mode === "recover" ? "sign-in" : "recover");
           }}
         >
-          {mode === "recover" ? "Back to sign in" : "Use a recovery code"}
+          {mode === "recover" ? "Back to sign in" : "Forgot password?"}
         </button>
         <button className="back-action" type="button" onClick={back}>
           Back to the website
@@ -2471,7 +2576,7 @@ function MatchingProfileFields({
       </fieldset>
       <label>
         Profile prompt
-        <select
+        <AppSelect
           value={value.prompt}
           onChange={(event) =>
             onChange({ ...value, prompt: event.target.value })
@@ -2482,7 +2587,7 @@ function MatchingProfileFields({
               {prompt}
             </option>
           ))}
-        </select>
+        </AppSelect>
       </label>
       <label>
         Your answer
@@ -2522,7 +2627,7 @@ function MatchingProfileFields({
       </fieldset>
       <label>
         Smoking
-        <select
+        <AppSelect
           value={value.lifestyle.smoking}
           onChange={(event) =>
             onChange({
@@ -2536,11 +2641,11 @@ function MatchingProfileFields({
         >
           <option value="no">Do not smoke</option>
           <option value="sometimes">Smoke sometimes</option>
-        </select>
+        </AppSelect>
       </label>
       <label>
         Children
-        <select
+        <AppSelect
           value={value.lifestyle.children}
           onChange={(event) =>
             onChange({
@@ -2556,11 +2661,11 @@ function MatchingProfileFields({
           <option value="want">Want children</option>
           <option value="open">Open to children</option>
           <option value="do not want">Do not want children</option>
-        </select>
+        </AppSelect>
       </label>
       <label>
         Typical schedule
-        <select
+        <AppSelect
           value={value.lifestyle.schedule}
           onChange={(event) =>
             onChange({
@@ -2576,7 +2681,7 @@ function MatchingProfileFields({
           <option value="early">Usually early</option>
           <option value="flexible">Flexible</option>
           <option value="late">Usually late</option>
-        </select>
+        </AppSelect>
       </label>
     </>
   );
@@ -2694,7 +2799,7 @@ function OnboardingView({
         <GenderDiscoveryFields value={profile} onChange={onProfile} />
         <label>
           Relationship intention
-          <select
+          <AppSelect
             value={profile.intent}
             onChange={(event) =>
               onProfile({
@@ -2706,11 +2811,11 @@ function OnboardingView({
             <option>Long-term relationship</option>
             <option>Long-term, open to short</option>
             <option>Still figuring it out</option>
-          </select>
+          </AppSelect>
         </label>
         <label>
           Meeting readiness
-          <select
+          <AppSelect
             value={profile.readiness}
             onChange={(event) =>
               onProfile({
@@ -2721,7 +2826,7 @@ function OnboardingView({
           >
             <option>Prefer to chat first</option>
             <option>Ready to meet in person</option>
-          </select>
+          </AppSelect>
         </label>
         <label>
           About you
@@ -2924,11 +3029,11 @@ function OnboardingView({
           <h2>Leave without completing setup</h2>
           <p className="help">
             You do not need to finish a profile, accept prototype data use, or
-            join matching to delete this account. Re-enter the current
-            passphrase, then confirm permanent deletion.
+            join matching to delete this account. Re-enter the current password,
+            then confirm permanent deletion.
           </p>
           <label>
-            Current passphrase to delete incomplete account
+            Current password to delete incomplete account
             <input
               type="password"
               autoComplete="current-password"
@@ -2955,7 +3060,7 @@ function OnboardingView({
                   setDeletionError(
                     error instanceof ApiError &&
                       error.code === "invalid_current_password"
-                      ? "The current passphrase was not accepted. The account was not deleted."
+                      ? "The current password was not accepted. The account was not deleted."
                       : "The account was not deleted. You remain signed in and can retry when ready.",
                   ),
                 )
@@ -3052,7 +3157,7 @@ function BoundaryFields({
       </fieldset>
       <label>
         Smoking boundary
-        <select
+        <AppSelect
           value={value.smoking}
           onChange={(event) =>
             onChange({
@@ -3063,11 +3168,11 @@ function BoundaryFields({
         >
           <option value="no">Non-smoking only</option>
           <option value="any">No boundary</option>
-        </select>
+        </AppSelect>
       </label>
       <label>
         Children boundary
-        <select
+        <AppSelect
           value={value.children}
           onChange={(event) =>
             onChange({
@@ -3080,7 +3185,7 @@ function BoundaryFields({
           <option value="open">Open to children</option>
           <option value="do not want">Does not want children</option>
           <option value="any">No boundary</option>
-        </select>
+        </AppSelect>
       </label>
       <p className="help">
         These are mutual boundaries. A person is introduced only when both
@@ -3864,7 +3969,7 @@ function ProfileView({
             <GenderDiscoveryFields value={draft} onChange={setDraft} />
             <label>
               Relationship intention
-              <select
+              <AppSelect
                 value={draft.intent}
                 onChange={(event) =>
                   setDraft({
@@ -3876,11 +3981,11 @@ function ProfileView({
                 <option>Long-term relationship</option>
                 <option>Long-term, open to short</option>
                 <option>Still figuring it out</option>
-              </select>
+              </AppSelect>
             </label>
             <label>
               Meeting readiness
-              <select
+              <AppSelect
                 value={draft.readiness}
                 onChange={(event) =>
                   setDraft({
@@ -3891,7 +3996,7 @@ function ProfileView({
               >
                 <option>Prefer to chat first</option>
                 <option>Ready to meet in person</option>
-              </select>
+              </AppSelect>
             </label>
             <label>
               Biography
@@ -4011,10 +4116,8 @@ function ProfileView({
           <section className="settings-card">
             <h2>Change sign-in email</h2>
             <p>
-              Because this account currently uses only a passphrase, OpenMatch
-              requires one code from the current inbox and one from the proposed
-              inbox. The address changes only after both are accepted. Every
-              other session is then signed out.
+              Confirm both your current and new email address. Other sessions
+              will be signed out after the change.
             </p>
             {!emailChange.deliveryConfigured ? (
               <p>
@@ -4146,7 +4249,7 @@ function ProfileView({
                     setEmailChangeError(
                       error instanceof ApiError &&
                         error.code === "invalid_current_password"
-                        ? "The current passphrase was not accepted."
+                        ? "The current password was not accepted."
                         : error instanceof ApiError &&
                             error.code === "email_change_unavailable"
                           ? "That address cannot be used. Nothing changed."
@@ -4167,7 +4270,7 @@ function ProfileView({
                   />
                 </label>
                 <label>
-                  Current passphrase
+                  Current password
                   <input
                     type="password"
                     autoComplete="current-password"
@@ -4198,10 +4301,7 @@ function ProfileView({
           <section className="settings-card">
             <h2>Backup security email</h2>
             <p>
-              Add one independently confirmed inbox for the same sparse account
-              security notices. It cannot sign in, recover the account, affect
-              matching, or prove identity. OpenMatch still needs your current
-              passphrase before adding, replacing, or removing it.
+              Optionally receive security notices at a second email address.
             </p>
             {notificationEmail.email ? (
               <>
@@ -4229,14 +4329,14 @@ function ProfileView({
                       setBackupError(
                         error instanceof ApiError &&
                           error.code === "invalid_current_password"
-                          ? "The current passphrase was not accepted."
+                          ? "The current password was not accepted."
                           : "The backup security email could not be removed.",
                       );
                     }
                   }}
                 >
                   <label>
-                    Current passphrase
+                    Current password
                     <input
                       type="password"
                       autoComplete="current-password"
@@ -4316,7 +4416,7 @@ function ProfileView({
                     setBackupError(
                       error instanceof ApiError &&
                         error.code === "invalid_current_password"
-                        ? "The current passphrase was not accepted."
+                        ? "The current password was not accepted."
                         : error instanceof ApiError &&
                             error.code === "primary_email_unverified"
                           ? "Confirm the primary account email first."
@@ -4335,7 +4435,7 @@ function ProfileView({
                   />
                 </label>
                 <label>
-                  Current passphrase
+                  Current password
                   <input
                     type="password"
                     autoComplete="current-password"
@@ -4424,13 +4524,8 @@ function ProfileView({
       )}
       {changePassword && (
         <section className="settings-card">
-          <h2>Change passphrase</h2>
-          <p>
-            Enter your current passphrase, then choose at least 15 characters.
-            Spaces and password managers are welcome; there are no symbol or
-            periodic-change rules. A successful change signs out every other
-            session and securely replaces this session.
-          </p>
+          <h2>Password</h2>
+          <p>Change the password you use to sign in.</p>
           <form
             className="profile-fields"
             onSubmit={async (event) => {
@@ -4438,7 +4533,7 @@ function ProfileView({
               setPasswordNotice(null);
               setPasswordError(null);
               if (newPassword !== confirmPassword) {
-                setPasswordError("The new passphrases do not match.");
+                setPasswordError("The new passwords do not match.");
                 return;
               }
               try {
@@ -4450,27 +4545,27 @@ function ProfileView({
                 setNewPassword("");
                 setConfirmPassword("");
                 setPasswordNotice(
-                  "Passphrase changed. Every other session was signed out." +
+                  "Password changed. Every other session was signed out." +
                     securityNotice(notification),
                 );
               } catch (error) {
                 setPasswordError(
                   error instanceof ApiError &&
                     error.code === "invalid_current_password"
-                    ? "The current passphrase was not accepted."
+                    ? "The current password was not accepted."
                     : error instanceof ApiError &&
                         error.code === "common_password"
-                      ? "Choose a less common passphrase."
+                      ? "Choose a less common password."
                       : error instanceof ApiError &&
                           error.code === "password_unchanged"
-                        ? "Choose a passphrase different from the current one."
-                        : "The passphrase could not be changed.",
+                        ? "Choose a password different from the current one."
+                        : "The password could not be changed.",
                 );
               }
             }}
           >
             <label>
-              Current passphrase
+              Current password
               <input
                 type="password"
                 autoComplete="current-password"
@@ -4480,7 +4575,7 @@ function ProfileView({
               />
             </label>
             <label>
-              New passphrase
+              New password
               <input
                 type="password"
                 autoComplete="new-password"
@@ -4491,7 +4586,7 @@ function ProfileView({
               />
             </label>
             <label>
-              Confirm new passphrase
+              Confirm new password
               <input
                 type="password"
                 autoComplete="new-password"
@@ -4509,7 +4604,7 @@ function ProfileView({
                 confirmPassword.length < 15
               }
             >
-              Change passphrase
+              Change password
             </button>
           </form>
           {passwordNotice && <p role="status">{passwordNotice}</p>}
@@ -4517,85 +4612,87 @@ function ProfileView({
         </section>
       )}
       {generateRecoveryCodes && (
-        <section className="settings-card">
-          <h2>Recovery codes</h2>
-          <p>
-            Recovery codes let you replace a forgotten passphrase without email.
-            Each code works once, and creating a new set invalidates the old
-            set. Keep them outside this device, ideally in a password manager.
-            OpenMatch cannot restore lost codes.
-          </p>
-          {recoveryCodes.length ? (
-            <div className="recovery-code-set" role="status">
-              <strong>Copy these now. They will not be shown again.</strong>
-              <ul>
-                {recoveryCodes.map((code) => (
-                  <li key={code}>{code}</li>
-                ))}
-              </ul>
-              <button
-                type="button"
-                onClick={() =>
-                  void navigator.clipboard.writeText(recoveryCodes.join("\n"))
-                }
+        <details className="settings-card account-advanced">
+          <summary>
+            <span>Account recovery</span>
+            <small>Optional</small>
+          </summary>
+          <div className="account-advanced-content">
+            <p>
+              Save one-time recovery codes in your password manager in case you
+              forget your password.
+            </p>
+            {recoveryCodes.length ? (
+              <div className="recovery-code-set" role="status">
+                <strong>Copy these now. They will not be shown again.</strong>
+                <ul>
+                  {recoveryCodes.map((code) => (
+                    <li key={code}>{code}</li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void navigator.clipboard.writeText(recoveryCodes.join("\n"))
+                  }
+                >
+                  Copy all codes
+                </button>
+                <button type="button" onClick={() => setRecoveryCodes([])}>
+                  I saved them—hide codes
+                </button>
+              </div>
+            ) : (
+              <form
+                className="profile-fields"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  setRecoveryError(null);
+                  setRecoveryNotice(null);
+                  try {
+                    const result =
+                      await generateRecoveryCodes(recoveryPassword);
+                    setRecoveryPassword("");
+                    setRecoveryCodes(result.codes);
+                    setRecoveryNotice(
+                      "Every older recovery code is now invalid." +
+                        securityNotice(result.securityNotification),
+                    );
+                  } catch (error) {
+                    setRecoveryError(
+                      error instanceof ApiError &&
+                        error.code === "invalid_current_password"
+                        ? "The current password was not accepted."
+                        : "Recovery codes could not be created.",
+                    );
+                  }
+                }}
               >
-                Copy all codes
-              </button>
-              <button type="button" onClick={() => setRecoveryCodes([])}>
-                I saved them—hide codes
-              </button>
-            </div>
-          ) : (
-            <form
-              className="profile-fields"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                setRecoveryError(null);
-                setRecoveryNotice(null);
-                try {
-                  const result = await generateRecoveryCodes(recoveryPassword);
-                  setRecoveryPassword("");
-                  setRecoveryCodes(result.codes);
-                  setRecoveryNotice(
-                    "Every older recovery code is now invalid." +
-                      securityNotice(result.securityNotification),
-                  );
-                } catch (error) {
-                  setRecoveryError(
-                    error instanceof ApiError &&
-                      error.code === "invalid_current_password"
-                      ? "The current passphrase was not accepted."
-                      : "Recovery codes could not be created.",
-                  );
-                }
-              }}
-            >
-              <label>
-                Current passphrase
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={recoveryPassword}
-                  maxLength={128}
-                  onChange={(event) => setRecoveryPassword(event.target.value)}
-                />
-              </label>
-              <button type="submit" disabled={!recoveryPassword}>
-                Create new recovery codes
-              </button>
-            </form>
-          )}
-          {recoveryNotice && <p role="status">{recoveryNotice}</p>}
-          {recoveryError && <p role="alert">{recoveryError}</p>}
-        </section>
+                <label>
+                  Current password
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={recoveryPassword}
+                    maxLength={128}
+                    onChange={(event) =>
+                      setRecoveryPassword(event.target.value)
+                    }
+                  />
+                </label>
+                <button type="submit" disabled={!recoveryPassword}>
+                  Create new recovery codes
+                </button>
+              </form>
+            )}
+            {recoveryNotice && <p role="status">{recoveryNotice}</p>}
+            {recoveryError && <p role="alert">{recoveryError}</p>}
+          </div>
+        </details>
       )}
       <section className="settings-card">
         <h2>Active sessions</h2>
-        <p>
-          See where your account is signed in and end any session you no longer
-          recognize. OpenMatch stores only the broad client type—not an IP
-          address, device fingerprint, activity history, or exact device model.
-        </p>
+        <p>Sign out any session you no longer recognize.</p>
         {sessions.length ? (
           <div className="report-history">
             {sessions.map((session) => {
@@ -4732,7 +4829,7 @@ function ProfileView({
                   >
                     <label>
                       Update type
-                      <select
+                      <AppSelect
                         value={reportUpdateKind}
                         onChange={(event) =>
                           setReportUpdateKind(
@@ -4747,7 +4844,7 @@ function ProfileView({
                         <option value="withdrawal_request">
                           Request withdrawal
                         </option>
-                      </select>
+                      </AppSelect>
                     </label>
                     <label>
                       What should be added to the record?
@@ -4912,7 +5009,7 @@ function ProfileView({
           {deleteAccount && (
             <div className="form-stack">
               <label>
-                Current passphrase to delete account
+                Current password to delete account
                 <input
                   type="password"
                   autoComplete="current-password"
@@ -4924,7 +5021,7 @@ function ProfileView({
               </label>
               <p className="fine-print">
                 Permanent deletion is a sensitive action. Re-entering your
-                passphrase protects against deletion from a borrowed or hijacked
+                password protects against deletion from a borrowed or hijacked
                 signed-in device.
               </p>
               <button
@@ -4939,7 +5036,7 @@ function ProfileView({
                     setDataActionError(
                       error instanceof ApiError &&
                         error.code === "invalid_current_password"
-                        ? "The current passphrase was not accepted. The account was not deleted."
+                        ? "The current password was not accepted. The account was not deleted."
                         : "The account was not deleted. You remain signed in and can retry when ready.",
                     );
                   } finally {
@@ -4997,7 +5094,7 @@ function CandidateSafety({
             them immediately.
           </p>
           <label htmlFor="candidate-report-reason">Reason</label>
-          <select
+          <AppSelect
             id="candidate-report-reason"
             value={reason}
             onChange={(event) => setReason(event.target.value as ReportReason)}
@@ -5007,7 +5104,7 @@ function CandidateSafety({
             <option value="impersonation">Impersonation</option>
             <option value="offline_safety">Offline safety</option>
             <option value="other">Other</option>
-          </select>
+          </AppSelect>
           <label htmlFor="candidate-report-details">
             Details <span>optional</span>
           </label>
@@ -5345,7 +5442,7 @@ function ConnectionsView({
               helps explain the concern.
             </p>
             <label htmlFor="connection-report-reason">Reason</label>
-            <select
+            <AppSelect
               id="connection-report-reason"
               value={reportReason}
               onChange={(event) =>
@@ -5357,7 +5454,7 @@ function ConnectionsView({
               <option value="impersonation">Impersonation</option>
               <option value="offline_safety">Offline safety</option>
               <option value="other">Other</option>
-            </select>
+            </AppSelect>
             <label htmlFor="connection-report-details">
               Details <span>optional</span>
             </label>
@@ -5660,14 +5757,14 @@ function AboutView({
         {authenticated ? (
           <p>
             This account uses an isolated application-data store, a random
-            expiring session, and a scrypt-protected passphrase. Completed
-            active accounts can currently meet only when their self-entered
-            approximate region text matches exactly; the service does not
-            geocode or estimate distance. Profile visibility remains on until
-            the person pauses or hides it; no public last-active time is
-            created. Passkeys, email-delivery monitoring, provider-backed
-            recovery notifications, and an independent security review are still
-            required before any real-person pilot.
+            expiring session, and a scrypt-protected password. Completed active
+            accounts can currently meet only when their self-entered approximate
+            region text matches exactly; the service does not geocode or
+            estimate distance. Profile visibility remains on until the person
+            pauses or hides it; no public last-active time is created. Passkeys,
+            email-delivery monitoring, provider-backed recovery notifications,
+            and an independent security review are still required before any
+            real-person pilot.
           </p>
         ) : (
           <p>

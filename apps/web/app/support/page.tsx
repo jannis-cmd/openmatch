@@ -62,7 +62,7 @@ export default function SupportPage() {
           </li>
           <li>
             Use Profile to inspect sessions, revoke another session, change the
-            passphrase, generate offline recovery codes, export data, or delete
+            password, generate offline recovery codes, export data, or delete
             the account.
           </li>
           <li>
