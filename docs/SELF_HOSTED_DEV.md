@@ -14,8 +14,11 @@ In this mode GoTrue owns user credentials, email confirmation, and access
 tokens. WhyMatch stores only an identity mirror plus a hash of each token to
 route requests to isolated application stores. Password change and permanent
 account deletion are wired through GoTrue. The older WhyMatch recovery-code,
-primary-email-change, and backup-notification-address workflows are not yet
-migrated and remain a release blocker. Dating profiles and interactions use
+primary-email-change, and backup-notification-address workflows are not used by
+the self-hosted clients. Forgotten passwords use GoTrue's standard email reset
+link; completing the link changes the password and invalidates every other
+WhyMatch session. Production still needs a real SMTP provider, HTTPS redirect
+URLs, and delivery monitoring. Dating profiles and interactions use
 normalized, account-scoped tables in PostgreSQL's `app` schema. SQLite remains
 only for standalone regression tests and as an archived migration source.
 
@@ -87,7 +90,9 @@ node scripts/dev-seed-test-accounts.mjs
 
 An account-flow smoke test should register a unique development address, read
 its confirmation message in Mailpit, confirm the address, sign in, refresh the
-session, and verify that a password shorter than 15 characters is rejected.
+session, request a password-reset email, follow its one-time link, and verify
+that the new password signs in while a password shorter than 15 characters is
+rejected.
 No seeded account should use a real person's address or production password.
 
 ## SQLite application-data migration

@@ -9,7 +9,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -160,6 +159,9 @@ export default function App() {
     "signed-out" | "demo" | "account"
   >("signed-out");
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [passwordResetToken, setPasswordResetToken] = useState<string | null>(
+    null,
+  );
   const [sessionRestored, setSessionRestored] = useState(false);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const api = useMemo(
@@ -186,6 +188,28 @@ export default function App() {
       ),
     [accessMode, apiConfiguration.url, authToken],
   );
+  useEffect(() => {
+    const acceptPasswordResetLink = (url: string | null) => {
+      if (!url) return;
+      let parsed: URL;
+      try {
+        parsed = new URL(url);
+      } catch {
+        return;
+      }
+      const hash = new URLSearchParams(parsed.hash.replace(/^#/, ""));
+      const token =
+        hash.get("type") === "recovery" ? hash.get("access_token") : null;
+      if (!token) return;
+      setPasswordResetToken(token);
+      setAccessMode("signed-out");
+    };
+    void Linking.getInitialURL().then(acceptPasswordResetLink);
+    const subscription = Linking.addEventListener("url", ({ url }) =>
+      acceptPasswordResetLink(url),
+    );
+    return () => subscription.remove();
+  }, []);
   const [tab, setTab] = useState<Tab>("Today");
   const [preferences, setPreferences] = useState<Preferences>(
     structuredClone(defaultPreferences),
@@ -307,11 +331,6 @@ export default function App() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [recoveryPassword, setRecoveryPassword] = useState("");
-  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
-  const [recoveryError, setRecoveryError] = useState<string | null>(null);
-  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);
-  const [showRecoverySettings, setShowRecoverySettings] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [verificationNotice, setVerificationNotice] = useState<string | null>(
     null,
@@ -413,12 +432,6 @@ export default function App() {
     pendingMessageAttempts,
     sessionRestored,
   ]);
-  useEffect(() => {
-    if (tab === "Profile" && accessMode === "account") return;
-    setRecoveryCodes([]);
-    setRecoveryPassword("");
-    setRecoveryError(null);
-  }, [accessMode, tab]);
   useEffect(() => {
     setEditingProfile(false);
     setProfileDraft(null);
@@ -958,10 +971,13 @@ export default function App() {
       <MobileAuthentication
         api={api}
         notice={sessionNotice}
+        passwordResetToken={passwordResetToken}
+        cancelPasswordReset={() => setPasswordResetToken(null)}
         onAuthenticated={async (token, notification) => {
           await clearPendingMessageAttempts().catch(() => undefined);
           await persistSessionToken(token);
           setAuthToken(token);
+          setPasswordResetToken(null);
           if (notification)
             setPasswordNotice(
               "Account recovered. Every previous session and recovery code was invalidated." +
@@ -3097,120 +3113,6 @@ export default function App() {
               )}
               {accessMode === "account" && (
                 <View style={styles.scoreCard}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: showRecoverySettings }}
-                    style={styles.advancedSettingsHeader}
-                    onPress={() =>
-                      setShowRecoverySettings((current) => !current)
-                    }
-                  >
-                    <Text style={styles.name}>Account recovery</Text>
-                    <Text style={styles.advancedSettingsHint}>
-                      {showRecoverySettings ? "Hide" : "Optional  +"}
-                    </Text>
-                  </Pressable>
-                  {showRecoverySettings && (
-                    <>
-                      <Text style={styles.scoreNote}>
-                        Save one-time recovery codes in your password manager in
-                        case you forget your password.
-                      </Text>
-                      {recoveryCodes.length ? (
-                        <>
-                          <Text
-                            accessibilityLiveRegion="polite"
-                            style={styles.setting}
-                          >
-                            Copy these now. They will not be shown again.
-                          </Text>
-                          {recoveryCodes.map((code) => (
-                            <Text key={code} selectable style={styles.codeText}>
-                              {code}
-                            </Text>
-                          ))}
-                          <Action
-                            label="Share or save codes"
-                            secondary
-                            onPress={() =>
-                              void Share.share({
-                                title: "WhyMatch recovery codes",
-                                message: recoveryCodes.join("\n"),
-                              })
-                            }
-                          />
-                          <Action
-                            label="I saved them—hide codes"
-                            secondary
-                            onPress={() => setRecoveryCodes([])}
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <Text style={styles.setting}>Current password</Text>
-                          <TextInput
-                            accessibilityLabel="Password for recovery codes"
-                            autoCapitalize="none"
-                            autoComplete="current-password"
-                            secureTextEntry
-                            value={recoveryPassword}
-                            maxLength={128}
-                            onChangeText={setRecoveryPassword}
-                            style={styles.textField}
-                          />
-                          <Action
-                            label="Create new recovery codes"
-                            secondary
-                            disabled={!recoveryPassword}
-                            onPress={() => {
-                              setRecoveryError(null);
-                              setRecoveryNotice(null);
-                              void api
-                                .generateRecoveryCodes(recoveryPassword)
-                                .then(({ codes, securityNotification }) => {
-                                  setRecoveryPassword("");
-                                  setRecoveryCodes(codes);
-                                  setRecoveryNotice(
-                                    "Every older recovery code is now invalid." +
-                                      recordSecurityNotification(
-                                        securityNotification,
-                                      ),
-                                  );
-                                })
-                                .catch((error) =>
-                                  setRecoveryError(
-                                    error instanceof ApiError &&
-                                      error.code === "invalid_current_password"
-                                      ? "The current password was not accepted."
-                                      : "Recovery codes could not be created.",
-                                  ),
-                                );
-                            }}
-                          />
-                        </>
-                      )}
-                      {recoveryNotice && (
-                        <Text
-                          accessibilityLiveRegion="polite"
-                          style={styles.mathNote}
-                        >
-                          {recoveryNotice}
-                        </Text>
-                      )}
-                      {recoveryError && (
-                        <Text
-                          accessibilityRole="alert"
-                          style={styles.errorText}
-                        >
-                          {recoveryError}
-                        </Text>
-                      )}
-                    </>
-                  )}
-                </View>
-              )}
-              {accessMode === "account" && (
-                <View style={styles.scoreCard}>
                   <Text style={styles.name}>Change password</Text>
                   <Text style={styles.scoreNote}>
                     Change the password you use to sign in.
@@ -4194,6 +4096,8 @@ function MobileAuthentication({
   onAuthenticated,
   tryDemo,
   notice,
+  passwordResetToken,
+  cancelPasswordReset,
 }: {
   api: ReturnType<typeof createApiClient>;
   onAuthenticated: (
@@ -4202,11 +4106,15 @@ function MobileAuthentication({
   ) => Promise<void>;
   tryDemo?: () => void;
   notice?: string | null;
+  passwordResetToken: string | null;
+  cancelPasswordReset: () => void;
 }) {
-  const [mode, setMode] = useState<"sign-in" | "create" | "recover">("sign-in");
+  const [mode, setMode] = useState<
+    "sign-in" | "create" | "request-reset" | "reset"
+  >(passwordResetToken ? "reset" : "sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [recoveryCode, setRecoveryCode] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
@@ -4215,12 +4123,31 @@ function MobileAuthentication({
     setAuthError(null);
     setAuthNotice(null);
     try {
+      if (mode === "request-reset") {
+        await api.requestPasswordReset(email);
+        setMode("sign-in");
+        setAuthNotice(
+          "If an account uses that email, a password-reset link has been sent.",
+        );
+        return;
+      }
+      if (mode === "reset") {
+        if (!passwordResetToken) throw new ApiError(400, "invalid_recovery");
+        if (password !== confirmPassword) {
+          setAuthError("The passwords do not match.");
+          return;
+        }
+        const session = await api.completePasswordReset(
+          passwordResetToken,
+          password,
+        );
+        await onAuthenticated(session.token);
+        return;
+      }
       const session =
         mode === "create"
           ? await api.createAccount(email, password)
-          : mode === "recover"
-            ? await api.recoverAccount(email, recoveryCode, password)
-            : await api.signIn(email, password);
+          : await api.signIn(email, password);
       if ("confirmationRequired" in session) {
         setPassword("");
         setMode("sign-in");
@@ -4230,12 +4157,7 @@ function MobileAuthentication({
         return;
       }
       try {
-        await onAuthenticated(
-          session.token,
-          mode === "recover" && "securityNotification" in session
-            ? (session.securityNotification as SecurityNotificationStatus)
-            : undefined,
-        );
+        await onAuthenticated(session.token);
       } catch {
         await api.signOut().catch(() => undefined);
         throw new ApiError(503, "secure_session_storage_unavailable");
@@ -4255,11 +4177,17 @@ function MobileAuthentication({
                   ? "Confirm your email address before signing in."
                   : code === "secure_session_storage_unavailable"
                     ? "This device could not protect the session. No account session was kept."
-                    : code === "invalid_recovery"
-                      ? "The email or unused recovery code was not accepted."
-                      : code === "password_unchanged"
-                        ? "Choose a new password different from the current one."
-                        : "Email or password was not accepted.",
+                    : code === "password_reset_rate_limited" ||
+                        code === "authentication_rate_limit_exceeded"
+                      ? "Too many reset attempts. Please wait and try again."
+                      : code === "invalid_recovery"
+                        ? "This password-reset link is invalid or has expired. Request a new one."
+                        : code === "password_unchanged"
+                          ? "Choose a new password different from the current one."
+                          : code === "password_reset_not_configured" ||
+                              code === "email_password_reset_not_available"
+                            ? "Email password reset is not available on this service."
+                            : "Email or password was not accepted.",
       );
     } finally {
       setSubmitting(false);
@@ -4273,58 +4201,73 @@ function MobileAuthentication({
         <Text style={styles.title}>
           {mode === "create"
             ? "Create your account."
-            : mode === "recover"
-              ? "Recover your account."
-              : "Welcome back."}
+            : mode === "request-reset"
+              ? "Reset your password."
+              : mode === "reset"
+                ? "Choose a new password."
+                : "Welcome back."}
         </Text>
         <Text style={styles.subtle}>
           {mode === "create"
             ? "Start your WhyMatch profile."
-            : mode === "recover"
-              ? "Enter a recovery code you previously saved and choose a new password."
-              : "Sign in to WhyMatch."}
+            : mode === "request-reset"
+              ? "Enter your email and we’ll send you a secure reset link."
+              : mode === "reset"
+                ? "Use at least 15 characters."
+                : "Sign in to WhyMatch."}
         </Text>
         {notice && <Text style={styles.mathNote}>{notice}</Text>}
         {authNotice && <Text style={styles.mathNote}>{authNotice}</Text>}
-        <Text style={styles.setting}>Email</Text>
-        <TextInput
-          accessibilityLabel="Email"
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.textField}
-        />
-        {mode === "recover" && (
+        {mode !== "reset" && (
           <>
-            <Text style={styles.setting}>Unused recovery code</Text>
+            <Text style={styles.setting}>Email</Text>
             <TextInput
-              accessibilityLabel="Unused recovery code"
+              accessibilityLabel="Email"
               autoCapitalize="none"
-              autoComplete="one-time-code"
-              value={recoveryCode}
-              onChangeText={setRecoveryCode}
+              autoComplete="email"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
               style={styles.textField}
             />
           </>
         )}
-        <Text style={styles.setting}>
-          {mode === "recover" ? "New password" : "Password"}
-        </Text>
-        <TextInput
-          accessibilityLabel="Password"
-          autoCapitalize="none"
-          autoComplete={
-            mode === "create" || mode === "recover"
-              ? "new-password"
-              : "current-password"
-          }
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          style={styles.textField}
-        />
+        {mode !== "request-reset" && (
+          <>
+            <Text style={styles.setting}>
+              {mode === "reset" ? "New password" : "Password"}
+            </Text>
+            <TextInput
+              accessibilityLabel={
+                mode === "reset" ? "New password" : "Password"
+              }
+              autoCapitalize="none"
+              autoComplete={
+                mode === "create" || mode === "reset"
+                  ? "new-password"
+                  : "current-password"
+              }
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              style={styles.textField}
+            />
+          </>
+        )}
+        {mode === "reset" && (
+          <>
+            <Text style={styles.setting}>Confirm new password</Text>
+            <TextInput
+              accessibilityLabel="Confirm new password"
+              autoCapitalize="none"
+              autoComplete="new-password"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              style={styles.textField}
+            />
+          </>
+        )}
         {authError && (
           <Text accessibilityRole="alert" style={styles.errorText}>
             {authError}
@@ -4336,47 +4279,75 @@ function MobileAuthentication({
               ? "Please wait…"
               : mode === "create"
                 ? "Create account"
-                : mode === "recover"
-                  ? "Recover account"
-                  : "Sign in"
+                : mode === "request-reset"
+                  ? "Send reset link"
+                  : mode === "reset"
+                    ? "Save new password"
+                    : "Sign in"
           }
           disabled={
             submitting ||
-            !email.trim() ||
-            (mode === "create" || mode === "recover"
+            (mode !== "reset" && !email.trim()) ||
+            (mode === "create" || mode === "reset"
               ? password.length < 15
-              : !password) ||
-            (mode === "recover" && !recoveryCode.trim())
+              : mode === "sign-in"
+                ? !password
+                : false) ||
+            (mode === "reset" && confirmPassword.length < 15)
           }
           onPress={() => void submit()}
         />
-        <Action
-          label={mode === "recover" ? "Back to sign in" : "Forgot password?"}
-          secondary
-          onPress={() => {
-            setAuthError(null);
-            setRecoveryCode("");
-            setMode(mode === "recover" ? "sign-in" : "recover");
-          }}
-        />
-        <Action
-          label={
-            mode === "create"
-              ? "I already have an account"
-              : "Create an account"
-          }
-          secondary
-          onPress={() => {
-            setAuthError(null);
-            setMode(mode === "create" ? "sign-in" : "create");
-          }}
-        />
+        {(mode === "sign-in" || mode === "create") && (
+          <Action
+            label={
+              mode === "create"
+                ? "I already have an account"
+                : "Create an account"
+            }
+            secondary
+            onPress={() => {
+              setAuthError(null);
+              setMode(mode === "create" ? "sign-in" : "create");
+            }}
+          />
+        )}
+        {mode === "sign-in" && (
+          <Action
+            label="Forgot password?"
+            secondary
+            onPress={() => {
+              setAuthError(null);
+              setAuthNotice(null);
+              setMode("request-reset");
+            }}
+          />
+        )}
+        {mode === "request-reset" && (
+          <Action
+            label="Back to sign in"
+            secondary
+            onPress={() => {
+              setAuthError(null);
+              setMode("sign-in");
+            }}
+          />
+        )}
+        {mode === "reset" && (
+          <Action
+            label="Cancel"
+            secondary
+            onPress={() => {
+              cancelPasswordReset();
+              setPassword("");
+              setConfirmPassword("");
+              setMode("sign-in");
+            }}
+          />
+        )}
         {tryDemo && (
           <Action label="Use local demo" secondary onPress={tryDemo} />
         )}
-        <Text style={styles.mathNote}>
-          Use a unique password. Recovery codes are optional.
-        </Text>
+        <Text style={styles.mathNote}>Use a unique password.</Text>
       </ScrollView>
     </SafeAreaView>
   );

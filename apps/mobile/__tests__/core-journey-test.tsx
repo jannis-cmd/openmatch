@@ -64,7 +64,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   let sessionExpired = false;
   let otherSessionRevoked = false;
   let passwordChanged = false;
-  let recoveryCodesGenerated = false;
+  let passwordResetRequests = 0;
   let emailVerified = false;
   let emailChangePending = false;
   let failNextProfileSave = false;
@@ -121,21 +121,12 @@ test("first run uses explicit accessible controls and opens introductions", asyn
         securityNotification: "not_configured",
       });
     }
-    if (path === "/v1/account/recovery-codes" && init.method === "POST") {
-      recoveryCodesGenerated = true;
-      securityNotificationRetrying = true;
-      failNextSecurityNotificationStatus = true;
-      return response(
-        {
-          codes: Array.from(
-            { length: 8 },
-            (_, index) => `${index}111-2222-3333-4444-5555-6666-7777-8888`,
-          ),
-          createdAt: "2026-08-12T12:00:00.000Z",
-          securityNotification: "failed",
-        },
-        201,
-      );
+    if (
+      path === "/v1/account/password-reset/request" &&
+      init.method === "POST"
+    ) {
+      passwordResetRequests += 1;
+      return response({ sent: true }, 202);
     }
     if (path === "/v1/account/email-verification/confirm") {
       emailVerified = body.code === "12345678";
@@ -1131,9 +1122,18 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(screen.getByLabelText("Email")).toBeTruthy();
   expect(screen.getByLabelText("Password")).toBeTruthy();
   await fireEvent.press(screen.getByText("Forgot password?"));
-  expect(screen.getByText("Recover your account.")).toBeTruthy();
-  expect(screen.getByLabelText("Unused recovery code")).toBeTruthy();
-  await fireEvent.press(screen.getByText("Back to sign in"));
+  expect(screen.getByText("Reset your password.")).toBeTruthy();
+  await fireEvent.changeText(
+    screen.getByLabelText("Email"),
+    "native@example.org",
+  );
+  await fireEvent.press(screen.getByText("Send reset link"));
+  await waitFor(() => expect(passwordResetRequests).toBe(1));
+  expect(
+    screen.getByText(
+      "If an account uses that email, a password-reset link has been sent.",
+    ),
+  ).toBeTruthy();
   await fireEvent.press(screen.getByText("Create an account"));
   expect(screen.getByText("Create your account.")).toBeTruthy();
   await fireEvent.changeText(
@@ -1275,30 +1275,7 @@ test("first run uses explicit accessible controls and opens introductions", asyn
   expect(
     screen.getByText(/Password changed. Every other session was signed out/),
   ).toBeTruthy();
-  await fireEvent.press(screen.getByText("Account recovery"));
-  await fireEvent.changeText(
-    screen.getByLabelText("Password for recovery codes"),
-    "a replacement native password",
-  );
-  await fireEvent.press(screen.getByText("Create new recovery codes"));
-  await waitFor(() => expect(recoveryCodesGenerated).toBe(true));
-  await waitFor(() =>
-    expect(screen.getByText("Security email is retrying")).toBeTruthy(),
-  );
-  await fireEvent.press(screen.getByText("Retry email"));
-  await waitFor(() =>
-    expect(screen.queryByText("Security email is retrying")).toBeNull(),
-  );
-  expect(
-    screen.getByText("Copy these now. They will not be shown again."),
-  ).toBeTruthy();
-  expect(
-    screen.getByText("0111-2222-3333-4444-5555-6666-7777-8888"),
-  ).toBeTruthy();
-  await fireEvent.press(screen.getByText("I saved them—hide codes"));
-  expect(
-    screen.queryByText("0111-2222-3333-4444-5555-6666-7777-8888"),
-  ).toBeNull();
+  expect(screen.queryByText("Account recovery")).toBeNull();
   await screen.unmount();
   (restoreSessionToken as jest.Mock).mockResolvedValueOnce("r".repeat(43));
   const previousDemoRequests = demoSessionRequests;

@@ -181,3 +181,71 @@ test("reauthenticates Supabase password changes and credential deletion", async 
   assert.equal(deleted, true);
   assert.ok(requests.some((request) => request.includes("DELETE ")));
 });
+
+test("requests and completes a standard Supabase email password reset", async () => {
+  const recoveryToken = "r".repeat(43);
+  const replacementToken = "n".repeat(43);
+  const user = {
+    id: "770f2b61-9ac2-48b8-a60f-3c692a95e63d",
+    email: "person@example.org",
+    email_confirmed_at: "2026-08-23T20:00:00.000Z",
+  };
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const identity = new SupabaseIdentity("http://127.0.0.1:9999", (async (
+    input,
+    init,
+  ) => {
+    const url = String(input);
+    requests.push({ url, init });
+    if (url.includes("/recover?redirect_to="))
+      return new Response(JSON.stringify({}), { status: 200 });
+    if (url.endsWith("/user") && (!init?.method || init.method === "GET"))
+      return new Response(JSON.stringify(user), { status: 200 });
+    if (url.endsWith("/user") && init?.method === "PUT")
+      return new Response(JSON.stringify(user), { status: 200 });
+    if (url.endsWith("/logout")) return new Response(null, { status: 204 });
+    if (url.endsWith("/token?grant_type=password"))
+      return new Response(
+        JSON.stringify({
+          user,
+          access_token: replacementToken,
+          expires_in: 3600,
+        }),
+        { status: 200 },
+      );
+    return new Response(null, { status: 404 });
+  }) as typeof fetch);
+
+  assert.deepEqual(
+    await identity.requestPasswordReset(
+      " Person@Example.org ",
+      "https://why.example/reset",
+    ),
+    { sent: true },
+  );
+  assert.match(
+    requests[0]!.url,
+    /redirect_to=https%3A%2F%2Fwhy\.example%2Freset/,
+  );
+  assert.deepEqual(JSON.parse(String(requests[0]!.init?.body)), {
+    email: "person@example.org",
+  });
+
+  const session = await identity.completePasswordReset({
+    recoveryToken,
+    newPassword: "a replacement sufficiently long password",
+    client: "ios",
+  });
+  assert.equal(session.token, replacementToken);
+  assert.equal(session.client, "ios");
+  const update = requests.find(
+    ({ url, init }) => url.endsWith("/user") && init?.method === "PUT",
+  );
+  assert.equal(
+    new Headers(update?.init?.headers).get("authorization"),
+    `Bearer ${recoveryToken}`,
+  );
+  assert.deepEqual(JSON.parse(String(update?.init?.body)), {
+    password: "a replacement sufficiently long password",
+  });
+});

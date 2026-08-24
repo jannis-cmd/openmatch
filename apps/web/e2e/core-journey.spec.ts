@@ -333,6 +333,24 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Sign in" }).first().click();
   await expect(page.getByText("Sign in to WhyMatch.")).toBeVisible();
   await expectAccessible(page);
+  await page.route("**/v1/account/password-reset/request", (route) =>
+    route.fulfill({
+      status: 202,
+      contentType: "application/json",
+      body: JSON.stringify({ sent: true }),
+    }),
+  );
+  await page.getByRole("button", { name: "Forgot password?" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Reset your password." }),
+  ).toBeVisible();
+  await page.getByLabel("Email").fill("taylor@example.com");
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(
+    page.getByText(
+      "If an account uses that email, a password-reset link has been sent.",
+    ),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByRole("textbox", { name: "Email" }).fill("taylor@example.com");
   await page.getByLabel("Password").fill("a repeatable browser test password");
@@ -551,22 +569,7 @@ test("first run through a persistent connection and safety action", async ({
     page.getByText(/Password changed. Every other session was signed out/),
   ).toBeVisible();
   await expect(page.getByText("Web browser · This session")).toBeVisible();
-  const recoveryCard = page.locator("details.account-advanced");
-  await recoveryCard.getByText("Account recovery").click();
-  await recoveryCard
-    .getByLabel("Current password")
-    .fill("a replacement browser test password");
-  await recoveryCard
-    .getByRole("button", { name: "Create new recovery codes" })
-    .click();
-  await expect(
-    recoveryCard.getByText("Copy these now. They will not be shown again."),
-  ).toBeVisible();
-  await expect(recoveryCard.locator("li")).toHaveCount(8);
-  await recoveryCard
-    .getByRole("button", { name: "I saved them—hide codes" })
-    .click();
-  await expect(recoveryCard.locator("li")).toHaveCount(0);
+  await expect(page.getByText("Account recovery")).toHaveCount(0);
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await expect(page.getByLabel("Profile prompt")).toBeVisible();
   await expect(

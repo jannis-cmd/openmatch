@@ -172,6 +172,54 @@ export class SupabaseIdentity {
     return this.session(body, this.client(client));
   }
 
+  async requestPasswordReset(emailValue: unknown, redirectTo: string) {
+    if (typeof emailValue !== "string" || !emailValue.trim())
+      throw new AccountError("invalid_email", 400);
+    const response = await this.fetcher(
+      `${this.url}/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: emailValue.trim().toLowerCase() }),
+      },
+    ).catch(() => null);
+    if (!response) throw new AccountError("identity_service_unavailable", 503);
+    const body = await this.body(response);
+    if (!response.ok) {
+      if (response.status === 422) throw new AccountError("invalid_email", 400);
+      if (response.status === 429)
+        throw new AccountError("password_reset_rate_limited", 429);
+      throw this.authError(response, body);
+    }
+    return { sent: true as const };
+  }
+
+  async completePasswordReset(input: {
+    recoveryToken: unknown;
+    newPassword: unknown;
+    client: unknown;
+  }) {
+    if (typeof input.recoveryToken !== "string" || !input.recoveryToken)
+      throw new AccountError("invalid_recovery", 400);
+    if (typeof input.newPassword !== "string")
+      throw new AccountError("invalid_password", 400);
+    const user = await this.authenticate(input.recoveryToken);
+    if (!user) throw new AccountError("invalid_recovery", 400);
+    const response = await this.fetcher(`${this.url}/user`, {
+      method: "PUT",
+      headers: {
+        authorization: `Bearer ${input.recoveryToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ password: input.newPassword }),
+    }).catch(() => null);
+    if (!response) throw new AccountError("identity_service_unavailable", 503);
+    const body = await this.body(response);
+    if (!response.ok) throw this.authError(response, body);
+    await this.signOut(input.recoveryToken);
+    return this.signIn(user.email, input.newPassword, input.client);
+  }
+
   async changePassword(input: {
     accountId: string;
     email: string;

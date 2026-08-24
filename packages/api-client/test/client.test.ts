@@ -281,6 +281,53 @@ test("changes a passphrase and adopts the rotated session", async () => {
   assert.deepEqual(tokenChanges, [newToken]);
 });
 
+test("requests an email reset and adopts the completed reset session", async () => {
+  const replacementToken = "n".repeat(43);
+  const tokenChanges: Array<string | null> = [];
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const client = createApiClient(
+    "https://api.example.test",
+    (async (url, init) => {
+      requests.push({ url: String(url), init });
+      if (String(url).endsWith("/password-reset/request"))
+        return new Response(JSON.stringify({ sent: true }), { status: 202 });
+      return new Response(
+        JSON.stringify({
+          token: replacementToken,
+          expiresAt: "2026-08-13T00:00:00.000Z",
+          authentication: true,
+          otherSessionsRevoked: true,
+        }),
+        { status: 200 },
+      );
+    }) as typeof fetch,
+    {
+      demoSessions: false,
+      client: "ios",
+      onTokenChange: (token) => tokenChanges.push(token),
+    },
+  );
+
+  assert.deepEqual(await client.requestPasswordReset("person@example.org"), {
+    sent: true,
+  });
+  assert.deepEqual(JSON.parse(String(requests[0]!.init?.body)), {
+    email: "person@example.org",
+    client: "ios",
+  });
+  const completed = await client.completePasswordReset(
+    "recovery-token",
+    "a replacement password",
+  );
+  assert.equal(completed.otherSessionsRevoked, true);
+  assert.deepEqual(JSON.parse(String(requests[1]!.init?.body)), {
+    recoveryToken: "recovery-token",
+    newPassword: "a replacement password",
+    client: "ios",
+  });
+  assert.deepEqual(tokenChanges, [replacementToken]);
+});
+
 test("creates recovery codes and adopts a recovered session", async () => {
   const oldToken = "o".repeat(43);
   const recoveredToken = "r".repeat(43);

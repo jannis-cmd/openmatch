@@ -18,5 +18,7 @@
 		reverse_proxy api:4000
 	}
 
-	respond 404
+	handle {
+		reverse_proxy web:3000
+	}
 }

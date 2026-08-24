@@ -170,6 +170,7 @@ export function createApp(
     securityNotificationSender?: SecurityNotificationSender | null;
     securityNotificationRetryIntervalMs?: number;
     accountDeliveryRetryIntervalMs?: number;
+    passwordResetRedirects?: { web?: string; mobile?: string };
   } = {},
 ) {
   const demoStore = options.store ?? new Store();
@@ -189,6 +190,26 @@ export function createApp(
           : null));
   if (identity && !accounts)
     throw new Error("Supabase identity requires the WhyMatch account registry");
+  const passwordResetRedirects = options.passwordResetRedirects ?? {
+    web: process.env.OPENMATCH_WEB_PASSWORD_RESET_REDIRECT_URL,
+    mobile: process.env.OPENMATCH_MOBILE_PASSWORD_RESET_REDIRECT_URL,
+  };
+  const passwordResetRedirect = (client: unknown) => {
+    const value =
+      client === "ios" || client === "android"
+        ? passwordResetRedirects.mobile
+        : passwordResetRedirects.web;
+    if (!value) throw new AccountError("password_reset_not_configured", 503);
+    let parsed: URL;
+    try {
+      parsed = new URL(value);
+    } catch {
+      throw new AccountError("password_reset_not_configured", 503);
+    }
+    if (!["http:", "https:", "openmatch:"].includes(parsed.protocol))
+      throw new AccountError("password_reset_not_configured", 503);
+    return parsed.toString();
+  };
   const demoSessionsEnabled =
     options.demoSessionsEnabled ??
     process.env.OPENMATCH_ENABLE_DEMO_SESSIONS === "true";
@@ -580,6 +601,82 @@ export function createApp(
             email: session.email,
             expiresAt: session.expiresAt,
             authentication: true,
+          });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/password-reset/request"
+      ) {
+        if (!accounts)
+          return send(response, 404, { error: "accounts_disabled" });
+        if (!identity)
+          return send(response, 501, {
+            error: "email_password_reset_not_available",
+          });
+        if (
+          !consumeAuthenticationAttempt(`password-reset:${key}`, now, response)
+        )
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          email?: unknown;
+          client?: unknown;
+        };
+        try {
+          await identity.requestPasswordReset(
+            body.email,
+            passwordResetRedirect(body.client),
+          );
+          return send(response, 202, { sent: true });
+        } catch (error) {
+          if (error instanceof AccountError)
+            return send(response, error.status, { error: error.code });
+          throw error;
+        }
+      }
+      if (
+        request.method === "POST" &&
+        url.pathname === "/v1/account/password-reset/complete"
+      ) {
+        if (!accounts)
+          return send(response, 404, { error: "accounts_disabled" });
+        if (!identity)
+          return send(response, 501, {
+            error: "email_password_reset_not_available",
+          });
+        if (
+          !consumeAuthenticationAttempt(`password-reset:${key}`, now, response)
+        )
+          return send(response, 429, {
+            error: "authentication_rate_limit_exceeded",
+          });
+        const body = (await readJson(request)) as {
+          recoveryToken?: unknown;
+          newPassword?: unknown;
+          client?: unknown;
+        };
+        try {
+          const external = await identity.completePasswordReset({
+            recoveryToken: body.recoveryToken,
+            newPassword: body.newPassword,
+            client: body.client,
+          });
+          const session = accounts.provisionExternalSession({
+            ...external,
+            client: external.client,
+            replaceSessions: true,
+          });
+          return send(response, 200, {
+            token: session.token,
+            expiresAt: session.expiresAt,
+            authentication: true,
+            otherSessionsRevoked: true,
           });
         } catch (error) {
           if (error instanceof AccountError)

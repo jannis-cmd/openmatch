@@ -130,6 +130,8 @@ services:
       OPENMATCH_COMMIT_SHA: ${OPENMATCH_COMMIT_SHA:-}
       OPENMATCH_SUPABASE_AUTH_URL: http://auth:9999
       OPENMATCH_SUPABASE_JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      OPENMATCH_WEB_PASSWORD_RESET_REDIRECT_URL: ${OPENMATCH_SITE_URL:?set OPENMATCH_SITE_URL in .env}
+      OPENMATCH_MOBILE_PASSWORD_RESET_REDIRECT_URL: openmatch://reset-password
       OPENMATCH_POSTGRES_URL: postgres://${POSTGRES_USER:-openmatch_auth}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-openmatch}
       OPENMATCH_ALLOWED_ORIGINS: ${OPENMATCH_ALLOWED_ORIGINS:?set OPENMATCH_ALLOWED_ORIGINS in .env}
       OPENMATCH_DB: /data/openmatch.sqlite
@@ -188,6 +190,8 @@ services:
         condition: service_healthy
       api:
         condition: service_healthy
+      web:
+        condition: service_started
     ports:
       - "${OPENMATCH_BIND_ADDRESS:-127.0.0.1}:${OPENMATCH_GATEWAY_PORT:-54321}:8080"
     volumes:

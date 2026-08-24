@@ -198,12 +198,28 @@ export default function Home() {
   );
   const [siteView, setSiteView] = useState<SiteView>("landing");
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [passwordResetToken, setPasswordResetToken] = useState<string | null>(
+    null,
+  );
   const [accountEntryNotice, setAccountEntryNotice] = useState<string | null>(
     null,
   );
   useEffect(() => {
     const storedToken = window.sessionStorage.getItem("openmatch-auth-token");
     const storedDemo = window.sessionStorage.getItem("openmatch-demo-session");
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const recoveryToken =
+      hash.get("type") === "recovery" ? hash.get("access_token") : null;
+    if (demoConfiguration.url && recoveryToken) {
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+      setPasswordResetToken(recoveryToken);
+      setSiteView("sign-in");
+      return;
+    }
     const deletionRequested = window.location.hash === "#delete-account";
     if (demoConfiguration.url && storedToken) {
       setAuthToken(storedToken);
@@ -253,6 +269,7 @@ export default function Home() {
     window.sessionStorage.removeItem("openmatch-demo-session");
     window.sessionStorage.setItem("openmatch-auth-token", token);
     setAuthToken(token);
+    setPasswordResetToken(null);
     setAccountEntryNotice(
       notification
         ? "Account recovered. Every previous session and recovery code was invalidated." +
@@ -275,11 +292,15 @@ export default function Home() {
   if (siteView === "sign-in") {
     return (
       <SignInPage
-        back={() => setSiteView("landing")}
+        back={() => {
+          setPasswordResetToken(null);
+          setSiteView("landing");
+        }}
         apiUrl={demoConfiguration.url}
         continueToApp={openAuthenticatedApp}
         demoError={demoConfiguration.error}
         entryNotice={accountEntryNotice}
+        passwordResetToken={passwordResetToken}
       />
     );
   }
@@ -1741,18 +1762,6 @@ function AppExperience({
                         }
                       : undefined
                   }
-                  generateRecoveryCodes={
-                    authToken
-                      ? async (currentPassword) => {
-                          const result =
-                            await api.generateRecoveryCodes(currentPassword);
-                          await synchronizeSecurityNotification(
-                            result.securityNotification,
-                          );
-                          return result;
-                        }
-                      : undefined
-                  }
                   revokeSession={async (sessionId) => {
                     await api.revokeSession(sessionId);
                     setAccountSessions((await api.sessions()).items);
@@ -2283,6 +2292,7 @@ function SignInPage({
   continueToApp,
   demoError,
   entryNotice,
+  passwordResetToken,
 }: {
   back: () => void;
   apiUrl: string | null;
@@ -2292,11 +2302,14 @@ function SignInPage({
   ) => void;
   demoError: string | null;
   entryNotice: string | null;
+  passwordResetToken: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [recoveryCode, setRecoveryCode] = useState("");
-  const [mode, setMode] = useState<"sign-in" | "create" | "recover">("sign-in");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [mode, setMode] = useState<
+    "sign-in" | "create" | "request-reset" | "reset"
+  >(passwordResetToken ? "reset" : "sign-in");
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
@@ -2328,12 +2341,32 @@ function SignInPage({
           setAuthError(null);
           setAuthNotice(null);
           try {
+            if (mode === "request-reset") {
+              await api.requestPasswordReset(email);
+              setMode("sign-in");
+              setAuthNotice(
+                "If an account uses that email, a password-reset link has been sent.",
+              );
+              return;
+            }
+            if (mode === "reset") {
+              if (!passwordResetToken)
+                throw new ApiError(400, "invalid_recovery");
+              if (password !== confirmPassword) {
+                setAuthError("The passwords do not match.");
+                return;
+              }
+              const session = await api.completePasswordReset(
+                passwordResetToken,
+                password,
+              );
+              continueToApp(session.token);
+              return;
+            }
             const session =
               mode === "create"
                 ? await api.createAccount(email, password)
-                : mode === "recover"
-                  ? await api.recoverAccount(email, recoveryCode, password)
-                  : await api.signIn(email, password);
+                : await api.signIn(email, password);
             if ("confirmationRequired" in session) {
               setPassword("");
               setMode("sign-in");
@@ -2342,30 +2375,31 @@ function SignInPage({
               );
               return;
             }
-            continueToApp(
-              session.token,
-              mode === "recover" && "securityNotification" in session
-                ? (session.securityNotification as SecurityNotificationStatus)
-                : undefined,
-            );
+            continueToApp(session.token);
           } catch (error) {
-            const code = error instanceof Error ? error.message : "";
+            const code = error instanceof ApiError ? error.code : "";
             setAuthError(
-              code.includes("account_exists")
+              code === "account_exists"
                 ? "An account already uses that email. Sign in instead."
-                : code.includes("invalid_email")
+                : code === "invalid_email"
                   ? "Enter a valid email address."
-                  : code.includes("common_password")
+                  : code === "common_password"
                     ? "Choose a less common password."
-                    : code.includes("invalid_password")
+                    : code === "invalid_password"
                       ? "Use a password with at least 15 characters."
-                      : code.includes("email_not_confirmed")
+                      : code === "email_not_confirmed"
                         ? "Confirm your email address before signing in."
-                        : code.includes("invalid_recovery")
-                          ? "The email or unused recovery code was not accepted."
-                          : code.includes("password_unchanged")
-                            ? "Choose a new password different from the current one."
-                            : "Email or password was not accepted.",
+                        : code === "password_reset_rate_limited" ||
+                            code === "authentication_rate_limit_exceeded"
+                          ? "Too many reset attempts. Please wait and try again."
+                          : code === "invalid_recovery"
+                            ? "This password-reset link is invalid or has expired. Request a new one."
+                            : code === "password_unchanged"
+                              ? "Choose a new password different from the current one."
+                              : code === "password_reset_not_configured" ||
+                                  code === "email_password_reset_not_available"
+                                ? "Email password reset is not available on this service."
+                                : "Email or password was not accepted.",
             );
           } finally {
             setSubmitting(false);
@@ -2385,60 +2419,74 @@ function SignInPage({
         <h1>
           {mode === "create"
             ? "Create your account."
-            : mode === "recover"
-              ? "Recover your account."
-              : "Welcome back."}
+            : mode === "request-reset"
+              ? "Reset your password."
+              : mode === "reset"
+                ? "Choose a new password."
+                : "Welcome back."}
         </h1>
         <p>
           {mode === "create"
             ? "Start your WhyMatch profile."
-            : mode === "recover"
-              ? "Enter a recovery code you previously saved and choose a new password."
-              : "Sign in to WhyMatch."}
+            : mode === "request-reset"
+              ? "Enter your email and we’ll send you a secure reset link."
+              : mode === "reset"
+                ? "Use at least 15 characters."
+                : "Sign in to WhyMatch."}
         </p>
         {demoError && (
           <p role="status">{demoError} No connection was attempted.</p>
         )}
-        <label htmlFor="sign-in-email">Email</label>
-        <input
-          id="sign-in-email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="you@example.com"
-          required
-        />
-        {mode === "recover" && (
+        {mode !== "reset" && (
           <>
-            <label htmlFor="recovery-code">Unused recovery code</label>
+            <label htmlFor="sign-in-email">Email</label>
             <input
-              id="recovery-code"
-              autoComplete="one-time-code"
-              value={recoveryCode}
-              onChange={(event) => setRecoveryCode(event.target.value)}
-              placeholder="xxxx-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx"
+              id="sign-in-email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.com"
               required
             />
           </>
         )}
-        <label htmlFor="sign-in-password">
-          {mode === "recover" ? "New password" : "Password"}
-        </label>
-        <input
-          id="sign-in-password"
-          type="password"
-          autoComplete={
-            mode === "create" || mode === "recover"
-              ? "new-password"
-              : "current-password"
-          }
-          minLength={mode === "create" || mode === "recover" ? 15 : undefined}
-          maxLength={128}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-        />
+        {mode !== "request-reset" && (
+          <>
+            <label htmlFor="sign-in-password">
+              {mode === "reset" ? "New password" : "Password"}
+            </label>
+            <input
+              id="sign-in-password"
+              type="password"
+              autoComplete={
+                mode === "create" || mode === "reset"
+                  ? "new-password"
+                  : "current-password"
+              }
+              minLength={mode === "create" || mode === "reset" ? 15 : undefined}
+              maxLength={128}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </>
+        )}
+        {mode === "reset" && (
+          <>
+            <label htmlFor="confirm-reset-password">Confirm new password</label>
+            <input
+              id="confirm-reset-password"
+              type="password"
+              autoComplete="new-password"
+              minLength={15}
+              maxLength={128}
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              required
+            />
+          </>
+        )}
         {authError && <p role="alert">{authError}</p>}
         <button
           className="primary-action"
@@ -2449,33 +2497,51 @@ function SignInPage({
             ? "Please wait…"
             : mode === "create"
               ? "Create account"
-              : mode === "recover"
-                ? "Recover account"
-                : "Sign in"}
+              : mode === "request-reset"
+                ? "Send reset link"
+                : mode === "reset"
+                  ? "Save new password"
+                  : "Sign in"}
         </button>
-        <button
-          className="back-action"
-          type="button"
-          onClick={() => {
-            setAuthError(null);
-            setMode(mode === "create" ? "sign-in" : "create");
-          }}
-        >
-          {mode === "create"
-            ? "I already have an account"
-            : "Create an account"}
-        </button>
-        <button
-          className="back-action"
-          type="button"
-          onClick={() => {
-            setAuthError(null);
-            setRecoveryCode("");
-            setMode(mode === "recover" ? "sign-in" : "recover");
-          }}
-        >
-          {mode === "recover" ? "Back to sign in" : "Forgot password?"}
-        </button>
+        {(mode === "sign-in" || mode === "create") && (
+          <button
+            className="back-action"
+            type="button"
+            onClick={() => {
+              setAuthError(null);
+              setMode(mode === "create" ? "sign-in" : "create");
+            }}
+          >
+            {mode === "create"
+              ? "I already have an account"
+              : "Create an account"}
+          </button>
+        )}
+        {mode === "sign-in" && (
+          <button
+            className="back-action"
+            type="button"
+            onClick={() => {
+              setAuthError(null);
+              setAuthNotice(null);
+              setMode("request-reset");
+            }}
+          >
+            Forgot password?
+          </button>
+        )}
+        {mode === "request-reset" && (
+          <button
+            className="back-action"
+            type="button"
+            onClick={() => {
+              setAuthError(null);
+              setMode("sign-in");
+            }}
+          >
+            Back to sign in
+          </button>
+        )}
         <button className="back-action" type="button" onClick={back}>
           Back to the website
         </button>

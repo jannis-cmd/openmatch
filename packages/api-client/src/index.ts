@@ -185,6 +185,9 @@ export type PasswordChangeSession = AuthSession & {
   otherSessionsRevoked: true;
   securityNotification: SecurityNotificationStatus;
 };
+export type PasswordResetSession = AuthSession & {
+  otherSessionsRevoked: true;
+};
 export type RecoverySession = PasswordChangeSession & {
   recoveryCodesRevoked: true;
 };
@@ -381,6 +384,59 @@ export function createApiClient(
     createAccount,
     signIn: (email: string, password: string) =>
       authenticate("/v1/sessions", email, password),
+    requestPasswordReset: async (email: string) => {
+      const response = await fetcher(
+        `${origin}/v1/account/password-reset/request`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, client: options.client }),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        sent?: boolean;
+        error?: string;
+      };
+      if (!response.ok)
+        throw new ApiError(
+          response.status,
+          body.error ?? "password_reset_request_failed",
+        );
+      if (body.sent !== true)
+        throw new ApiError(500, "invalid_password_reset_response");
+      return { sent: true as const };
+    },
+    completePasswordReset: async (
+      recoveryToken: string,
+      newPassword: string,
+    ) => {
+      const response = await fetcher(
+        `${origin}/v1/account/password-reset/complete`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            recoveryToken,
+            newPassword,
+            client: options.client,
+          }),
+        },
+      );
+      const body = (await response
+        .json()
+        .catch(() => ({}))) as Partial<PasswordResetSession> & {
+        error?: string;
+      };
+      if (!response.ok)
+        throw new ApiError(
+          response.status,
+          body.error ?? "password_reset_failed",
+        );
+      if (body.otherSessionsRevoked !== true)
+        throw new ApiError(500, "invalid_session");
+      adoptSession(body);
+      return body as PasswordResetSession;
+    },
     changePassword: async (currentPassword: string, newPassword: string) => {
       const session = await request<PasswordChangeSession>(
         "/v1/account/password",

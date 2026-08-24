@@ -143,12 +143,12 @@
     },
     {
       "id": "accountRecoveryCodes",
-      "storage": "account_recovery_codes table in the authentication SQLite database",
-      "purpose": "Let a person who previously saved a code replace a forgotten passphrase without relying on an unverified email inbox.",
+      "storage": "account_recovery_codes table in the standalone legacy authentication SQLite database; not used by the self-hosted product clients",
+      "purpose": "Preserve and regression-test the older standalone recovery workflow. Self-hosted web and mobile accounts use GoTrue email password-reset links instead.",
       "retention": "Until one code is used, a replacement set is created, the account is deleted, or the operator removes the authentication database.",
       "access": ["service", "operator"],
       "fields": ["codeHash", "accountId", "createdAt"],
-      "disclosure": "Eight independent 128-bit codes are returned only once when created after current-passphrase verification. The service stores only SHA-256 hashes. Successful recovery invalidates the entire set, replaces the passphrase salt/hash, revokes every session, and returns one fresh session in the same transaction. Codes are credentials, are excluded from export, and do not verify email or identity."
+      "disclosure": "This is a legacy standalone-mode record and is not exposed in the self-hosted web, iOS, or Android account UI. Eight independent 128-bit codes are returned only once when created after current-password verification. The service stores only SHA-256 hashes. Successful legacy recovery invalidates the entire set, replaces the password salt/hash, revokes every session, and returns one fresh session in the same transaction. Codes are credentials, are excluded from export, and do not verify email or identity."
     },
     {
       "id": "demoSessions",
