@@ -15,6 +15,7 @@ import {
 import releaseArtifacts from "../../../docs/RELEASE_ARTIFACTS.json";
 import { resolveWebApiConfiguration } from "../lib/api-configuration.mjs";
 import { LanguageSwitch, useLocale } from "../lib/locale";
+import { PasswordInput } from "../components/password-input";
 import {
   clearPendingMessageAttempts,
   persistPendingMessageAttempts,
@@ -2461,9 +2462,9 @@ function SignInPage({
             <label htmlFor="sign-in-password">
               {mode === "reset" ? "New password" : "Password"}
             </label>
-            <input
+            <PasswordInput
               id="sign-in-password"
-              type="password"
+              visibilityLabel={mode === "reset" ? "new password" : "password"}
               autoComplete={
                 mode === "create" || mode === "reset"
                   ? "new-password"
@@ -2494,9 +2495,9 @@ function SignInPage({
         {mode === "reset" && (
           <>
             <label htmlFor="confirm-reset-password">Confirm new password</label>
-            <input
+            <PasswordInput
               id="confirm-reset-password"
-              type="password"
+              visibilityLabel="password confirmation"
               autoComplete="new-password"
               minLength={15}
               maxLength={128}
@@ -3135,8 +3136,8 @@ function OnboardingView({
           </p>
           <label>
             Current password to delete incomplete account
-            <input
-              type="password"
+            <PasswordInput
+              visibilityLabel="current password"
               autoComplete="current-password"
               maxLength={128}
               value={deletionPassword}
@@ -4378,8 +4379,8 @@ function ProfileView({
                 </label>
                 <label>
                   Current password
-                  <input
-                    type="password"
+                  <PasswordInput
+                    visibilityLabel="current password"
                     autoComplete="current-password"
                     value={emailChangePassword}
                     onChange={(event) =>
@@ -4444,8 +4445,8 @@ function ProfileView({
                 >
                   <label>
                     Current password
-                    <input
-                      type="password"
+                    <PasswordInput
+                      visibilityLabel="current password"
                       autoComplete="current-password"
                       value={backupPassword}
                       maxLength={128}
@@ -4543,8 +4544,8 @@ function ProfileView({
                 </label>
                 <label>
                   Current password
-                  <input
-                    type="password"
+                  <PasswordInput
+                    visibilityLabel="current password"
                     autoComplete="current-password"
                     value={backupPassword}
                     maxLength={128}
@@ -4673,8 +4674,8 @@ function ProfileView({
           >
             <label>
               Current password
-              <input
-                type="password"
+              <PasswordInput
+                visibilityLabel="current password"
                 autoComplete="current-password"
                 value={currentPassword}
                 maxLength={128}
@@ -4684,8 +4685,8 @@ function ProfileView({
             </label>
             <label>
               New password
-              <input
-                type="password"
+              <PasswordInput
+                visibilityLabel="new password"
                 autoComplete="new-password"
                 value={newPassword}
                 minLength={15}
@@ -4696,8 +4697,8 @@ function ProfileView({
             </label>
             <label>
               Confirm new password
-              <input
-                type="password"
+              <PasswordInput
+                visibilityLabel="new password confirmation"
                 autoComplete="new-password"
                 value={confirmPassword}
                 minLength={15}
@@ -4796,8 +4797,8 @@ function ProfileView({
               >
                 <label>
                   Current password
-                  <input
-                    type="password"
+                  <PasswordInput
+                    visibilityLabel="current password"
                     autoComplete="current-password"
                     value={recoveryPassword}
                     maxLength={128}
@@ -5136,8 +5137,8 @@ function ProfileView({
             <div className="form-stack">
               <label>
                 Current password to delete account
-                <input
-                  type="password"
+                <PasswordInput
+                  visibilityLabel="current password"
                   autoComplete="current-password"
                   maxLength={128}
                   value={deletionPassword}

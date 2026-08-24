@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { resolveWebApiConfiguration } from "../../lib/api-configuration.mjs";
 import { LanguageSwitch, useLocale } from "../../lib/locale";
+import { PasswordInput } from "../../components/password-input";
 
 type Overview = {
   admin: { email: string; expiresAt: string };
@@ -164,8 +165,10 @@ export default function AdminPage() {
           </label>
           <label>
             {t.password}
-            <input
-              type="password"
+            <PasswordInput
+              visibilityLabel={t.password.toLocaleLowerCase()}
+              showLabel={locale === "de" ? "Anzeigen" : "Show"}
+              hideLabel={locale === "de" ? "Ausblenden" : "Hide"}
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}

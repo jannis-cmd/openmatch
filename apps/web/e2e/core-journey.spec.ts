@@ -167,7 +167,14 @@ test("an incomplete account can delete itself from the public web path", async (
     .getByRole("link", { name: "Sign in to delete my account" })
     .click();
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  const signInPassword = page.getByLabel("Password", { exact: true });
+  await signInPassword.fill(password);
+  await expect(signInPassword).toHaveAttribute("type", "password");
+  await page.getByRole("button", { name: "Show password" }).click();
+  await expect(signInPassword).toHaveAttribute("type", "text");
+  await expect(
+    page.getByRole("button", { name: "Hide password" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
@@ -353,7 +360,9 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByRole("textbox", { name: "Email" }).fill("taylor@example.com");
-  await page.getByLabel("Password").fill("a repeatable browser test password");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("a repeatable browser test password");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
@@ -562,8 +571,19 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     passwordCard.getByText("New password needs at least 15 characters (0/15)."),
   ).toBeVisible();
+  const currentPasswordInput = passwordCard.getByLabel("Current password", {
+    exact: true,
+  });
+  await expect(currentPasswordInput).toHaveAttribute("type", "password");
   await passwordCard
-    .getByLabel("Current password")
+    .getByRole("button", { name: "Show current password" })
+    .click();
+  await expect(currentPasswordInput).toHaveAttribute("type", "text");
+  await expect(
+    passwordCard.getByRole("button", { name: "Hide current password" }),
+  ).toBeVisible();
+  await passwordCard
+    .getByLabel("Current password", { exact: true })
     .fill("a repeatable browser test password");
   await page.getByLabel("New password", { exact: true }).fill("too short");
   await page.getByLabel("Confirm new password").fill("not the same");

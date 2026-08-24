@@ -99,6 +99,50 @@ body {
   padding: 0 14px;
   background: #fbfbf8;
 }
+.password-input-wrap {
+  position: relative;
+  display: block;
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.password-input-wrap input {
+  width: 100%;
+  padding-right: 50px !important;
+}
+.password-input-wrap .password-visibility {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  transform: translateY(-50%);
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #526058;
+  cursor: pointer;
+}
+.password-input-wrap .password-visibility:hover {
+  background: #eef2ee;
+}
+.password-input-wrap .password-visibility:focus-visible {
+  outline: 2px solid #286249;
+  outline-offset: 1px;
+}
+.password-visibility svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .admin-login .primary-action {
   width: 100%;
   margin-top: 24px;
@@ -2258,6 +2302,15 @@ textarea {
   padding: 14px 15px;
   border: 1px solid #c9cec8;
   border-radius: 12px;
+}
+.sign-in-card .password-input-wrap {
+  margin-bottom: 18px;
+}
+.sign-in-card .password-input-wrap input {
+  margin-bottom: 0;
+}
+.sign-in-card .password-input-wrap:has(input[aria-describedby]) {
+  margin-bottom: 8px;
 }
 .sign-in-card input[aria-describedby] {
   margin-bottom: 8px;
