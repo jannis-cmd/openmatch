@@ -34,7 +34,8 @@
       "sizeBytes": 97988243,
       "sha256": "376b3fb42675c539c4bc186e88195b7acebfaf9426a1fa280c829777d5e91a1c",
       "signingCertificateSha256": "c47346d5c2b975888c66a35f6204f918d91bb8c7729fb59f6ca6848d1a63f29d",
-      "expoSdkVersion": "57.0.0"
+      "expoSdkVersion": "57.0.0",
+      "runtimeVerification": "Android 16 API 36 arm64 emulator: cold launch, sign-in UI, password-reset navigation, and live reset request to the HTTPS tailnet service"
     },
     {
       "id": "android-apk-build-12",

@@ -29,7 +29,10 @@ signing identity, and the resulting certificate digest exactly matches builds
 11 and 12. Verification checked APK signature scheme v2, package and version,
 the minimal effective permission set, the complete source revision in
 `assets/app.config`, and the intended HTTPS origin in the Hermes bundle. The
-GitHub release records the same artifact digest and size.
+GitHub release records the same artifact digest and size. A clean Android 16
+API 36 ARM emulator then installed the APK, completed a cold launch without a
+runtime crash, rendered the sign-in and reset screens, and completed a harmless
+password-reset request against the HTTPS tailnet service.
 
 The build includes the standard email password-reset flow and the current
 profile, photo, introduction, chat, safety, export, and transparency baseline.
