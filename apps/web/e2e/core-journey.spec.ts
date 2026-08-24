@@ -387,6 +387,12 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     publicPreview.getByText(/Not shown: your discovery routing groups/),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Finish setup" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Choose at least one option to continue." }),
+  ).toBeVisible();
   const genderPreferences = page.getByRole("group", {
     name: "People you are open to meeting",
   });
@@ -394,6 +400,9 @@ test("first run through a persistent connection and safety action", async ({
     await genderPreferences
       .getByRole("checkbox", { name: group, exact: true })
       .check();
+  await expect(
+    page.getByText("Choose at least one option to continue."),
+  ).toBeHidden();
   await page
     .getByRole("checkbox", {
       name: "I confirm that I am at least 18 years old.",
@@ -422,7 +431,7 @@ test("first run through a persistent connection and safety action", async ({
     }
     await route.continue();
   });
-  await page.getByRole("button", { name: "See my introductions" }).click();
+  await page.getByRole("button", { name: "Finish setup" }).click();
   await expect(
     page.getByRole("alert").filter({ hasText: "Your entries remain here" }),
   ).toBeVisible();
@@ -432,7 +441,7 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "See my introductions" }).click();
+  await page.getByRole("button", { name: "Finish setup" }).click();
 
   await expect(
     page.getByRole("heading", { name: "3 remaining" }),

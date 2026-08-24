@@ -2603,23 +2603,35 @@ function OnboardingView({
   const [directoryAccepted, setDirectoryAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const [deletionPassword, setDeletionPassword] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deletionError, setDeletionError] = useState<string | null>(null);
-  const valid =
-    profile.name.trim().length > 0 &&
-    profile.city.trim().length > 0 &&
-    profile.bio.trim().length > 0 &&
-    profile.prompt.trim().length > 0 &&
-    profile.promptAnswer.trim().length > 0 &&
-    profile.values.length > 0 &&
-    profile.genderIdentities.length > 0 &&
-    profile.genderGroups.length > 0 &&
-    preferences.genderGroups.length > 0 &&
-    profile.age >= 18 &&
-    profile.age <= 120 &&
-    adultConfirmed &&
-    dataUseAccepted;
+  const missingRequirements = [
+    profile.name.trim().length === 0 ? "Add your name." : null,
+    profile.city.trim().length === 0 ? "Add your city or region." : null,
+    profile.bio.trim().length === 0 ? "Add a short introduction." : null,
+    profile.prompt.trim().length === 0 ||
+    profile.promptAnswer.trim().length === 0
+      ? "Answer one profile prompt."
+      : null,
+    profile.values.length === 0 ? "Choose at least one value." : null,
+    profile.genderIdentities.length === 0
+      ? "Choose your gender identity."
+      : null,
+    profile.genderGroups.length === 0
+      ? "Choose who may discover your profile."
+      : null,
+    preferences.genderGroups.length === 0
+      ? "Choose at least one group you want to meet."
+      : null,
+    profile.age < 18 || profile.age > 120
+      ? "Enter an age between 18 and 120."
+      : null,
+    !adultConfirmed ? "Confirm that you are at least 18." : null,
+    !dataUseAccepted ? "Accept the prototype data use notice." : null,
+  ].filter((item): item is string => Boolean(item));
+  const valid = missingRequirements.length === 0;
   return (
     <div className="narrow">
       <p className="eyebrow">A small, honest beginning</p>
@@ -2766,7 +2778,11 @@ function OnboardingView({
             }
           />
         </label>
-        <BoundaryFields value={preferences} onChange={onPreferences} />
+        <BoundaryFields
+          value={preferences}
+          onChange={onPreferences}
+          showGenderError={validationAttempted}
+        />
       </section>
       <section className="settings-card">
         <h2>Your ordering priorities</h2>
@@ -2806,7 +2822,7 @@ function OnboardingView({
           anyone’s worth or predict chemistry.
         </p>
         <div className="prototype-consent">
-          <h3>Before opening the prototype</h3>
+          <h3>Before you continue</h3>
           <label>
             <input
               type="checkbox"
@@ -2849,23 +2865,52 @@ function OnboardingView({
             advertising, contact uploads, or hidden tracking.
           </p>
         </div>
-        <button
-          className="interest"
-          disabled={!valid || submitting}
-          onClick={() => {
-            setSubmitting(true);
-            setSubmitError(null);
-            void complete(directoryAccepted)
-              .catch(() =>
-                setSubmitError(
-                  "Setup was not completed. Your entries remain here, and no partial setup was applied. Retry when ready.",
-                ),
-              )
-              .finally(() => setSubmitting(false));
-          }}
-        >
-          {submitting ? "Saving setup…" : "See my introductions"}
-        </button>
+        <div className="setup-completion">
+          <div>
+            <h3>Ready to continue?</h3>
+            <p>
+              Your profile can be changed later. Next, you’ll see your
+              introductions.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="setup-primary-action"
+            disabled={submitting}
+            onClick={() => {
+              setValidationAttempted(true);
+              if (!valid) {
+                setSubmitError(null);
+                if (preferences.genderGroups.length === 0)
+                  document
+                    .getElementById("meeting-preferences")
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                return;
+              }
+              setSubmitting(true);
+              setSubmitError(null);
+              void complete(directoryAccepted)
+                .catch(() =>
+                  setSubmitError(
+                    "Setup was not completed. Your entries remain here, and no partial setup was applied. Retry when ready.",
+                  ),
+                )
+                .finally(() => setSubmitting(false));
+            }}
+          >
+            {submitting ? "Finishing setup…" : "Finish setup"}
+          </button>
+        </div>
+        {validationAttempted && !valid && (
+          <div className="setup-validation" role="alert">
+            <strong>Complete these items to continue:</strong>
+            <ul>
+              {missingRequirements.map((requirement) => (
+                <li key={requirement}>{requirement}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {submitError && (
           <p className="field-error" role="alert">
             {submitError}
@@ -2927,9 +2972,11 @@ function OnboardingView({
 function BoundaryFields({
   value,
   onChange,
+  showGenderError = false,
 }: {
   value: Preferences;
   onChange: (value: Preferences) => void;
+  showGenderError?: boolean;
 }) {
   const intents: Profile["intent"][] = [
     "Long-term relationship",
@@ -2938,7 +2985,19 @@ function BoundaryFields({
   ];
   return (
     <div className="boundary-fields">
-      <fieldset>
+      <fieldset
+        id="meeting-preferences"
+        className={
+          showGenderError && value.genderGroups.length === 0
+            ? "field-invalid"
+            : undefined
+        }
+        aria-describedby={
+          showGenderError && value.genderGroups.length === 0
+            ? "meeting-preferences-error"
+            : undefined
+        }
+      >
         <legend>People you are open to meeting</legend>
         {GENDER_DISCOVERY_GROUPS.map((group) => (
           <label key={group}>
@@ -2961,6 +3020,15 @@ function BoundaryFields({
           Private boundary. An introduction appears only when both people’s
           discovery choices include one another.
         </p>
+        {showGenderError && value.genderGroups.length === 0 && (
+          <p
+            id="meeting-preferences-error"
+            className="field-error"
+            role="alert"
+          >
+            Choose at least one option to continue.
+          </p>
+        )}
       </fieldset>
       <fieldset>
         <legend>Relationship intentions you are open to</legend>
