@@ -2259,6 +2259,43 @@ textarea {
   border: 1px solid #c9cec8;
   border-radius: 12px;
 }
+.sign-in-card input[aria-describedby] {
+  margin-bottom: 8px;
+}
+.password-feedback {
+  margin: 0 0 18px !important;
+  color: #8a3a31 !important;
+  font-size: 13px;
+  line-height: 1.4 !important;
+}
+.password-feedback.is-valid {
+  color: #286249 !important;
+}
+.password-checklist {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid #dedfd8;
+  border-radius: 12px;
+  background: #f8f8f4;
+  color: #7a3730;
+  font-size: 13px;
+  line-height: 1.4;
+  list-style: none;
+}
+.password-checklist li::before {
+  content: "○";
+  display: inline-block;
+  width: 20px;
+}
+.password-checklist li.is-valid {
+  color: #286249;
+}
+.password-checklist li.is-valid::before {
+  content: "✓";
+}
 .back-action {
   margin-top: 14px;
   border: 0;

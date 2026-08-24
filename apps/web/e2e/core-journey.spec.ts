@@ -555,16 +555,37 @@ test("first run through a persistent connection and safety action", async ({
   const passwordCard = page
     .getByRole("heading", { name: "Password", exact: true })
     .locator("..");
+  const changePasswordButton = page.getByRole("button", {
+    name: "Change password",
+  });
+  await expect(changePasswordButton).toBeDisabled();
+  await expect(
+    passwordCard.getByText("New password needs at least 15 characters (0/15)."),
+  ).toBeVisible();
   await passwordCard
     .getByLabel("Current password")
     .fill("a repeatable browser test password");
+  await page.getByLabel("New password", { exact: true }).fill("too short");
+  await page.getByLabel("Confirm new password").fill("not the same");
+  await expect(
+    passwordCard.getByText("New password needs at least 15 characters (9/15)."),
+  ).toBeVisible();
+  await expect(
+    passwordCard.getByText("New passwords do not match."),
+  ).toBeVisible();
+  await expect(changePasswordButton).toBeDisabled();
   await page
     .getByLabel("New password", { exact: true })
     .fill("a replacement browser test password");
   await page
     .getByLabel("Confirm new password")
     .fill("a replacement browser test password");
-  await page.getByRole("button", { name: "Change password" }).click();
+  await expect(
+    passwordCard.getByText("New password length is ready."),
+  ).toBeVisible();
+  await expect(passwordCard.getByText("New passwords match.")).toBeVisible();
+  await expect(changePasswordButton).toBeEnabled();
+  await changePasswordButton.click();
   await expect(
     page.getByText(/Password changed. Every other session was signed out/),
   ).toBeVisible();

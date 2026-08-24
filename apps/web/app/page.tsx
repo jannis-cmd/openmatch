@@ -2323,6 +2323,11 @@ function SignInPage({
         : null,
     [apiUrl],
   );
+  const choosingPassword = mode === "create" || mode === "reset";
+  const passwordLongEnough = password.length >= 15;
+  const resetPasswordsMatch =
+    mode !== "reset" ||
+    (confirmPassword.length > 0 && password === confirmPassword);
 
   return (
     <main className="sign-in-shell">
@@ -2468,8 +2473,22 @@ function SignInPage({
               maxLength={128}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              aria-describedby={
+                choosingPassword ? "sign-in-password-feedback" : undefined
+              }
               required
             />
+            {choosingPassword && (
+              <p
+                id="sign-in-password-feedback"
+                className={`password-feedback ${passwordLongEnough ? "is-valid" : ""}`}
+                aria-live="polite"
+              >
+                {passwordLongEnough
+                  ? "Password length is ready."
+                  : `Use at least 15 characters (${password.length}/15).`}
+              </p>
+            )}
           </>
         )}
         {mode === "reset" && (
@@ -2483,15 +2502,31 @@ function SignInPage({
               maxLength={128}
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
+              aria-describedby="confirm-reset-password-feedback"
               required
             />
+            <p
+              id="confirm-reset-password-feedback"
+              className={`password-feedback ${resetPasswordsMatch ? "is-valid" : ""}`}
+              aria-live="polite"
+            >
+              {!confirmPassword
+                ? "Enter the same password again."
+                : resetPasswordsMatch
+                  ? "Passwords match."
+                  : "Passwords do not match."}
+            </p>
           </>
         )}
         {authError && <p role="alert">{authError}</p>}
         <button
           className="primary-action"
           type="submit"
-          disabled={Boolean(demoError) || submitting}
+          disabled={
+            Boolean(demoError) ||
+            submitting ||
+            (choosingPassword && (!passwordLongEnough || !resetPasswordsMatch))
+          }
         >
           {submitting
             ? "Please wait…"
@@ -3903,6 +3938,12 @@ function ProfileView({
     draft.genderGroups.length > 0 &&
     draft.age >= 18 &&
     draft.age <= 120;
+  const currentPasswordEntered = currentPassword.length > 0;
+  const newPasswordLongEnough = newPassword.length >= 15;
+  const confirmedPasswordMatches =
+    confirmPassword.length > 0 && newPassword === confirmPassword;
+  const passwordChangeReady =
+    currentPasswordEntered && newPasswordLongEnough && confirmedPasswordMatches;
 
   return (
     <div className="narrow">
@@ -4638,6 +4679,7 @@ function ProfileView({
                 value={currentPassword}
                 maxLength={128}
                 onChange={(event) => setCurrentPassword(event.target.value)}
+                aria-describedby="password-change-requirements"
               />
             </label>
             <label>
@@ -4649,6 +4691,7 @@ function ProfileView({
                 minLength={15}
                 maxLength={128}
                 onChange={(event) => setNewPassword(event.target.value)}
+                aria-describedby="password-change-requirements"
               />
             </label>
             <label>
@@ -4660,16 +4703,33 @@ function ProfileView({
                 minLength={15}
                 maxLength={128}
                 onChange={(event) => setConfirmPassword(event.target.value)}
+                aria-describedby="password-change-requirements"
               />
             </label>
-            <button
-              type="submit"
-              disabled={
-                !currentPassword ||
-                newPassword.length < 15 ||
-                confirmPassword.length < 15
-              }
+            <ul
+              id="password-change-requirements"
+              className="password-checklist"
+              aria-live="polite"
             >
+              <li className={currentPasswordEntered ? "is-valid" : ""}>
+                {currentPasswordEntered
+                  ? "Current password entered."
+                  : "Enter your current password."}
+              </li>
+              <li className={newPasswordLongEnough ? "is-valid" : ""}>
+                {newPasswordLongEnough
+                  ? "New password length is ready."
+                  : `New password needs at least 15 characters (${newPassword.length}/15).`}
+              </li>
+              <li className={confirmedPasswordMatches ? "is-valid" : ""}>
+                {!confirmPassword
+                  ? "Enter the new password again."
+                  : confirmedPasswordMatches
+                    ? "New passwords match."
+                    : "New passwords do not match."}
+              </li>
+            </ul>
+            <button type="submit" disabled={!passwordChangeReady}>
               Change password
             </button>
           </form>
