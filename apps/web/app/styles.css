@@ -99,14 +99,22 @@ body {
   padding: 0 14px;
   background: #fbfbf8;
 }
+.password-field {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+}
 .password-input-wrap {
   position: relative;
   display: block;
-  grid-column: 1 / -1;
   width: 100%;
+  min-width: 0;
 }
 .password-input-wrap input {
   width: 100%;
+  min-width: 0;
   padding-right: 50px !important;
 }
 .password-input-wrap .password-visibility {
@@ -142,6 +150,12 @@ body {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+.password-limit {
+  color: #8a3a31;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 .admin-login .primary-action {
   width: 100%;
@@ -915,6 +929,21 @@ textarea {
   border-radius: 24px;
   padding: 90px 24px;
 }
+.loading-spinner {
+  display: block;
+  width: 28px;
+  height: 28px;
+  margin: 0 auto 14px;
+  border: 3px solid #d8e3dc;
+  border-top-color: #286249;
+  border-radius: 50%;
+  animation: loading-spin 700ms linear infinite;
+}
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .empty-mark {
   margin: auto;
   background: #dfeae3;
@@ -1180,6 +1209,69 @@ textarea {
 }
 .profile-fields label:last-child {
   grid-column: 1 / -1;
+}
+.settings-card
+  button:where(
+    :not(.password-visibility):not(.app-select-trigger):not(
+        .app-select-option
+      ):not(.text-button):not(.profile-save-button):not(.danger)
+  ) {
+  min-height: 42px;
+  width: fit-content;
+  border: 1px solid #cfd5ce;
+  border-radius: 999px;
+  background: #fff;
+  color: #234636;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 680;
+  cursor: pointer;
+}
+.settings-card
+  button:where(
+    :not(.password-visibility):not(.app-select-trigger):not(
+        .app-select-option
+      ):not(.text-button):not(.profile-save-button):not(.danger)
+  ):hover {
+  background: #f1f6f2;
+}
+.settings-card form button[type="submit"]:not(.danger),
+.preference-save-bar .inline-actions button:last-child {
+  min-height: 42px;
+  border: 1px solid #174d39;
+  border-radius: 999px;
+  background: #174d39;
+  color: #fff;
+  padding: 10px 18px;
+  font: inherit;
+  font-weight: 680;
+  cursor: pointer;
+}
+.settings-card button.danger {
+  min-height: 42px;
+  width: fit-content;
+  border: 1px solid #cdaaaa;
+  border-radius: 999px;
+  background: #fff;
+  color: #7a2f2f;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 680;
+  cursor: pointer;
+}
+.settings-card button.danger:hover {
+  background: #fbf2f1;
+}
+.settings-card button:disabled:not(.text-button):not(.password-visibility),
+.preference-save-bar button:disabled:not(.text-button) {
+  border-color: #d9ddd8 !important;
+  background: #ecefeb !important;
+  color: #7b827d !important;
+  cursor: not-allowed !important;
+}
+.text-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .profile-meta {
   color: #62665e;
@@ -1672,6 +1764,16 @@ textarea {
   }
   .onboarding-profile-grid {
     grid-template-columns: 1fr;
+  }
+  .profile-fields {
+    grid-template-columns: 1fr;
+  }
+  .profile-fields label,
+  .profile-fields label:last-child {
+    grid-column: 1 / -1;
+  }
+  .settings-card form button[type="submit"]:not(.danger) {
+    width: 100%;
   }
   .account-shortcuts {
     grid-template-columns: 1fr;
@@ -2303,13 +2405,13 @@ textarea {
   border: 1px solid #c9cec8;
   border-radius: 12px;
 }
-.sign-in-card .password-input-wrap {
+.sign-in-card .password-field {
   margin-bottom: 18px;
 }
 .sign-in-card .password-input-wrap input {
   margin-bottom: 0;
 }
-.sign-in-card .password-input-wrap:has(input[aria-describedby]) {
+.sign-in-card .password-field:has(input[aria-describedby]) {
   margin-bottom: 8px;
 }
 .sign-in-card input[aria-describedby] {

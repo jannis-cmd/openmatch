@@ -486,20 +486,6 @@ function AppExperience({
         nextSavedIntroductions,
         nextConnections,
         onboarding,
-        nextSuggestions,
-        nextAccountStatus,
-        nextDelivery,
-        nextTransparency,
-        nextReports,
-        nextResearchConsent,
-        nextAccountSessions,
-        nextDirectoryConsent,
-        nextEmailVerification,
-        nextEmailChange,
-        nextNotificationEmail,
-        nextAccountDeliveryStatus,
-        nextSecurityNotificationDelivery,
-        nextDatingDataModel,
       ] = await Promise.all([
         api.profile(),
         api.preferences(),
@@ -507,20 +493,6 @@ function AppExperience({
         api.savedIntroductions(),
         api.connections(),
         api.onboarding(),
-        api.preferenceSuggestions(),
-        api.accountStatus(),
-        api.deliverySettings(),
-        api.transparencyVersion(),
-        api.reports(),
-        api.researchConsent(),
-        api.sessions(),
-        api.directoryConsent(),
-        authToken ? api.emailVerification() : Promise.resolve(null),
-        authToken ? api.emailChange() : Promise.resolve(null),
-        authToken ? api.notificationEmail() : Promise.resolve(null),
-        api.accountDeliveryStatus(),
-        authToken ? api.securityNotificationStatus() : Promise.resolve(null),
-        api.datingDataModel(),
       ]);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
@@ -530,21 +502,39 @@ function AppExperience({
       setConnections(nextConnections.items);
       setPastConnections(nextConnections.pastItems);
       setOnboarded(onboarding.complete);
-      setSuggestions(nextSuggestions.items);
-      setPreferenceObservationCount(nextSuggestions.observationCount);
-      setAccountStatus(nextAccountStatus.status);
-      setDelivery(nextDelivery);
-      setTransparency(nextTransparency);
-      setReports(nextReports.items);
-      setResearchConsent(nextResearchConsent.receipt);
-      setAccountSessions(nextAccountSessions.items);
-      setDirectoryConsent(nextDirectoryConsent.receipt);
-      setEmailVerification(nextEmailVerification);
-      setEmailChange(nextEmailChange);
-      setNotificationEmail(nextNotificationEmail);
-      setAccountDeliveryStatus(nextAccountDeliveryStatus);
-      setSecurityNotificationDelivery(nextSecurityNotificationDelivery);
-      setDatingDataSettings(nextDatingDataModel.settings);
+      setLoading(false);
+      void Promise.all([
+        api.preferenceSuggestions().then((next) => {
+          setSuggestions(next.items);
+          setPreferenceObservationCount(next.observationCount);
+        }),
+        api.accountStatus().then((next) => setAccountStatus(next.status)),
+        api.deliverySettings().then(setDelivery),
+        api.transparencyVersion().then(setTransparency),
+        api.reports().then((next) => setReports(next.items)),
+        api.researchConsent().then((next) => setResearchConsent(next.receipt)),
+        api.sessions().then((next) => setAccountSessions(next.items)),
+        api
+          .directoryConsent()
+          .then((next) => setDirectoryConsent(next.receipt)),
+        ...(authToken
+          ? [
+              api.emailVerification().then(setEmailVerification),
+              api.emailChange().then(setEmailChange),
+              api.notificationEmail().then(setNotificationEmail),
+              api
+                .securityNotificationStatus()
+                .then(setSecurityNotificationDelivery),
+            ]
+          : []),
+        api.accountDeliveryStatus().then(setAccountDeliveryStatus),
+        api
+          .datingDataModel()
+          .then((next) => setDatingDataSettings(next.settings)),
+      ]).catch(() => {
+        // Secondary account details can retry through their own controls or
+        // the next full refresh without delaying the core matching screen.
+      });
     } catch {
       setError(
         "WhyMatch could not reach its configured service. Check your connection and retry.",
@@ -932,7 +922,8 @@ function AppExperience({
           )}
           {loading && (
             <div className="empty">
-              <p>Loading your private local data…</p>
+              <span className="loading-spinner" aria-hidden="true" />
+              <p>Opening WhyMatch…</p>
             </div>
           )}
           {!loading && error && (
@@ -2306,6 +2297,7 @@ const signInCopy = {
     showPassword: "Show",
     hidePassword: "Hide",
     passwordLengthReady: "Password length is ready.",
+    passwordTooLong: "Use 128 characters or fewer.",
     passwordProgress: (length: number) =>
       `Use at least 15 characters (${length}/15).`,
     repeatPassword: "Enter the same password again.",
@@ -2361,6 +2353,7 @@ const signInCopy = {
     showPassword: "Passwort anzeigen",
     hidePassword: "Passwort ausblenden",
     passwordLengthReady: "Das Passwort ist lang genug.",
+    passwordTooLong: "Verwende höchstens 128 Zeichen.",
     passwordProgress: (length: number) =>
       `Mindestens 15 Zeichen (${length}/15).`,
     repeatPassword: "Gib dasselbe Passwort erneut ein.",
@@ -2444,9 +2437,12 @@ function SignInPage({
   );
   const choosingPassword = mode === "create" || mode === "reset";
   const passwordLongEnough = password.length >= 15;
+  const passwordWithinLimit = password.length <= 128;
   const resetPasswordsMatch =
     mode !== "reset" ||
-    (confirmPassword.length > 0 && password === confirmPassword);
+    (confirmPassword.length > 0 &&
+      confirmPassword.length <= 128 &&
+      password === confirmPassword);
 
   return (
     <main className="sign-in-shell">
@@ -2596,6 +2592,7 @@ function SignInPage({
               }
               minLength={mode === "create" || mode === "reset" ? 15 : undefined}
               maxLength={128}
+              tooLongMessage={t.passwordTooLong}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               aria-describedby={
@@ -2610,7 +2607,9 @@ function SignInPage({
                 aria-live="polite"
               >
                 {passwordLongEnough
-                  ? t.passwordLengthReady
+                  ? passwordWithinLimit
+                    ? t.passwordLengthReady
+                    : `${t.passwordTooLong} (${password.length}/128)`
                   : t.passwordProgress(password.length)}
               </p>
             )}
@@ -2627,6 +2626,7 @@ function SignInPage({
               autoComplete="new-password"
               minLength={15}
               maxLength={128}
+              tooLongMessage={t.passwordTooLong}
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               aria-describedby="confirm-reset-password-feedback"
@@ -2639,9 +2639,11 @@ function SignInPage({
             >
               {!confirmPassword
                 ? t.repeatPassword
-                : resetPasswordsMatch
-                  ? t.passwordsMatch
-                  : t.passwordsDiffer}
+                : confirmPassword.length > 128
+                  ? `${t.passwordTooLong} (${confirmPassword.length}/128)`
+                  : resetPasswordsMatch
+                    ? t.passwordsMatch
+                    : t.passwordsDiffer}
             </p>
           </>
         )}
@@ -2652,6 +2654,7 @@ function SignInPage({
           disabled={
             Boolean(demoError) ||
             submitting ||
+            !passwordWithinLimit ||
             (choosingPassword && (!passwordLongEnough || !resetPasswordsMatch))
           }
         >
@@ -4064,11 +4067,18 @@ function ProfileView({
     draft.age >= 18 &&
     draft.age <= 120;
   const currentPasswordEntered = currentPassword.length > 0;
-  const newPasswordLongEnough = newPassword.length >= 15;
+  const currentPasswordWithinLimit = currentPassword.length <= 128;
+  const newPasswordLongEnough =
+    newPassword.length >= 15 && newPassword.length <= 128;
   const confirmedPasswordMatches =
-    confirmPassword.length > 0 && newPassword === confirmPassword;
+    confirmPassword.length > 0 &&
+    confirmPassword.length <= 128 &&
+    newPassword === confirmPassword;
   const passwordChangeReady =
-    currentPasswordEntered && newPasswordLongEnough && confirmedPasswordMatches;
+    currentPasswordEntered &&
+    currentPasswordWithinLimit &&
+    newPasswordLongEnough &&
+    confirmedPasswordMatches;
 
   return (
     <div className="narrow">
@@ -4836,22 +4846,34 @@ function ProfileView({
               className="password-checklist"
               aria-live="polite"
             >
-              <li className={currentPasswordEntered ? "is-valid" : ""}>
-                {currentPasswordEntered
+              <li
+                className={
+                  currentPasswordEntered && currentPasswordWithinLimit
+                    ? "is-valid"
+                    : ""
+                }
+              >
+                {currentPasswordEntered && currentPasswordWithinLimit
                   ? "Current password entered."
-                  : "Enter your current password."}
+                  : currentPassword.length > 128
+                    ? `Current password is too long (${currentPassword.length}/128).`
+                    : "Enter your current password."}
               </li>
               <li className={newPasswordLongEnough ? "is-valid" : ""}>
                 {newPasswordLongEnough
                   ? "New password length is ready."
-                  : `New password needs at least 15 characters (${newPassword.length}/15).`}
+                  : newPassword.length > 128
+                    ? `New password is too long (${newPassword.length}/128).`
+                    : `New password needs at least 15 characters (${newPassword.length}/15).`}
               </li>
               <li className={confirmedPasswordMatches ? "is-valid" : ""}>
                 {!confirmPassword
                   ? "Enter the new password again."
-                  : confirmedPasswordMatches
-                    ? "New passwords match."
-                    : "New passwords do not match."}
+                  : confirmPassword.length > 128
+                    ? `Password confirmation is too long (${confirmPassword.length}/128).`
+                    : confirmedPasswordMatches
+                      ? "New passwords match."
+                      : "New passwords do not match."}
               </li>
             </ul>
             <button type="submit" disabled={!passwordChangeReady}>

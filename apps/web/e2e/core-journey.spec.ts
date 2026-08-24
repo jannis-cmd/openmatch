@@ -379,8 +379,27 @@ test("first run through a persistent connection and safety action", async ({
       "If an account uses that email, a password-reset link has been sent.",
     ),
   ).toBeVisible();
+  let supplementalAccountDataFinished = false;
+  await page.route(
+    "**/v1/reports",
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_500));
+      supplementalAccountDataFinished = true;
+      await route.continue();
+    },
+    { times: 1 },
+  );
   await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByRole("textbox", { name: "Email" }).fill("taylor@example.com");
+  const accountPassword = page.getByLabel("Password", { exact: true });
+  await accountPassword.fill("x".repeat(140));
+  await expect(accountPassword).toHaveValue("x".repeat(140));
+  await expect(
+    page.getByText("Use 128 characters or fewer. (140/128)"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Create account", exact: true }),
+  ).toBeDisabled();
   await page
     .getByLabel("Password", { exact: true })
     .fill("a repeatable browser test password");
@@ -388,6 +407,7 @@ test("first run through a persistent connection and safety action", async ({
   await expect(
     page.getByRole("heading", { name: "Set your boundaries." }),
   ).toBeVisible();
+  expect(supplementalAccountDataFinished).toBe(false);
   const onboardingCard = await page
     .locator(".settings-card")
     .first()
@@ -615,6 +635,12 @@ test("first run through a persistent connection and safety action", async ({
     passwordCard.getByText("New passwords do not match."),
   ).toBeVisible();
   await expect(changePasswordButton).toBeDisabled();
+  await page.getByLabel("New password", { exact: true }).fill("x".repeat(140));
+  await page.getByLabel("Confirm new password").fill("x".repeat(140));
+  await expect(
+    passwordCard.getByText("New password is too long (140/128)."),
+  ).toBeVisible();
+  await expect(changePasswordButton).toBeDisabled();
   await page
     .getByLabel("New password", { exact: true })
     .fill("a replacement browser test password");
@@ -626,6 +652,17 @@ test("first run through a persistent connection and safety action", async ({
   ).toBeVisible();
   await expect(passwordCard.getByText("New passwords match.")).toBeVisible();
   await expect(changePasswordButton).toBeEnabled();
+  expect(
+    await changePasswordButton.evaluate((element) => ({
+      background: getComputedStyle(element).backgroundColor,
+      radius: getComputedStyle(element).borderRadius,
+      color: getComputedStyle(element).color,
+    })),
+  ).toEqual({
+    background: "rgb(23, 77, 57)",
+    radius: "999px",
+    color: "rgb(255, 255, 255)",
+  });
   await changePasswordButton.click();
   await expect(
     page.getByText(/Password changed. Every other session was signed out/),
