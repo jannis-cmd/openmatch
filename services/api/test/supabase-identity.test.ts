@@ -250,9 +250,9 @@ test("requests and completes a standard Supabase email password reset", async ()
   });
 });
 
-test("sends hosted Supabase API keys and uses its service-role credential", async () => {
+test("uses a hosted Supabase secret only as the admin apikey", async () => {
   const apiKey = "publishable-key";
-  const serviceRoleKey = "service-role-key";
+  const secretKey = "sb_secret_dedicated-backend-key";
   const user = {
     id: "770f2b61-9ac2-48b8-a60f-3c692a95e63d",
     email: "person@example.org",
@@ -281,7 +281,8 @@ test("sends hosted Supabase API keys and uses its service-role credential", asyn
     }) as typeof fetch,
     "",
     apiKey,
-    serviceRoleKey,
+    "",
+    secretKey,
   );
 
   await identity.deleteUser({
@@ -292,11 +293,11 @@ test("sends hosted Supabase API keys and uses its service-role credential", asyn
   });
 
   assert.ok(requests.length >= 2);
-  for (const request of requests)
+  for (const request of requests.filter(
+    ({ url }) => !url.includes("/admin/users/"),
+  ))
     assert.equal(request.headers.get("apikey"), apiKey);
   const deletion = requests.find(({ url }) => url.includes("/admin/users/"));
-  assert.equal(
-    deletion?.headers.get("authorization"),
-    `Bearer ${serviceRoleKey}`,
-  );
+  assert.equal(deletion?.headers.get("apikey"), secretKey);
+  assert.equal(deletion?.headers.get("authorization"), null);
 });

@@ -41,6 +41,8 @@ export class SupabaseIdentity {
     private readonly apiKey = process.env.OPENMATCH_SUPABASE_ANON_KEY ?? "",
     private readonly serviceRoleKey = process.env
       .OPENMATCH_SUPABASE_SERVICE_ROLE_KEY ?? "",
+    private readonly secretKey = process.env.OPENMATCH_SUPABASE_SECRET_KEY ??
+      "",
   ) {
     if (!url) throw new Error("OPENMATCH_SUPABASE_AUTH_URL is required");
     const parsed = new URL(url);
@@ -76,6 +78,11 @@ export class SupabaseIdentity {
 
   private headers(headers: Record<string, string> = {}) {
     return this.apiKey ? { apikey: this.apiKey, ...headers } : headers;
+  }
+
+  private adminHeaders() {
+    if (this.secretKey) return { apikey: this.secretKey };
+    return this.headers({ authorization: `Bearer ${this.serviceToken()}` });
   }
 
   private isPrivateDevelopmentUrl(url: URL) {
@@ -298,9 +305,7 @@ export class SupabaseIdentity {
       `${this.url}/admin/users/${encodeURIComponent(input.accountId)}`,
       {
         method: "DELETE",
-        headers: this.headers({
-          authorization: `Bearer ${this.serviceToken()}`,
-        }),
+        headers: this.adminHeaders(),
       },
     ).catch(() => null);
     if (!response) throw new AccountError("identity_service_unavailable", 503);
