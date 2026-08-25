@@ -2,6 +2,7 @@ FROM node:24-alpine
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+ENV NODE_EXTRA_CA_CERTS=/app/infra/dev/prod-ca-2021.crt
 WORKDIR /app
 
 RUN corepack enable
