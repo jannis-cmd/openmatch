@@ -2,7 +2,6 @@ FROM node:24-alpine
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-ENV NODE_EXTRA_CA_CERTS=/app/infra/dev/prod-ca-2021.crt
 WORKDIR /app
 
 RUN corepack enable
@@ -16,6 +15,7 @@ COPY services/api/package.json services/api/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+ENV NODE_EXTRA_CA_CERTS=/app/infra/dev/prod-ca-2021.crt
 RUN pnpm build:packages && pnpm --filter @openmatch/api build
 
 USER node
