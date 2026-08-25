@@ -1293,13 +1293,17 @@ export function createApp(
           if (identity) {
             if (!externalUser)
               throw new AccountError("authenticated_account_required", 409);
-            await identity.deleteUser({
+            const verified = await identity.verifyPassword({
               accountId: accountSession.accountId,
               email: externalUser.email,
               password: body.currentPassword,
               client: "unknown",
             });
             accounts.deleteExternalAccount(accountSession.accountId);
+            await identity.deleteCredentials(
+              accountSession.accountId,
+              verified.token,
+            );
           } else
             accounts.deleteAccount(
               accountSession.accountId,

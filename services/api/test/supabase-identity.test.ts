@@ -301,3 +301,80 @@ test("uses a hosted Supabase secret only as the admin apikey", async () => {
   assert.equal(deletion?.headers.get("apikey"), secretKey);
   assert.equal(deletion?.headers.get("authorization"), null);
 });
+
+test("cleans application references before deleting hosted credentials", async () => {
+  const user = {
+    id: "770f2b61-9ac2-48b8-a60f-3c692a95e63d",
+    email: "person@example.org",
+    email_confirmed_at: "2026-08-23T20:00:00.000Z",
+  };
+  const password = "a sufficiently long password";
+  let applicationDeleted = false;
+  let credentialsDeleted = false;
+  const identity = new SupabaseIdentity(
+    "http://127.0.0.1:9999",
+    (async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/token?grant_type=password"))
+        return new Response(
+          JSON.stringify({
+            user,
+            access_token: "user-token",
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        );
+      if (url.endsWith("/user") && (!init?.method || init.method === "GET"))
+        return new Response(JSON.stringify(user), { status: 200 });
+      if (url.endsWith(`/admin/users/${user.id}`)) {
+        assert.equal(applicationDeleted, true);
+        credentialsDeleted = true;
+        return new Response(JSON.stringify(user), { status: 200 });
+      }
+      if (url.endsWith("/logout")) return new Response(null, { status: 204 });
+      return new Response(null, { status: 404 });
+    }) as typeof fetch,
+    "a-development-jwt-secret-that-is-long-enough",
+  );
+  const accounts = new Accounts(":memory:", { dataDirectory: null });
+  const originalDelete = accounts.deleteExternalAccount.bind(accounts);
+  accounts.deleteExternalAccount = (accountId) => {
+    applicationDeleted = true;
+    return originalDelete(accountId);
+  };
+  const server = createApp({
+    accounts,
+    identity,
+    store: new Store(":memory:"),
+    demoSessionsEnabled: false,
+    emailVerificationSender: null,
+    securityNotificationSender: null,
+  }).listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.once("listening", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const base = `http://127.0.0.1:${address.port}`;
+  try {
+    const login = await fetch(base + "/v1/sessions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: user.email, password, client: "web" }),
+    });
+    assert.equal(login.status, 200);
+    const session = (await login.json()) as { token: string };
+    const deletion = await fetch(base + "/v1/account", {
+      method: "DELETE",
+      headers: {
+        authorization: `Bearer ${session.token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ currentPassword: password }),
+    });
+    assert.equal(deletion.status, 200);
+    assert.equal(credentialsDeleted, true);
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});

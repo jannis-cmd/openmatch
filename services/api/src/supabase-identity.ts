@@ -301,8 +301,12 @@ export class SupabaseIdentity {
     client: unknown;
   }) {
     const verified = await this.verifyPassword(input);
+    await this.deleteCredentials(input.accountId, verified.token);
+  }
+
+  async deleteCredentials(accountId: string, token: string) {
     const response = await this.fetcher(
-      `${this.url}/admin/users/${encodeURIComponent(input.accountId)}`,
+      `${this.url}/admin/users/${encodeURIComponent(accountId)}`,
       {
         method: "DELETE",
         headers: this.adminHeaders(),
@@ -313,7 +317,7 @@ export class SupabaseIdentity {
       const body = await this.body(response);
       throw this.authError(response, body);
     }
-    await this.signOut(verified.token);
+    await this.signOut(token);
   }
 
   async authenticate(token: string) {

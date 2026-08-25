@@ -957,9 +957,12 @@ export class Accounts {
       .all(accountId) as Array<{ id: string }>;
     for (const { id } of peerAccountIds)
       this.store(id).eraseDeletedAccount(accountId);
-    const store = this.store(accountId);
-    if (resetApplicationData) store.reset();
-    store.close();
+    const cachedStore = this.stores.get(accountId);
+    if (resetApplicationData) {
+      const store = cachedStore ?? this.store(accountId);
+      store.reset();
+      store.close();
+    } else cachedStore?.close();
     this.stores.delete(accountId);
     this.db
       .prepare(
