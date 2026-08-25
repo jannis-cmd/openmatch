@@ -71,6 +71,7 @@ export type ApplicationDatabase = {
   exec(sql: string): void;
   prepare(sql: string): DatabaseStatement;
   close(): void;
+  eraseDeletedAccountEverywhere?(profileId: string): void;
 };
 
 export class PostgresDatabaseSync implements ApplicationDatabase {
@@ -135,6 +136,60 @@ export class PostgresDatabaseSync implements ApplicationDatabase {
         };
       },
     };
+  }
+
+  eraseDeletedAccountEverywhere(profileId: string) {
+    this.query("BEGIN");
+    try {
+      this.query(
+        `DELETE FROM app.account_messages AS message
+         WHERE message.sender_id=? OR EXISTS (
+           SELECT 1 FROM app.account_connections AS connection
+           WHERE connection.account_id=message.account_id
+             AND connection.id=message.connection_id
+             AND connection.profile_id=?
+         )`,
+        [profileId, profileId],
+      );
+      this.query(
+        `DELETE FROM app.account_connection_outcomes AS outcome
+         WHERE EXISTS (
+           SELECT 1 FROM app.account_connections AS connection
+           WHERE connection.account_id=outcome.account_id
+             AND connection.id=outcome.connection_id
+             AND connection.profile_id=?
+         )`,
+        [profileId],
+      );
+      this.query(
+        `DELETE FROM app.account_data_model_records AS record
+         WHERE record.subject_id=? OR EXISTS (
+           SELECT 1 FROM app.account_connections AS connection
+           WHERE connection.account_id=record.account_id
+             AND connection.id=record.subject_id
+             AND connection.profile_id=?
+         )`,
+        [profileId, profileId],
+      );
+      for (const table of [
+        "connections",
+        "decisions",
+        "preference_observations",
+        "blocks",
+        "reports",
+        "saved_introductions",
+      ])
+        this.query(`DELETE FROM app.account_${table} WHERE profile_id=?`, [
+          profileId,
+        ]);
+      this.query(
+        "UPDATE app.account_state SET value='null' WHERE key='introduction_batch'",
+      );
+      this.query("COMMIT");
+    } catch (error) {
+      this.query("ROLLBACK");
+      throw error;
+    }
   }
 
   close() {

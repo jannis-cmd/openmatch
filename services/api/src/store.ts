@@ -1216,6 +1216,11 @@ export class Store {
       throw error;
     }
   }
+  eraseDeletedAccountEverywhere(profileId: string) {
+    if (!this.db.eraseDeletedAccountEverywhere) return false;
+    this.db.eraseDeletedAccountEverywhere(profileId);
+    return true;
+  }
   close() {
     this.db.close();
   }

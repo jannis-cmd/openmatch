@@ -952,12 +952,14 @@ export class Accounts {
       .prepare("SELECT id FROM accounts WHERE id=?")
       .get(accountId) as { id: string } | undefined;
     if (!account) return false;
-    const peerAccountIds = this.db
-      .prepare("SELECT id FROM accounts WHERE id<>? ORDER BY id")
-      .all(accountId) as Array<{ id: string }>;
-    for (const { id } of peerAccountIds)
-      this.store(id).eraseDeletedAccount(accountId);
     const cachedStore = this.stores.get(accountId);
+    if (!cachedStore?.eraseDeletedAccountEverywhere(accountId)) {
+      const peerAccountIds = this.db
+        .prepare("SELECT id FROM accounts WHERE id<>? ORDER BY id")
+        .all(accountId) as Array<{ id: string }>;
+      for (const { id } of peerAccountIds)
+        this.store(id).eraseDeletedAccount(accountId);
+    }
     if (resetApplicationData) {
       const store = cachedStore ?? this.store(accountId);
       store.reset();
