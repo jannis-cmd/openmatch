@@ -249,3 +249,54 @@ test("requests and completes a standard Supabase email password reset", async ()
     password: "a replacement sufficiently long password",
   });
 });
+
+test("sends hosted Supabase API keys and uses its service-role credential", async () => {
+  const apiKey = "publishable-key";
+  const serviceRoleKey = "service-role-key";
+  const user = {
+    id: "770f2b61-9ac2-48b8-a60f-3c692a95e63d",
+    email: "person@example.org",
+    email_confirmed_at: "2026-08-23T20:00:00.000Z",
+  };
+  const requests: Array<{ url: string; headers: Headers }> = [];
+  const identity = new SupabaseIdentity(
+    "https://project.supabase.co/auth/v1",
+    (async (input, init) => {
+      const url = String(input);
+      const headers = new Headers(init?.headers);
+      requests.push({ url, headers });
+      if (url.endsWith("/token?grant_type=password"))
+        return new Response(
+          JSON.stringify({
+            user,
+            access_token: "user-token",
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        );
+      if (url.endsWith(`/admin/users/${user.id}`))
+        return new Response(JSON.stringify(user), { status: 200 });
+      if (url.endsWith("/logout")) return new Response(null, { status: 204 });
+      return new Response(null, { status: 404 });
+    }) as typeof fetch,
+    "",
+    apiKey,
+    serviceRoleKey,
+  );
+
+  await identity.deleteUser({
+    accountId: user.id,
+    email: user.email,
+    password: "a sufficiently long password",
+    client: "web",
+  });
+
+  assert.ok(requests.length >= 2);
+  for (const request of requests)
+    assert.equal(request.headers.get("apikey"), apiKey);
+  const deletion = requests.find(({ url }) => url.includes("/admin/users/"));
+  assert.equal(
+    deletion?.headers.get("authorization"),
+    `Bearer ${serviceRoleKey}`,
+  );
+});

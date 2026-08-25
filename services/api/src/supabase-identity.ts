@@ -38,6 +38,9 @@ export class SupabaseIdentity {
     private readonly fetcher: typeof fetch = fetch,
     private readonly jwtSecret = process.env.OPENMATCH_SUPABASE_JWT_SECRET ??
       "",
+    private readonly apiKey = process.env.OPENMATCH_SUPABASE_ANON_KEY ?? "",
+    private readonly serviceRoleKey = process.env
+      .OPENMATCH_SUPABASE_SERVICE_ROLE_KEY ?? "",
   ) {
     if (!url) throw new Error("OPENMATCH_SUPABASE_AUTH_URL is required");
     const parsed = new URL(url);
@@ -52,6 +55,7 @@ export class SupabaseIdentity {
   }
 
   private serviceToken() {
+    if (this.serviceRoleKey) return this.serviceRoleKey;
     if (!this.jwtSecret)
       throw new AccountError("identity_admin_not_configured", 503);
     const encoded = (value: object) =>
@@ -68,6 +72,10 @@ export class SupabaseIdentity {
       .update(unsigned)
       .digest("base64url");
     return `${unsigned}.${signature}`;
+  }
+
+  private headers(headers: Record<string, string> = {}) {
+    return this.apiKey ? { apikey: this.apiKey, ...headers } : headers;
   }
 
   private isPrivateDevelopmentUrl(url: URL) {
@@ -146,7 +154,7 @@ export class SupabaseIdentity {
   ): Promise<PendingRegistration | ReturnType<SupabaseIdentity["session"]>> {
     const response = await this.fetcher(`${this.url}/signup`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: this.headers({ "content-type": "application/json" }),
       body: JSON.stringify({ email, password }),
     }).catch(() => null);
     if (!response) throw new AccountError("identity_service_unavailable", 503);
@@ -162,7 +170,7 @@ export class SupabaseIdentity {
       `${this.url}/token?grant_type=password`,
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: this.headers({ "content-type": "application/json" }),
         body: JSON.stringify({ email, password }),
       },
     ).catch(() => null);
@@ -179,7 +187,7 @@ export class SupabaseIdentity {
       `${this.url}/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
       {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: this.headers({ "content-type": "application/json" }),
         body: JSON.stringify({ email: emailValue.trim().toLowerCase() }),
       },
     ).catch(() => null);
@@ -207,10 +215,10 @@ export class SupabaseIdentity {
     if (!user) throw new AccountError("invalid_recovery", 400);
     const response = await this.fetcher(`${this.url}/user`, {
       method: "PUT",
-      headers: {
+      headers: this.headers({
         authorization: `Bearer ${input.recoveryToken}`,
         "content-type": "application/json",
-      },
+      }),
       body: JSON.stringify({ password: input.newPassword }),
     }).catch(() => null);
     if (!response) throw new AccountError("identity_service_unavailable", 503);
@@ -244,10 +252,10 @@ export class SupabaseIdentity {
       throw new AccountError("invalid_current_password", 400);
     const response = await this.fetcher(`${this.url}/user`, {
       method: "PUT",
-      headers: {
+      headers: this.headers({
         authorization: `Bearer ${current.token}`,
         "content-type": "application/json",
-      },
+      }),
       body: JSON.stringify({ password: input.newPassword }),
     }).catch(() => null);
     if (!response) throw new AccountError("identity_service_unavailable", 503);
@@ -290,7 +298,9 @@ export class SupabaseIdentity {
       `${this.url}/admin/users/${encodeURIComponent(input.accountId)}`,
       {
         method: "DELETE",
-        headers: { authorization: `Bearer ${this.serviceToken()}` },
+        headers: this.headers({
+          authorization: `Bearer ${this.serviceToken()}`,
+        }),
       },
     ).catch(() => null);
     if (!response) throw new AccountError("identity_service_unavailable", 503);
@@ -303,7 +313,7 @@ export class SupabaseIdentity {
 
   async authenticate(token: string) {
     const response = await this.fetcher(`${this.url}/user`, {
-      headers: { authorization: `Bearer ${token}` },
+      headers: this.headers({ authorization: `Bearer ${token}` }),
     }).catch(() => null);
     if (!response?.ok) return undefined;
     const user = (await response.json().catch(() => null)) as AuthUser | null;
@@ -318,7 +328,7 @@ export class SupabaseIdentity {
   async signOut(token: string) {
     await this.fetcher(`${this.url}/logout`, {
       method: "POST",
-      headers: { authorization: `Bearer ${token}` },
+      headers: this.headers({ authorization: `Bearer ${token}` }),
     }).catch(() => null);
   }
 }

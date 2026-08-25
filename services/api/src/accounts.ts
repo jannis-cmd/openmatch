@@ -865,7 +865,10 @@ export class Accounts {
         {
           accountProfile: true,
           accountId,
-          postgresUrl: process.env.OPENMATCH_POSTGRES_URL ?? null,
+          postgresUrl:
+            process.env.OPENMATCH_HOSTED_POSTGRES_URL ||
+            process.env.OPENMATCH_POSTGRES_URL ||
+            null,
         },
       );
       this.stores.set(accountId, store);

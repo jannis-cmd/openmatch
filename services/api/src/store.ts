@@ -180,7 +180,9 @@ export class Store {
     const postgresUrl =
       options.postgresUrl === undefined
         ? this.accountProfile
-          ? (process.env.OPENMATCH_POSTGRES_URL ?? null)
+          ? process.env.OPENMATCH_HOSTED_POSTGRES_URL ||
+            process.env.OPENMATCH_POSTGRES_URL ||
+            null
           : null
         : options.postgresUrl;
     if (postgresUrl) {

@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+const apiBase = `http://127.0.0.1:${process.env.OPENMATCH_E2E_API_PORT ?? "4000"}`;
+
 const expectAccessible = async (page: Page) => {
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -174,7 +176,6 @@ test("an incomplete account can delete itself from the public web path", async (
   page,
   request,
 }) => {
-  const apiBase = "http://127.0.0.1:4000";
   const email = "incomplete-delete@example.org";
   const password = "an incomplete deletion password";
   const created = await request.post(apiBase + "/v1/accounts", {
@@ -236,7 +237,6 @@ test("first run through a persistent connection and safety action", async ({
   request,
 }) => {
   test.setTimeout(60_000);
-  const apiBase = "http://127.0.0.1:4000";
   const seedAccount = async (
     name: string,
     age: number,
