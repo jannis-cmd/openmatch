@@ -8,27 +8,31 @@ The current live matcher still uses the smaller published deterministic model. L
 
 This repository is a verified pre-alpha development foundation, not a deployable dating service. The narrow local-demo scope is complete enough to extend without replacing its architecture.
 
-## Shared self-hosted development deployment
+## Hosted Supabase development deployment
 
-The Tailnet-only `myna-1` environment runs PostgreSQL 17, Supabase Auth
-(GoTrue), Mailpit, Caddy, the WhyMatch API, and the web app. Registration,
-out-of-band email confirmation, login, authenticated API access, sign-out,
-password change, and permanent credential/application-data deletion use the
-GoTrue identity boundary. Twenty fictional, fully onboarded accounts exercise
-the real reciprocal account-directory path. This is a development deployment:
-application profile/interaction data is authoritative in normalized,
-account-scoped PostgreSQL tables. Twenty-one historical SQLite stores were
-imported transactionally with matching canonical source/destination hashes; the
-one obsolete synthetic smoke account was then removed from GoTrue, the local
-identity mirror, PostgreSQL application data, and migration audit, leaving the
-intended 20 fictional profiles and 20 audit rows. A PostgreSQL-only restart
-restored an existing profile and five introductions with zero active account
-SQLite files. Transport is private Tailnet HTTP, and
-the custom recovery-code, primary-email-change, and
-backup-notification-address flows are not yet migrated to GoTrue. The current
-synchronous per-account PostgreSQL worker bridge must become an asynchronous
-pooled repository before scale testing. It is not a public beta or production
-system.
+The Tailnet-only `myna-1` API and web app now use the managed WhyMatch Supabase
+project for Auth and authoritative, normalized, account-scoped PostgreSQL
+application data. All 26 Auth users and identities, their password hashes, and
+210 application-state rows were migrated and verified before cutover. Existing
+passwords therefore remain valid, while pre-cutover sessions must sign in
+again. Browser and mobile clients still talk only to the WhyMatch API and never
+receive the database or backend secret credentials.
+
+The API reaches PostgreSQL through Supabase's IPv4 transaction pooler with full
+hostname and CA verification. Permanent deletion verifies the current password,
+removes cross-profile references in one PostgreSQL transaction, then deletes
+the hosted credential so Supabase cascades the person's remaining application
+rows. A live create, login, profile, and permanent-delete journey passed after
+cutover. The previous local PostgreSQL/GoTrue containers remain running only as
+a temporary rollback source and are no longer authoritative.
+
+Twenty fictional, fully onboarded accounts continue to exercise the reciprocal
+account-directory path. This remains a development deployment, not a public
+beta or production system. Supabase's built-in test mailer is rate-limited and
+is not sufficient for an invited pilot; Brevo SMTP, a verified WhyMatch sender
+domain, bounce/complaint operations, and delivery monitoring remain required.
+The synchronous PostgreSQL worker bridge must still become an asynchronous
+pooled repository before scale testing.
 
 ## Implemented and verified
 

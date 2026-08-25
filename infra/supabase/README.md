@@ -13,7 +13,7 @@ receive database credentials or the Supabase backend secret key. Supabase Auth
 passwords, sessions, confirmation links, and recovery links remain owned by
 the hosted Auth service.
 
-IPv4-only application hosts should use Supabase's session pooler with
+IPv4-only application hosts should use Supabase's transaction pooler with
 `sslmode=verify-full`. The API image trusts the Supabase Root 2021 CA published
 by Supabase at
 `https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt`.
