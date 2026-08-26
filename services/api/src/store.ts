@@ -677,6 +677,9 @@ export class Store {
   clearIntroductionBatch() {
     this.setState("introduction_batch", null);
   }
+  directoryCandidateSnapshots(viewerId: string) {
+    return this.db.directoryCandidateSnapshots?.(viewerId) ?? null;
+  }
   decidedIds() {
     return new Set(
       (

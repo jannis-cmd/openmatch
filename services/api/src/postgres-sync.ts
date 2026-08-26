@@ -67,11 +67,16 @@ export type DatabaseStatement = {
   get: (...parameters: unknown[]) => unknown;
   run: (...parameters: unknown[]) => DatabaseRunResult;
 };
+export type DirectoryCandidateSnapshot = {
+  accountId: string;
+  state: Record<string, string>;
+};
 export type ApplicationDatabase = {
   exec(sql: string): void;
   prepare(sql: string): DatabaseStatement;
   close(): void;
   eraseDeletedAccountEverywhere?(profileId: string): void;
+  directoryCandidateSnapshots?(viewerId: string): DirectoryCandidateSnapshot[];
 };
 
 export class PostgresDatabaseSync implements ApplicationDatabase {
@@ -190,6 +195,31 @@ export class PostgresDatabaseSync implements ApplicationDatabase {
       this.query("ROLLBACK");
       throw error;
     }
+  }
+
+  directoryCandidateSnapshots(viewerId: string) {
+    const result = this.query(
+      `SELECT state.account_id::text AS "accountId",
+              jsonb_object_agg(state.key,state.value) AS state
+       FROM app.account_state AS state
+       WHERE state.account_id<>app.current_account_id()
+         AND state.key IN (
+           'profile','preferences','onboarding_complete','consent_receipt',
+           'directory_consent_receipt','account_status'
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM app.account_blocks AS block
+           WHERE block.account_id=state.account_id AND block.profile_id=?
+         )
+         AND NOT EXISTS (
+           SELECT 1 FROM app.account_reports AS report
+           WHERE report.account_id=state.account_id AND report.profile_id=?
+         )
+       GROUP BY state.account_id
+       ORDER BY state.account_id`,
+      [viewerId, viewerId],
+    );
+    return result.rows as DirectoryCandidateSnapshot[];
   }
 
   close() {

@@ -13,9 +13,16 @@ import {
   directoryParticipationIsActive,
   Store,
   type AccountDeliveryAction,
+  type AccountStatus,
+  type DirectoryConsentReceipt,
 } from "./store.js";
 import type { SecurityNotificationEvent } from "./email-verification.js";
-import type { Candidate, PublicProfile } from "@openmatch/matching";
+import type {
+  Candidate,
+  Preferences,
+  Profile,
+  PublicProfile,
+} from "@openmatch/matching";
 import { migrateSqlite } from "./migrations.js";
 
 export const ACCOUNT_SCHEMA_VERSION = 3;
@@ -911,15 +918,48 @@ export class Accounts {
 
   candidatesFor(accountId: string): Candidate[] {
     const viewer = this.accountStore(accountId);
-    if (
-      !viewer ||
-      viewer.accountStatus() !== "active" ||
-      !this.candidate(accountId)
-    )
+    const viewerCandidate = viewer ? this.candidate(accountId) : undefined;
+    if (!viewer || viewer.accountStatus() !== "active" || !viewerCandidate)
       return [];
     const accountIds = this.db
       .prepare("SELECT id FROM accounts WHERE id<>? ORDER BY created_at,id")
       .all(accountId) as Array<{ id: string }>;
+    const knownAccountIds = new Set(accountIds.map(({ id }) => id));
+    const snapshots = viewer.directoryCandidateSnapshots(accountId);
+    if (snapshots)
+      return snapshots.flatMap(({ accountId: candidateId, state }) => {
+        if (!knownAccountIds.has(candidateId)) return [];
+        try {
+          const profile = JSON.parse(state.profile) as Profile;
+          const preferences = JSON.parse(state.preferences) as Preferences;
+          const onboarded = JSON.parse(state.onboarding_complete) as boolean;
+          const consent = JSON.parse(state.consent_receipt) as unknown;
+          const directoryConsent = JSON.parse(
+            state.directory_consent_receipt,
+          ) as DirectoryConsentReceipt | null;
+          const status = JSON.parse(state.account_status) as AccountStatus;
+          if (
+            status !== "active" ||
+            !onboarded ||
+            !consent ||
+            !directoryParticipationIsActive(directoryConsent) ||
+            !profile.genderIdentities.length ||
+            !profile.genderGroups.length ||
+            !preferences.genderGroups.length ||
+            !this.sameRegion(viewerCandidate.profile.city, profile.city)
+          )
+            return [];
+          return [
+            {
+              profile: { ...profile, id: candidateId, distanceKm: 0 },
+              preferences,
+              explanationSharing: "private" as const,
+            },
+          ];
+        } catch {
+          return [];
+        }
+      });
     return accountIds.flatMap(({ id }) => {
       const candidateStore = this.accountStore(id);
       const candidate = this.candidate(id);
