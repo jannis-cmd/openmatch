@@ -513,6 +513,20 @@ test("first run through a persistent connection and safety action", async ({
   await page.getByRole("button", { name: "Finish setup" }).click();
 
   await expect(page.getByRole("heading", { name: "3 left" })).toBeVisible();
+  await page.getByRole("button", { name: "DE", exact: true }).click();
+  await expect(
+    page.getByText("Deine Vorschläge", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "3 übrig" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Heute" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Präferenzen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Konto" })).toBeVisible();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+  await expect(
+    page.getByText("Your introductions", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "3 left" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Today" })).toBeVisible();
   await expect(page.getByText("Doesn’t smoke").first()).toBeVisible();
   await expect(page.getByText(/children/).first()).toBeVisible();
   await expect(page.getByText(/schedule/).first()).toBeVisible();

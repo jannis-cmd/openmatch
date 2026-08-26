@@ -76,6 +76,189 @@ import {
 type View = "today" | "connections" | "preferences" | "profile" | "about";
 type SiteView = "landing" | "sign-in" | "app";
 
+const appShellCopy = {
+  en: {
+    nonprofit: "Nonprofit · Open source",
+    primaryNavigation: "Primary navigation",
+    today: "Today",
+    matches: "Matches",
+    preferences: "Preferences",
+    account: "Account",
+    howItWorks: "How it works",
+    sideNote: ["No ads", "No premium ranking", "No infinite feed"],
+    opening: "Opening WhyMatch…",
+    couldNotConnect: "Couldn’t connect",
+    retry: "Retry",
+    introductionsPaused: "Introductions paused",
+    profileHidden: "Profile hidden",
+    pausedExplanation:
+      "You will not receive new introductions until you resume.",
+    hiddenExplanation:
+      "Your profile is not available for introductions until you make it visible.",
+    resume: "Resume",
+    yourIntroductions: "Your introductions",
+    remaining: (count: number) => `${count} left`,
+    caughtUp: "You’re all caught up",
+    finiteSet: "A finite set. Take your time.",
+    introductionLabel: (name: string) =>
+      `Introduction: ${name}. Swipe left for no or right for yes.`,
+    no: "No",
+    yes: "Yes",
+    profilePhotoFor: (name: string) => `Profile photo for ${name}`,
+    profilePhotoOf: (name: string) => `Profile photo of ${name}`,
+    fit: "fit",
+    hideMatchDetails: "Hide match details",
+    whyThisMatch: "Why this match?",
+    fitNotChemistry: "This is preference fit, not predicted chemistry.",
+    yourDirectedFit: "Your directed fit",
+    theirDirectedFit: "Their directed fit",
+    privateFactors:
+      "Their factor weights are private personal inputs. The score uses the published formula and no undocumented system factors.",
+    explicitInputs: "Explicit inputs only · No undocumented system factors.",
+    saveForLater: "Save for later",
+    yourChoice: "Your choice",
+    noTo: (name: string) => `No to ${name}`,
+    yesTo: (name: string) => `Yes to ${name}`,
+    savingChoice: "Saving choice…",
+    savingDecision: "Saving decision…",
+    privateDecision: "Your decision is private unless interest is mutual.",
+    wholeSet: "That’s the whole set.",
+    savedProfiles:
+      "Saved profiles stay here until you return them, decide, or delete this local prototype.",
+    nextBatch: (date: string) =>
+      `No endless feed and no recycling decisions. The next weekly batch window begins ${date}. Only newly eligible profiles may appear.`,
+    later: "later",
+    backToBatch: "Back to current batch",
+  },
+  de: {
+    nonprofit: "Gemeinnützig · Open Source",
+    primaryNavigation: "Hauptnavigation",
+    today: "Heute",
+    matches: "Matches",
+    preferences: "Präferenzen",
+    account: "Konto",
+    howItWorks: "So funktioniert es",
+    sideNote: ["Keine Werbung", "Kein Premium-Ranking", "Kein Endlos-Feed"],
+    opening: "WhyMatch wird geöffnet…",
+    couldNotConnect: "Verbindung fehlgeschlagen",
+    retry: "Erneut versuchen",
+    introductionsPaused: "Vorschläge pausiert",
+    profileHidden: "Profil verborgen",
+    pausedExplanation:
+      "Du erhältst keine neuen Vorschläge, bis du sie wieder aktivierst.",
+    hiddenExplanation:
+      "Dein Profil ist für Vorschläge nicht sichtbar, bis du es wieder freigibst.",
+    resume: "Fortsetzen",
+    yourIntroductions: "Deine Vorschläge",
+    remaining: (count: number) => `${count} übrig`,
+    caughtUp: "Du bist auf dem neuesten Stand",
+    finiteSet: "Eine begrenzte Auswahl. Nimm dir Zeit.",
+    introductionLabel: (name: string) =>
+      `Vorschlag: ${name}. Wische nach links für Nein oder nach rechts für Ja.`,
+    no: "Nein",
+    yes: "Ja",
+    profilePhotoFor: (name: string) => `Profilfoto von ${name}`,
+    profilePhotoOf: (name: string) => `Profilfoto von ${name}`,
+    fit: "Passung",
+    hideMatchDetails: "Details ausblenden",
+    whyThisMatch: "Warum dieser Vorschlag?",
+    fitNotChemistry:
+      "Das ist eine Präferenz-Passung, keine Vorhersage von Chemie.",
+    yourDirectedFit: "Deine gerichtete Passung",
+    theirDirectedFit: "Die gerichtete Passung der anderen Person",
+    privateFactors:
+      "Die Gewichtungen der anderen Person sind private Angaben. Der Wert verwendet die veröffentlichte Formel und keine undokumentierten Systemfaktoren.",
+    explicitInputs:
+      "Nur ausdrückliche Angaben · Keine undokumentierten Systemfaktoren.",
+    saveForLater: "Für später speichern",
+    yourChoice: "Deine Entscheidung",
+    noTo: (name: string) => `Nein zu ${name}`,
+    yesTo: (name: string) => `Ja zu ${name}`,
+    savingChoice: "Auswahl wird gespeichert…",
+    savingDecision: "Entscheidung wird gespeichert…",
+    privateDecision:
+      "Deine Entscheidung bleibt privat, solange das Interesse nicht gegenseitig ist.",
+    wholeSet: "Das war die gesamte Auswahl.",
+    savedProfiles:
+      "Gespeicherte Profile bleiben hier, bis du sie zurücklegst, dich entscheidest oder diesen lokalen Prototyp löschst.",
+    nextBatch: (date: string) =>
+      `Kein Endlos-Feed und keine wiederholten Entscheidungen. Das nächste wöchentliche Zeitfenster beginnt ${date}. Es können nur neu passende Profile erscheinen.`,
+    later: "später",
+    backToBatch: "Zurück zur aktuellen Auswahl",
+  },
+} as const;
+
+const germanProductLabels: Record<string, string> = {
+  Woman: "Frau",
+  Man: "Mann",
+  Nonbinary: "Nichtbinär",
+  Agender: "Agender",
+  Genderfluid: "Genderfluid",
+  Questioning: "Noch offen",
+  "Self-described": "Selbst beschrieben",
+  Women: "Frauen",
+  Men: "Männer",
+  "Nonbinary people": "Nichtbinäre Personen",
+  "Long-term relationship": "Feste Beziehung",
+  "Long-term, open to short": "Langfristig, offen für Kurzfristiges",
+  "Still figuring it out": "Noch nicht sicher",
+  "Prefer to chat first": "Erst schreiben",
+  "Ready to meet in person": "Bereit für ein persönliches Treffen",
+  Kindness: "Freundlichkeit",
+  Curiosity: "Neugier",
+  Community: "Gemeinschaft",
+  Creativity: "Kreativität",
+  Nature: "Natur",
+  Independence: "Unabhängigkeit",
+  Family: "Familie",
+  Growth: "Entwicklung",
+  Stability: "Stabilität",
+  Adventure: "Abenteuer",
+  Humor: "Humor",
+  Care: "Fürsorge",
+  "A good Sunday looks like": "Ein guter Sonntag sieht so aus",
+  "Something I care about": "Etwas, das mir wichtig ist",
+  "I feel most myself when": "Ich bin ganz ich selbst, wenn",
+  "A small thing that matters": "Eine Kleinigkeit, die mir wichtig ist",
+  "My ideal first meeting": "Mein ideales erstes Treffen",
+  "I’m currently excited about": "Darauf freue ich mich gerade",
+  "Do not smoke": "Rauche nicht",
+  "Smoke sometimes": "Rauche manchmal",
+  "Doesn’t smoke": "Raucht nicht",
+  "Smokes sometimes": "Raucht manchmal",
+  "Want children": "Möchte Kinder",
+  "Wants children": "Möchte Kinder",
+  "Open to children": "Offen für Kinder",
+  "Open about children": "Offen beim Kinderwunsch",
+  "Do not want children": "Möchte keine Kinder",
+  "Does not want children": "Möchte keine Kinder",
+  "Usually early": "Meist früh",
+  "Early schedule": "Früher Tagesrhythmus",
+  Flexible: "Flexibel",
+  "Flexible schedule": "Flexibler Tagesrhythmus",
+  "Usually late": "Meist spät",
+  "Late schedule": "Später Tagesrhythmus",
+  "Non-smoking only": "Nur Nichtraucher:innen",
+  "No boundary": "Keine feste Grenze",
+  Off: "Aus",
+  Low: "Niedrig",
+  Medium: "Mittel",
+  High: "Hoch",
+  proximity: "Nähe",
+  values: "Werte",
+  lifestyle: "Lebensstil",
+  schedule: "Tagesrhythmus",
+};
+
+const productLabel = (locale: "en" | "de", value: string) =>
+  locale === "de" ? (germanProductLabels[value] ?? value) : value;
+
+const productLabels = (locale: "en" | "de", value: string) =>
+  value
+    .split(", ")
+    .map((item) => productLabel(locale, item))
+    .join(", ");
+
 const currentAndroidApk = releaseArtifacts.artifacts.find(
   ({ id }) => id === "android-apk-build-13",
 )!;
@@ -336,6 +519,8 @@ function AppExperience({
   authToken: string | null;
   accountEntryNotice: string | null;
 }) {
+  const { locale } = useLocale();
+  const t = appShellCopy[locale];
   const api = useMemo(
     () =>
       createApiClient(apiUrl, fetch, {
@@ -821,47 +1006,47 @@ function AppExperience({
             if (authToken) void api.signOut().finally(exit);
             else exit();
           }}
-          aria-label="WhyMatch home"
+          aria-label={locale === "de" ? "WhyMatch Startseite" : "WhyMatch home"}
         >
           WhyMatch
         </button>
-        <span className="nonprofit">Nonprofit · Open source</span>
+        <span className="nonprofit">{t.nonprofit}</span>
         <LanguageSwitch />
       </header>
       <div className={`workspace ${onboarded ? "" : "workspace-single"}`}>
         {onboarded && (
-          <aside className="sidebar" aria-label="Primary navigation">
+          <aside className="sidebar" aria-label={t.primaryNavigation}>
             <Nav
               active={view === "today"}
               onClick={() => setView("today")}
-              label="Today"
+              label={t.today}
             />
             <Nav
               active={view === "connections"}
               onClick={() => setView("connections")}
-              label={`Matches${connected ? ` · ${connections.length}` : ""}`}
+              label={`${t.matches}${connected ? ` · ${connections.length}` : ""}`}
             />
             <Nav
               active={view === "preferences"}
               onClick={() => setView("preferences")}
-              label="Preferences"
+              label={t.preferences}
             />
             <Nav
               active={view === "profile"}
               onClick={() => setView("profile")}
-              label="Account"
+              label={t.account}
             />
             <Nav
               active={view === "about"}
               onClick={() => setView("about")}
-              label="How it works"
+              label={t.howItWorks}
             />
             <p className="side-note">
-              No ads
+              {t.sideNote[0]}
               <br />
-              No premium ranking
+              {t.sideNote[1]}
               <br />
-              No infinite feed
+              {t.sideNote[2]}
             </p>
           </aside>
         )}
@@ -923,14 +1108,14 @@ function AppExperience({
           {loading && (
             <div className="empty">
               <span className="loading-spinner" aria-hidden="true" />
-              <p>Opening WhyMatch…</p>
+              <p>{t.opening}</p>
             </div>
           )}
           {!loading && error && (
             <div className="empty">
-              <h2>Couldn’t connect</h2>
+              <h2>{t.couldNotConnect}</h2>
               <p>{error}</p>
-              <button onClick={() => void load()}>Retry</button>
+              <button onClick={() => void load()}>{t.retry}</button>
             </div>
           )}
           {!loading && !error && !onboarded && (
@@ -1021,20 +1206,20 @@ function AppExperience({
                 <div className="account-status" role="status">
                   <strong>
                     {accountStatus === "paused"
-                      ? "Introductions paused"
-                      : "Profile hidden"}
+                      ? t.introductionsPaused
+                      : t.profileHidden}
                   </strong>
                   <span>
                     {accountStatus === "paused"
-                      ? "You will not receive new introductions until you resume."
-                      : "Your profile is not available for introductions until you make it visible."}
+                      ? t.pausedExplanation
+                      : t.hiddenExplanation}
                   </span>
                   <button
                     onClick={() =>
                       void api.updateAccountStatus("active").then(() => load())
                     }
                   >
-                    Resume
+                    {t.resume}
                   </button>
                 </div>
               )}
@@ -1042,20 +1227,20 @@ function AppExperience({
                 <>
                   <div className="section-head introduction-head">
                     <div>
-                      <p className="eyebrow">Your introductions</p>
+                      <p className="eyebrow">{t.yourIntroductions}</p>
                       <h1>
                         {current
-                          ? `${visibleIntroductions.length} left`
-                          : "You’re all caught up"}
+                          ? t.remaining(visibleIntroductions.length)
+                          : t.caughtUp}
                       </h1>
                     </div>
-                    <p className="calm-note">A finite set. Take your time.</p>
+                    <p className="calm-note">{t.finiteSet}</p>
                   </div>
                   {current ? (
                     <div className="swipe-deck">
                       <article
                         className={`profile-card swipe-card ${swipeOrigin === null ? "swipe-card-settled" : ""}`}
-                        aria-label={`Introduction: ${current.profile.name}. Swipe left for no or right for yes.`}
+                        aria-label={t.introductionLabel(current.profile.name)}
                         tabIndex={0}
                         style={{
                           transform: `translateX(${swipeOffset}px) rotate(${swipeOffset / 35}deg)`,
@@ -1097,18 +1282,18 @@ function AppExperience({
                             className={`swipe-intent ${swipeOffset < 0 ? "swipe-no" : "swipe-yes"}`}
                             aria-hidden="true"
                           >
-                            {swipeOffset < 0 ? "No" : "Yes"}
+                            {swipeOffset < 0 ? t.no : t.yes}
                           </span>
                         )}
                         <div
                           className="portrait"
                           style={{ background: current.profile.color }}
-                          aria-label={`Profile photo for ${current.profile.name}`}
+                          aria-label={t.profilePhotoFor(current.profile.name)}
                         >
                           {profilePhotoDataUrl(current.profile.photo) ? (
                             <img
                               src={profilePhotoDataUrl(current.profile.photo)!}
-                              alt={`Profile photo of ${current.profile.name}`}
+                              alt={t.profilePhotoOf(current.profile.name)}
                             />
                           ) : (
                             <span>{current.profile.name.slice(0, 1)}</span>
@@ -1127,27 +1312,36 @@ function AppExperience({
                                 {Math.round(
                                   current.explanation.finalScore * 100,
                                 )}
-                                % fit
+                                % {t.fit}
                               </span>
                             </div>
                             <p>
                               {current.profile.pronouns} ·{" "}
-                              {profileGenderLabel(current.profile)} ·{" "}
-                              {current.profile.city}
+                              {productLabels(
+                                locale,
+                                profileGenderLabel(current.profile),
+                              )}{" "}
+                              · {current.profile.city}
                             </p>
                           </div>
-                          <p className="intent">{current.profile.intent}</p>
+                          <p className="intent">
+                            {productLabel(locale, current.profile.intent)}
+                          </p>
                           <p className="readiness">
-                            {current.profile.readiness}
+                            {productLabel(locale, current.profile.readiness)}
                           </p>
                           <p className="bio">{current.profile.bio}</p>
                           <div className="prompt">
-                            <span>{current.profile.prompt}</span>
+                            <span>
+                              {productLabel(locale, current.profile.prompt)}
+                            </span>
                             <p>{current.profile.promptAnswer}</p>
                           </div>
                           <div className="chips">
                             {current.profile.values.map((value) => (
-                              <span key={value}>{value}</span>
+                              <span key={value}>
+                                {productLabel(locale, value)}
+                              </span>
                             ))}
                           </div>
                           <PublicLifestyle profile={current.profile} />
@@ -1160,16 +1354,16 @@ function AppExperience({
                           onClick={() => setDetails(!details)}
                         >
                           <span aria-hidden="true">i</span>
-                          {details ? "Hide match details" : "Why this match?"}
+                          {details ? t.hideMatchDetails : t.whyThisMatch}
                         </button>
                         {details && (
                           <div className="match-details">
-                            <p>
-                              This is preference fit, not predicted chemistry.
-                            </p>
+                            <p>{t.fitNotChemistry}</p>
                             <ul>
                               {current.reasons.map((reason) => (
-                                <li key={reason}>{reason}</li>
+                                <li key={reason}>
+                                  {productLabel(locale, reason)}
+                                </li>
                               ))}
                             </ul>
                             {current.explanation.selectionMode ===
@@ -1183,7 +1377,7 @@ function AppExperience({
                             )}
                             <p>
                               <strong>
-                                Your directed fit:{" "}
+                                {t.yourDirectedFit}:{" "}
                                 {Math.round(
                                   current.explanation.directedFitA * 100,
                                 )}
@@ -1192,7 +1386,9 @@ function AppExperience({
                             </p>
                             {current.explanation.factorsForA.map((factor) => (
                               <div key={factor.id}>
-                                <span>{factor.label}</span>
+                                <span>
+                                  {productLabel(locale, factor.label)}
+                                </span>
                                 <strong>
                                   {Math.round(factor.compatibility * 100)}% ×{" "}
                                   {Math.round(factor.weight * 100)}%
@@ -1201,7 +1397,7 @@ function AppExperience({
                             ))}
                             <p>
                               <strong>
-                                Their directed fit:{" "}
+                                {t.theirDirectedFit}:{" "}
                                 {Math.round(
                                   current.explanation.directedFitB * 100,
                                 )}
@@ -1211,7 +1407,9 @@ function AppExperience({
                             {current.explanation.factorsForB ? (
                               current.explanation.factorsForB.map((factor) => (
                                 <div key={factor.id}>
-                                  <span>{factor.label}</span>
+                                  <span>
+                                    {productLabel(locale, factor.label)}
+                                  </span>
                                   <strong>
                                     {Math.round(factor.compatibility * 100)}% ×{" "}
                                     {Math.round(factor.weight * 100)}%
@@ -1220,9 +1418,7 @@ function AppExperience({
                               ))
                             ) : (
                               <p className="private-input-note">
-                                Their factor weights are private personal
-                                inputs. The score uses the published formula and
-                                no undocumented system factors.
+                                {t.privateFactors}
                               </p>
                             )}
                             <p>
@@ -1230,8 +1426,7 @@ function AppExperience({
                               {Math.round(
                                 current.explanation.reciprocalFit * 100,
                               )}
-                              % · Explicit inputs only · No undocumented system
-                              factors.
+                              % · {t.explicitInputs}
                             </p>
                             <button
                               className="text-button"
@@ -1268,7 +1463,7 @@ function AppExperience({
                                 }
                               }}
                             >
-                              Save for later
+                              {t.saveForLater}
                             </button>
                             <CandidateSafety
                               name={current.profile.name}
@@ -1304,63 +1499,64 @@ function AppExperience({
                             />
                           </div>
                         )}
-                        <div className="swipe-actions" aria-label="Your choice">
+                        <div
+                          className="swipe-actions"
+                          aria-label={t.yourChoice}
+                        >
                           <button
                             className="swipe-action swipe-action-no"
                             disabled={savedAction || decisionAction}
                             onClick={() => decide("passed")}
-                            aria-label={`No to ${current.profile.name}`}
+                            aria-label={t.noTo(current.profile.name)}
                           >
                             <span aria-hidden="true">×</span>
-                            No
+                            {t.no}
                           </button>
                           <button
                             className="swipe-action swipe-action-yes"
                             disabled={savedAction || decisionAction}
                             onClick={() => decide("interested")}
-                            aria-label={`Yes to ${current.profile.name}`}
+                            aria-label={t.yesTo(current.profile.name)}
                           >
                             <span aria-hidden="true">♥</span>
-                            Yes
+                            {t.yes}
                           </button>
                         </div>
-                        {savedAction && <p role="status">Saving choice…</p>}
+                        {savedAction && <p role="status">{t.savingChoice}</p>}
                         {decisionAction && (
-                          <p role="status">Saving decision…</p>
+                          <p role="status">{t.savingDecision}</p>
                         )}
                         {savedActionError && (
                           <p role="alert">{savedActionError}</p>
                         )}
                         {decisionError && <p role="alert">{decisionError}</p>}
-                        <p className="private-note">
-                          Your decision is private unless interest is mutual.
-                        </p>
+                        <p className="private-note">{t.privateDecision}</p>
                       </aside>
                     </div>
                   ) : (
                     <div className="empty">
                       <div className="empty-mark">✓</div>
-                      <h2>That’s the whole set.</h2>
+                      <h2>{t.wholeSet}</h2>
                       <p>
                         {showSaved
-                          ? "Saved profiles stay here until you return them, decide, or delete this local prototype."
-                          : `No endless feed and no recycling decisions. The next weekly batch window begins${
+                          ? t.savedProfiles
+                          : t.nextBatch(
                               nextBatchAt
-                                ? ` ${new Date(nextBatchAt).toLocaleDateString(
-                                    undefined,
+                                ? new Date(nextBatchAt).toLocaleDateString(
+                                    locale === "de" ? "de-CH" : "en",
                                     {
                                       weekday: "long",
                                       month: "long",
                                       day: "numeric",
                                       timeZone: "UTC",
                                     },
-                                  )}`
-                                : " later"
-                            }. Only newly eligible profiles may appear.`}
+                                  )
+                                : t.later,
+                            )}
                       </p>
                       {showSaved && (
                         <button onClick={() => setShowSaved(false)}>
-                          Back to current batch
+                          {t.backToBatch}
                         </button>
                       )}
                     </div>
@@ -2753,12 +2949,14 @@ function MatchingProfileFields({
   value: Profile;
   onChange: (value: Profile) => void;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   const [photoError, setPhotoError] = useState<string | null>(null);
   const photoUrl = profilePhotoDataUrl(value.photo);
   return (
     <>
       <fieldset>
-        <legend>Profile photo</legend>
+        <legend>{de ? "Profilfoto" : "Profile photo"}</legend>
         <div className="photo-editor">
           <div className="photo-preview" style={{ background: value.color }}>
             {photoUrl ? (
@@ -2769,7 +2967,13 @@ function MatchingProfileFields({
           </div>
           <div className="photo-actions">
             <label className="secondary-action file-action">
-              {photoUrl ? "Replace photo" : "Add photo"}
+              {photoUrl
+                ? de
+                  ? "Foto ersetzen"
+                  : "Replace photo"
+                : de
+                  ? "Foto hinzufügen"
+                  : "Add photo"}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -2796,7 +3000,7 @@ function MatchingProfileFields({
                 className="text-button"
                 onClick={() => onChange({ ...value, photo: null })}
               >
-                Remove
+                {de ? "Entfernen" : "Remove"}
               </button>
             )}
           </div>
@@ -2804,7 +3008,7 @@ function MatchingProfileFields({
         {photoError && <p role="alert">{photoError}</p>}
       </fieldset>
       <label>
-        Profile prompt
+        {de ? "Profilfrage" : "Profile prompt"}
         <AppSelect
           value={value.prompt}
           onChange={(event) =>
@@ -2813,13 +3017,13 @@ function MatchingProfileFields({
         >
           {PROFILE_PROMPTS.map((prompt) => (
             <option key={prompt} value={prompt}>
-              {prompt}
+              {productLabel(locale, prompt)}
             </option>
           ))}
         </AppSelect>
       </label>
       <label>
-        Your answer
+        {de ? "Deine Antwort" : "Your answer"}
         <textarea
           value={value.promptAnswer}
           maxLength={500}
@@ -2829,7 +3033,7 @@ function MatchingProfileFields({
         />
       </label>
       <fieldset>
-        <legend>Values · choose 1–5</legend>
+        <legend>{de ? "Werte · wähle 1–5" : "Values · choose 1–5"}</legend>
         <div className="choice-chip-grid">
           {PROFILE_VALUES.map((profileValue) => {
             const checked = value.values.includes(profileValue);
@@ -2848,14 +3052,14 @@ function MatchingProfileFields({
                     })
                   }
                 />
-                {profileValue}
+                {productLabel(locale, profileValue)}
               </label>
             );
           })}
         </div>
       </fieldset>
       <label>
-        Smoking
+        {de ? "Rauchen" : "Smoking"}
         <AppSelect
           value={value.lifestyle.smoking}
           onChange={(event) =>
@@ -2868,12 +3072,14 @@ function MatchingProfileFields({
             })
           }
         >
-          <option value="no">Do not smoke</option>
-          <option value="sometimes">Smoke sometimes</option>
+          <option value="no">{productLabel(locale, "Do not smoke")}</option>
+          <option value="sometimes">
+            {productLabel(locale, "Smoke sometimes")}
+          </option>
         </AppSelect>
       </label>
       <label>
-        Children
+        {de ? "Kinder" : "Children"}
         <AppSelect
           value={value.lifestyle.children}
           onChange={(event) =>
@@ -2887,13 +3093,17 @@ function MatchingProfileFields({
             })
           }
         >
-          <option value="want">Want children</option>
-          <option value="open">Open to children</option>
-          <option value="do not want">Do not want children</option>
+          <option value="want">{productLabel(locale, "Want children")}</option>
+          <option value="open">
+            {productLabel(locale, "Open to children")}
+          </option>
+          <option value="do not want">
+            {productLabel(locale, "Do not want children")}
+          </option>
         </AppSelect>
       </label>
       <label>
-        Typical schedule
+        {de ? "Typischer Tagesrhythmus" : "Typical schedule"}
         <AppSelect
           value={value.lifestyle.schedule}
           onChange={(event) =>
@@ -2907,9 +3117,9 @@ function MatchingProfileFields({
             })
           }
         >
-          <option value="early">Usually early</option>
-          <option value="flexible">Flexible</option>
-          <option value="late">Usually late</option>
+          <option value="early">{productLabel(locale, "Usually early")}</option>
+          <option value="flexible">{productLabel(locale, "Flexible")}</option>
+          <option value="late">{productLabel(locale, "Usually late")}</option>
         </AppSelect>
       </label>
     </>
@@ -2935,6 +3145,8 @@ function OnboardingView({
   onPreferences: (value: Preferences) => void;
   complete: (joinDirectory: boolean) => Promise<void>;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   const [adultConfirmed, setAdultConfirmed] = useState(false);
   const [dataUseAccepted, setDataUseAccepted] = useState(false);
   const [directoryAccepted, setDirectoryAccepted] = useState(
@@ -2947,43 +3159,80 @@ function OnboardingView({
   const [deleting, setDeleting] = useState(false);
   const [deletionError, setDeletionError] = useState<string | null>(null);
   const missingRequirements = [
-    profile.name.trim().length === 0 ? "Add your name." : null,
-    profile.city.trim().length === 0 ? "Add your city or region." : null,
-    profile.bio.trim().length === 0 ? "Add a short introduction." : null,
+    profile.name.trim().length === 0
+      ? de
+        ? "Füge deinen Namen hinzu."
+        : "Add your name."
+      : null,
+    profile.city.trim().length === 0
+      ? de
+        ? "Füge deinen Ort oder deine Region hinzu."
+        : "Add your city or region."
+      : null,
+    profile.bio.trim().length === 0
+      ? de
+        ? "Füge eine kurze Beschreibung hinzu."
+        : "Add a short introduction."
+      : null,
     profile.prompt.trim().length === 0 ||
     profile.promptAnswer.trim().length === 0
-      ? "Answer one profile prompt."
+      ? de
+        ? "Beantworte eine Profilfrage."
+        : "Answer one profile prompt."
       : null,
-    profile.values.length === 0 ? "Choose at least one value." : null,
+    profile.values.length === 0
+      ? de
+        ? "Wähle mindestens einen Wert."
+        : "Choose at least one value."
+      : null,
     profile.genderIdentities.length === 0
-      ? "Choose your gender identity."
+      ? de
+        ? "Wähle deine Geschlechtsidentität."
+        : "Choose your gender identity."
       : null,
     profile.genderGroups.length === 0
-      ? "Choose who may discover your profile."
+      ? de
+        ? "Wähle, wer dein Profil finden darf."
+        : "Choose who may discover your profile."
       : null,
     preferences.genderGroups.length === 0
-      ? "Choose at least one group you want to meet."
+      ? de
+        ? "Wähle mindestens eine Gruppe, die du kennenlernen möchtest."
+        : "Choose at least one group you want to meet."
       : null,
     profile.age < 18 || profile.age > 120
-      ? "Enter an age between 18 and 120."
+      ? de
+        ? "Gib ein Alter zwischen 18 und 120 ein."
+        : "Enter an age between 18 and 120."
       : null,
-    !adultConfirmed ? "Confirm that you are at least 18." : null,
-    !dataUseAccepted ? "Accept the prototype data use notice." : null,
+    !adultConfirmed
+      ? de
+        ? "Bestätige, dass du mindestens 18 bist."
+        : "Confirm that you are at least 18."
+      : null,
+    !dataUseAccepted
+      ? de
+        ? "Akzeptiere den Hinweis zur Datennutzung des Prototyps."
+        : "Accept the prototype data use notice."
+      : null,
   ].filter((item): item is string => Boolean(item));
   const valid = missingRequirements.length === 0;
   return (
     <div className="narrow">
-      <p className="eyebrow">A small, honest beginning</p>
-      <h1>Set your boundaries.</h1>
+      <p className="eyebrow">
+        {de ? "Ein kleiner, ehrlicher Anfang" : "A small, honest beginning"}
+      </p>
+      <h1>{de ? "Lege deine Grenzen fest." : "Set your boundaries."}</h1>
       <p className="intro-copy">
-        Only explicit information affects your introductions. You can inspect or
-        change every input later.
+        {de
+          ? "Nur ausdrückliche Angaben beeinflussen deine Vorschläge. Du kannst jede Angabe später ansehen oder ändern."
+          : "Only explicit information affects your introductions. You can inspect or change every input later."}
       </p>
       <section className="settings-card">
-        <h2>Your public profile</h2>
+        <h2>{de ? "Dein öffentliches Profil" : "Your public profile"}</h2>
         <div className="onboarding-profile-grid">
           <label>
-            Name
+            {de ? "Name" : "Name"}
             <input
               value={profile.name}
               maxLength={50}
@@ -2993,7 +3242,7 @@ function OnboardingView({
             />
           </label>
           <label>
-            Age
+            {de ? "Alter" : "Age"}
             <input
               type="number"
               min="18"
@@ -3005,7 +3254,7 @@ function OnboardingView({
             />
           </label>
           <label>
-            Approximate city or region
+            {de ? "Ungefährer Ort oder Region" : "Approximate city or region"}
             <input
               value={profile.city}
               maxLength={80}
@@ -3015,7 +3264,8 @@ function OnboardingView({
             />
           </label>
           <label>
-            Pronouns <span className="optional">optional</span>
+            {de ? "Pronomen" : "Pronouns"}{" "}
+            <span className="optional">{de ? "optional" : "optional"}</span>
             <input
               value={profile.pronouns}
               maxLength={50}
@@ -3027,7 +3277,7 @@ function OnboardingView({
         </div>
         <GenderDiscoveryFields value={profile} onChange={onProfile} />
         <label>
-          Relationship intention
+          {de ? "Beziehungsabsicht" : "Relationship intention"}
           <AppSelect
             value={profile.intent}
             onChange={(event) =>
@@ -3037,13 +3287,19 @@ function OnboardingView({
               })
             }
           >
-            <option>Long-term relationship</option>
-            <option>Long-term, open to short</option>
-            <option>Still figuring it out</option>
+            <option value="Long-term relationship">
+              {productLabel(locale, "Long-term relationship")}
+            </option>
+            <option value="Long-term, open to short">
+              {productLabel(locale, "Long-term, open to short")}
+            </option>
+            <option value="Still figuring it out">
+              {productLabel(locale, "Still figuring it out")}
+            </option>
           </AppSelect>
         </label>
         <label>
-          Meeting readiness
+          {de ? "Bereitschaft für ein Treffen" : "Meeting readiness"}
           <AppSelect
             value={profile.readiness}
             onChange={(event) =>
@@ -3053,12 +3309,16 @@ function OnboardingView({
               })
             }
           >
-            <option>Prefer to chat first</option>
-            <option>Ready to meet in person</option>
+            <option value="Prefer to chat first">
+              {productLabel(locale, "Prefer to chat first")}
+            </option>
+            <option value="Ready to meet in person">
+              {productLabel(locale, "Ready to meet in person")}
+            </option>
           </AppSelect>
         </label>
         <label>
-          About you
+          {de ? "Über dich" : "About you"}
           <textarea
             value={profile.bio}
             maxLength={500}
@@ -3068,12 +3328,16 @@ function OnboardingView({
           />
         </label>
         <MatchingProfileFields value={profile} onChange={onProfile} />
-        <PublicProfilePreview profile={profile} title="Live public preview" />
+        <PublicProfilePreview
+          profile={profile}
+          title={de ? "Öffentliche Live-Vorschau" : "Live public preview"}
+        />
       </section>
       <section className="settings-card">
-        <h2>Mutual eligibility</h2>
+        <h2>{de ? "Gegenseitige Eignung" : "Mutual eligibility"}</h2>
         <label>
-          Youngest age <strong>{preferences.ageMin}</strong>
+          {de ? "Jüngstes Alter" : "Youngest age"}{" "}
+          <strong>{preferences.ageMin}</strong>
           <input
             type="range"
             min="18"
@@ -3088,7 +3352,8 @@ function OnboardingView({
           />
         </label>
         <label>
-          Oldest age <strong>{preferences.ageMax}</strong>
+          {de ? "Ältestes Alter" : "Oldest age"}{" "}
+          <strong>{preferences.ageMax}</strong>
           <input
             type="range"
             min={preferences.ageMin}
@@ -3103,7 +3368,8 @@ function OnboardingView({
           />
         </label>
         <label>
-          Maximum distance <strong>{preferences.maximumDistanceKm} km</strong>
+          {de ? "Maximale Distanz" : "Maximum distance"}{" "}
+          <strong>{preferences.maximumDistanceKm} km</strong>
           <input
             type="range"
             min={preferences.idealDistanceKm}
@@ -3124,7 +3390,7 @@ function OnboardingView({
         />
       </section>
       <section className="settings-card">
-        <h2>Your ordering priorities</h2>
+        <h2>{de ? "Deine Sortierprioritäten" : "Your ordering priorities"}</h2>
         {Object.entries(preferences.weights).map(([key, weight]) => {
           const index = PRIORITY_LEVELS.reduce(
             (best, level, i) =>
@@ -3136,8 +3402,8 @@ function OnboardingView({
           );
           return (
             <label key={key}>
-              <span className="capitalize">{key}</span>
-              <strong>{priorityLabel(weight)}</strong>
+              <span className="capitalize">{productLabel(locale, key)}</span>
+              <strong>{productLabel(locale, priorityLabel(weight))}</strong>
               <input
                 type="range"
                 min="0"
@@ -3157,18 +3423,21 @@ function OnboardingView({
           );
         })}
         <p className="help">
-          These priorities order mutually eligible people. They do not measure
-          anyone’s worth or predict chemistry.
+          {de
+            ? "Diese Prioritäten sortieren gegenseitig passende Personen. Sie bewerten keinen Menschen und sagen keine Chemie voraus."
+            : "These priorities order mutually eligible people. They do not measure anyone’s worth or predict chemistry."}
         </p>
         <div className="prototype-consent">
-          <h3>Before you continue</h3>
+          <h3>{de ? "Bevor du fortfährst" : "Before you continue"}</h3>
           <label>
             <input
               type="checkbox"
               checked={adultConfirmed}
               onChange={(event) => setAdultConfirmed(event.target.checked)}
             />
-            I confirm that I am at least 18 years old.
+            {de
+              ? "Ich bestätige, dass ich mindestens 18 Jahre alt bin."
+              : "I confirm that I am at least 18 years old."}
           </label>
           <label>
             <input
@@ -3176,9 +3445,9 @@ function OnboardingView({
               checked={dataUseAccepted}
               onChange={(event) => setDataUseAccepted(event.target.checked)}
             />
-            I understand this prototype stores the profile, preferences,
-            decisions, messages, and safety actions I enter so its features can
-            work. I can export or delete them from Profile.
+            {de
+              ? "Ich verstehe, dass dieser Prototyp meine eingegebenen Profilangaben, Präferenzen, Entscheidungen, Nachrichten und Sicherheitsaktionen speichert, damit seine Funktionen arbeiten können. Ich kann sie im Konto exportieren oder löschen."
+              : "I understand this prototype stores the profile, preferences, decisions, messages, and safety actions I enter so its features can work. I can export or delete them from Profile."}
           </label>
           {authenticated && (
             <label>
@@ -3188,25 +3457,28 @@ function OnboardingView({
                 disabled={!directoryAvailable}
                 onChange={(event) => setDirectoryAccepted(event.target.checked)}
               />
-              Show my profile in introductions after setup. Only mutually
-              eligible people in my approximate region can see it. I can pause
-              this at any time in Account. My private preferences and one-sided
-              decisions are never shown.
+              {de
+                ? "Mein Profil nach der Einrichtung in Vorschlägen anzeigen. Nur gegenseitig passende Personen in meiner ungefähren Region können es sehen. Ich kann dies jederzeit im Konto pausieren. Meine privaten Präferenzen und einseitigen Entscheidungen werden nie angezeigt."
+                : "Show my profile in introductions after setup. Only mutually eligible people in my approximate region can see it. I can pause this at any time in Account. My private preferences and one-sided decisions are never shown."}
               {!directoryAvailable &&
-                " Confirm your email from Profile before enabling this."}
+                (de
+                  ? " Bestätige zuerst deine E-Mail-Adresse im Konto."
+                  : " Confirm your email from Profile before enabling this.")}
             </label>
           )}
           <p className="help">
-            Receipt version prototype-0.1. This is not consent to research,
-            advertising, contact uploads, or hidden tracking.
+            {de
+              ? "Belegversion prototype-0.1. Dies ist keine Einwilligung zu Forschung, Werbung, Kontakt-Uploads oder verborgenem Tracking."
+              : "Receipt version prototype-0.1. This is not consent to research, advertising, contact uploads, or hidden tracking."}
           </p>
         </div>
         <div className="setup-completion">
           <div>
-            <h3>Ready to continue?</h3>
+            <h3>{de ? "Bereit weiterzumachen?" : "Ready to continue?"}</h3>
             <p>
-              Your profile can be changed later. Next, you’ll see your
-              introductions.
+              {de
+                ? "Du kannst dein Profil später ändern. Als Nächstes siehst du deine Vorschläge."
+                : "Your profile can be changed later. Next, you’ll see your introductions."}
             </p>
           </div>
           <button
@@ -3234,12 +3506,22 @@ function OnboardingView({
                 .finally(() => setSubmitting(false));
             }}
           >
-            {submitting ? "Finishing setup…" : "Finish setup"}
+            {submitting
+              ? de
+                ? "Einrichtung wird abgeschlossen…"
+                : "Finishing setup…"
+              : de
+                ? "Einrichtung abschließen"
+                : "Finish setup"}
           </button>
         </div>
         {validationAttempted && !valid && (
           <div className="setup-validation" role="alert">
-            <strong>Complete these items to continue:</strong>
+            <strong>
+              {de
+                ? "Vervollständige diese Punkte, um fortzufahren:"
+                : "Complete these items to continue:"}
+            </strong>
             <ul>
               {missingRequirements.map((requirement) => (
                 <li key={requirement}>{requirement}</li>
@@ -3314,6 +3596,8 @@ function BoundaryFields({
   onChange: (value: Preferences) => void;
   showGenderError?: boolean;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   const intents: Profile["intent"][] = [
     "Long-term relationship",
     "Long-term, open to short",
@@ -3334,7 +3618,11 @@ function BoundaryFields({
             : undefined
         }
       >
-        <legend>People you are open to meeting</legend>
+        <legend>
+          {de
+            ? "Personen, die du kennenlernen möchtest"
+            : "People you are open to meeting"}
+        </legend>
         {GENDER_DISCOVERY_GROUPS.map((group) => (
           <label key={group}>
             <input
@@ -3349,12 +3637,13 @@ function BoundaryFields({
                 })
               }
             />
-            {genderGroupLabel(group)}
+            {genderGroupLabel(group, locale)}
           </label>
         ))}
         <p className="help">
-          Private boundary. An introduction appears only when both people’s
-          discovery choices include one another.
+          {de
+            ? "Private Grenze. Ein Vorschlag erscheint nur, wenn die Auswahl beider Personen einander einschließt."
+            : "Private boundary. An introduction appears only when both people’s discovery choices include one another."}
         </p>
         {showGenderError && value.genderGroups.length === 0 && (
           <p
@@ -3367,7 +3656,11 @@ function BoundaryFields({
         )}
       </fieldset>
       <fieldset>
-        <legend>Relationship intentions you are open to</legend>
+        <legend>
+          {de
+            ? "Beziehungsformen, für die du offen bist"
+            : "Relationship intentions you are open to"}
+        </legend>
         {intents.map((intent) => (
           <label key={intent}>
             <input
@@ -3380,12 +3673,12 @@ function BoundaryFields({
                 if (next.length) onChange({ ...value, intents: next });
               }}
             />
-            {intent}
+            {productLabel(locale, intent)}
           </label>
         ))}
       </fieldset>
       <label>
-        Smoking boundary
+        {de ? "Grenze beim Rauchen" : "Smoking boundary"}
         <AppSelect
           value={value.smoking}
           onChange={(event) =>
@@ -3395,12 +3688,12 @@ function BoundaryFields({
             })
           }
         >
-          <option value="no">Non-smoking only</option>
-          <option value="any">No boundary</option>
+          <option value="no">{productLabel(locale, "Non-smoking only")}</option>
+          <option value="any">{productLabel(locale, "No boundary")}</option>
         </AppSelect>
       </label>
       <label>
-        Children boundary
+        {de ? "Grenze beim Kinderwunsch" : "Children boundary"}
         <AppSelect
           value={value.children}
           onChange={(event) =>
@@ -3410,26 +3703,37 @@ function BoundaryFields({
             })
           }
         >
-          <option value="want">Wants children</option>
-          <option value="open">Open to children</option>
-          <option value="do not want">Does not want children</option>
-          <option value="any">No boundary</option>
+          <option value="want">{productLabel(locale, "Wants children")}</option>
+          <option value="open">
+            {productLabel(locale, "Open to children")}
+          </option>
+          <option value="do not want">
+            {productLabel(locale, "Does not want children")}
+          </option>
+          <option value="any">{productLabel(locale, "No boundary")}</option>
         </AppSelect>
       </label>
       <p className="help">
-        These are mutual boundaries. A person is introduced only when both
-        people’s stated boundaries are satisfied.
+        {de
+          ? "Das sind gegenseitige Grenzen. Eine Person wird nur vorgeschlagen, wenn die angegebenen Grenzen auf beiden Seiten erfüllt sind."
+          : "These are mutual boundaries. A person is introduced only when both people’s stated boundaries are satisfied."}
       </p>
     </div>
   );
 }
 
-const genderGroupLabel = (group: GenderDiscoveryGroup) =>
-  ({
-    women: "Women",
-    men: "Men",
-    nonbinary_people: "Nonbinary people",
-  })[group];
+const genderGroupLabel = (
+  group: GenderDiscoveryGroup,
+  locale: "en" | "de" = "en",
+) =>
+  productLabel(
+    locale,
+    {
+      women: "Women",
+      men: "Men",
+      nonbinary_people: "Nonbinary people",
+    }[group],
+  );
 
 function GenderDiscoveryFields({
   value,
@@ -3438,9 +3742,11 @@ function GenderDiscoveryFields({
   value: Profile;
   onChange: (value: Profile) => void;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   return (
     <fieldset>
-      <legend>Gender</legend>
+      <legend>{de ? "Geschlecht" : "Gender"}</legend>
       <div className="choice-chip-grid">
         {GENDER_IDENTITIES.map((identity) => {
           const checked = value.genderIdentities.includes(identity);
@@ -3465,14 +3771,14 @@ function GenderDiscoveryFields({
                   onChange({ ...next, gender: profileGenderLabel(next) });
                 }}
               />
-              {genderIdentityLabel(identity)}
+              {productLabel(locale, genderIdentityLabel(identity))}
             </label>
           );
         })}
       </div>
       {value.genderIdentities.includes("self_described") && (
         <label>
-          Your words
+          {de ? "Deine Worte" : "Your words"}
           <input
             value={value.genderSelfDescription}
             maxLength={50}
@@ -3486,7 +3792,9 @@ function GenderDiscoveryFields({
           />
         </label>
       )}
-      <p className="field-intro">Who can find you</p>
+      <p className="field-intro">
+        {de ? "Wer dich finden kann" : "Who can find you"}
+      </p>
       <div className="choice-chip-grid">
         {GENDER_DISCOVERY_GROUPS.map((group) => (
           <label key={group} className="choice-chip">
@@ -3502,7 +3810,7 @@ function GenderDiscoveryFields({
                 })
               }
             />
-            {genderGroupLabel(group)}
+            {genderGroupLabel(group, locale)}
           </label>
         ))}
       </div>
@@ -3546,6 +3854,8 @@ function PreferencesView({
   save: () => void;
   cancel: () => void;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   const [poolPreview, setPoolPreview] = useState<{
     eligibleCount: number;
     evaluatedCount: number;
@@ -3560,17 +3870,22 @@ function PreferencesView({
     onChange({ ...value, weights: { ...value.weights, [key]: weight } });
   return (
     <div className="narrow">
-      <p className="eyebrow">Preferences</p>
-      <h1>What matters to you</h1>
+      <p className="eyebrow">{de ? "Präferenzen" : "Preferences"}</p>
+      <h1>{de ? "Was dir wichtig ist" : "What matters to you"}</h1>
       <p className="intro-copy">
-        Hard boundaries filter first. Priorities only order people who are
-        mutually eligible. Every change is yours.
+        {de
+          ? "Feste Grenzen filtern zuerst. Prioritäten sortieren nur Personen, die gegenseitig passen. Jede Änderung bestimmst du."
+          : "Hard boundaries filter first. Priorities only order people who are mutually eligible. Every change is yours."}
       </p>
       <div className="preference-save-bar" aria-live="polite">
         <span>
           {pendingChanges
-            ? "Unsaved preference changes"
-            : "Preferences match the saved version"}
+            ? de
+              ? "Nicht gespeicherte Änderungen"
+              : "Unsaved preference changes"
+            : de
+              ? "Präferenzen entsprechen der gespeicherten Version"
+              : "Preferences match the saved version"}
         </span>
         <div className="inline-actions">
           <button
@@ -3578,17 +3893,23 @@ function PreferencesView({
             disabled={!pendingChanges || saving}
             onClick={cancel}
           >
-            Cancel changes
+            {de ? "Änderungen verwerfen" : "Cancel changes"}
           </button>
           <button disabled={!pendingChanges || saving} onClick={save}>
-            {saving ? "Saving preferences…" : "Save preferences"}
+            {saving
+              ? de
+                ? "Präferenzen werden gespeichert…"
+                : "Saving preferences…"
+              : de
+                ? "Präferenzen speichern"
+                : "Save preferences"}
           </button>
         </div>
       </div>
       {saveError && <p role="alert">{saveError}</p>}
       <fieldset className="preferences-editor" disabled={saving}>
         <section className="settings-card">
-          <h2>Finite batch size</h2>
+          <h2>{de ? "Begrenzte Auswahlgröße" : "Finite batch size"}</h2>
           <p>
             Choose up to how many mutually eligible people appear at once. One
             to five is a product hypothesis, not a scientifically optimal
@@ -3615,7 +3936,7 @@ function PreferencesView({
           {deliverySaveError && <p role="alert">{deliverySaveError}</p>}
         </section>
         <section className="settings-card">
-          <h2>Mutual boundaries</h2>
+          <h2>{de ? "Gegenseitige Grenzen" : "Mutual boundaries"}</h2>
           <label>
             Youngest age <strong>{value.ageMin}</strong>
             <input
@@ -3851,11 +4172,25 @@ const scheduleDisclosure = (value: Profile["lifestyle"]["schedule"]) =>
       : "Flexible schedule";
 
 function PublicLifestyle({ profile }: { profile: VisibleProfile }) {
+  const { locale } = useLocale();
   return (
-    <div className="public-lifestyle" aria-label="Public lifestyle details">
-      <span>{smokingDisclosure(profile.lifestyle.smoking)}</span>
-      <span>{childrenDisclosure(profile.lifestyle.children)}</span>
-      <span>{scheduleDisclosure(profile.lifestyle.schedule)}</span>
+    <div
+      className="public-lifestyle"
+      aria-label={
+        locale === "de"
+          ? "Öffentliche Lebensstil-Angaben"
+          : "Public lifestyle details"
+      }
+    >
+      <span>
+        {productLabel(locale, smokingDisclosure(profile.lifestyle.smoking))}
+      </span>
+      <span>
+        {productLabel(locale, childrenDisclosure(profile.lifestyle.children))}
+      </span>
+      <span>
+        {productLabel(locale, scheduleDisclosure(profile.lifestyle.schedule))}
+      </span>
     </div>
   );
 }
@@ -3867,37 +4202,62 @@ function PublicProfilePreview({
   profile: VisibleProfile;
   title: string;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   return (
     <div className="public-profile-preview" aria-label={title}>
       <p className="preview-label">{title}</p>
       <h3>
-        {profile.name || "Display name"}, {profile.age}
+        {profile.name || (de ? "Anzeigename" : "Display name")}, {profile.age}
       </h3>
       <p className="profile-meta">
-        {profile.pronouns || "Pronouns not shown"} ·{" "}
-        {profileGenderLabel(profile) || "Gender not set"} ·{" "}
-        {profile.city || "Approximate region not set"}
+        {profile.pronouns ||
+          (de ? "Keine Pronomen angezeigt" : "Pronouns not shown")}{" "}
+        ·{" "}
+        {productLabels(locale, profileGenderLabel(profile)) ||
+          (de ? "Geschlecht nicht festgelegt" : "Gender not set")}{" "}
+        ·{" "}
+        {profile.city ||
+          (de ? "Region nicht festgelegt" : "Approximate region not set")}
       </p>
-      <p className="intent">{profile.intent}</p>
-      <p className="readiness">{profile.readiness}</p>
+      <p className="intent">{productLabel(locale, profile.intent)}</p>
+      <p className="readiness">{productLabel(locale, profile.readiness)}</p>
       <p className="large-copy">
-        {profile.bio || "Your biography will appear here."}
+        {profile.bio ||
+          (de
+            ? "Deine Beschreibung erscheint hier."
+            : "Your biography will appear here.")}
       </p>
       <div className="prompt">
-        <span>{profile.prompt || "Your prompt"}</span>
-        <p>{profile.promptAnswer || "Your answer will appear here."}</p>
+        <span>
+          {productLabel(locale, profile.prompt) ||
+            (de ? "Deine Profilfrage" : "Your prompt")}
+        </span>
+        <p>
+          {profile.promptAnswer ||
+            (de
+              ? "Deine Antwort erscheint hier."
+              : "Your answer will appear here.")}
+        </p>
       </div>
       <div className="chips">
         {profile.values.length ? (
-          profile.values.map((value) => <span key={value}>{value}</span>)
+          profile.values.map((value) => (
+            <span key={value}>{productLabel(locale, value)}</span>
+          ))
         ) : (
-          <span>No public values selected</span>
+          <span>
+            {de
+              ? "Keine öffentlichen Werte ausgewählt"
+              : "No public values selected"}
+          </span>
         )}
       </div>
       <PublicLifestyle profile={profile} />
       <p className="preview-private-note">
-        Not shown: your discovery routing groups, people sought, boundaries,
-        priorities, one-sided decisions, and private factor trace.
+        {de
+          ? "Nicht angezeigt werden: deine Sichtbarkeitsgruppen, gesuchten Personen, Grenzen, Prioritäten, einseitigen Entscheidungen und privaten Faktor-Angaben."
+          : "Not shown: your discovery routing groups, people sought, boundaries, priorities, one-sided decisions, and private factor trace."}
       </p>
     </div>
   );
@@ -3990,6 +4350,8 @@ function ProfileView({
   deleteData: () => Promise<void>;
   deleteAccount?: (currentPassword: string) => Promise<void>;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   const [editing, setEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
@@ -4082,15 +4444,20 @@ function ProfileView({
 
   return (
     <div className="narrow">
-      <p className="eyebrow">Account</p>
-      <h1>Your account</h1>
+      <p className="eyebrow">{de ? "Konto" : "Account"}</p>
+      <h1>{de ? "Dein Konto" : "Your account"}</h1>
       <p className="intro-copy">
-        Update your dating profile, matching preferences, visibility, and
-        sign-in settings whenever you want.
+        {de
+          ? "Ändere dein Dating-Profil, deine Matching-Präferenzen, Sichtbarkeit und Anmeldeeinstellungen jederzeit."
+          : "Update your dating profile, matching preferences, visibility, and sign-in settings whenever you want."}
       </p>
       <div className="account-shortcuts">
-        <button onClick={() => setEditing(true)}>Edit dating profile</button>
-        <button onClick={openPreferences}>Matching preferences</button>
+        <button onClick={() => setEditing(true)}>
+          {de ? "Dating-Profil bearbeiten" : "Edit dating profile"}
+        </button>
+        <button onClick={openPreferences}>
+          {de ? "Matching-Präferenzen" : "Matching preferences"}
+        </button>
       </div>
       <section className="settings-card">
         <div className="card-title">
@@ -5465,6 +5832,8 @@ function ConnectionsView({
   block: () => Promise<void>;
   report: (reason: ReportReason, details: string) => Promise<void>;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<ReportReason>("harassment");
   const [reportDetails, setReportDetails] = useState("");
@@ -5485,8 +5854,12 @@ function ConnectionsView({
       <div className="narrow">
         <div className="empty">
           <div className="empty-mark">○</div>
-          <h2>No matches yet</h2>
-          <p>When interest is mutual, a private text chat appears here.</p>
+          <h2>{de ? "Noch keine Matches" : "No matches yet"}</h2>
+          <p>
+            {de
+              ? "Bei gegenseitigem Interesse erscheint hier ein privater Textchat."
+              : "When interest is mutual, a private text chat appears here."}
+          </p>
         </div>
         <PastConnectionsView
           connections={pastConnections}
@@ -5498,10 +5871,11 @@ function ConnectionsView({
   return (
     <div className="narrow connections-view">
       <p className="eyebrow">Matches</p>
-      <h1>Your chats</h1>
+      <h1>{de ? "Deine Chats" : "Your chats"}</h1>
       <p className="intro-copy">
-        Mutual matches only. Messages are text-only: no photo uploads and no
-        read receipts.
+        {de
+          ? "Nur gegenseitige Matches. Nachrichten sind reiner Text: keine Foto-Uploads und keine Lesebestätigungen."
+          : "Mutual matches only. Messages are text-only: no photo uploads and no read receipts."}
       </p>
       {connections.length > 1 && (
         <div className="connection-picker" aria-label="Choose a connection">
@@ -5909,18 +6283,23 @@ function AboutView({
   dataSettings: DatingDataSettings | null;
   saveDataSettings: (settings: DatingDataSettings) => Promise<void>;
 }) {
+  const { locale } = useLocale();
+  const de = locale === "de";
   return (
     <div className="narrow">
-      <p className="eyebrow">Public method</p>
-      <h1>Understand every introduction.</h1>
+      <p className="eyebrow">{de ? "Öffentliche Methode" : "Public method"}</p>
+      <h1>
+        {de ? "Verstehe jeden Vorschlag." : "Understand every introduction."}
+      </h1>
       <p className="intro-copy">
-        The score helps order mutually eligible people. It does not predict
-        love, attraction, or relationship success.
+        {de
+          ? "Der Wert hilft, gegenseitig passende Personen zu sortieren. Er sagt weder Liebe noch Anziehung oder Beziehungserfolg voraus."
+          : "The score helps order mutually eligible people. It does not predict love, attraction, or relationship success."}
       </p>
       <section className="method-list">
         <div>
           <b>1</b>
-          <h2>Boundaries first</h2>
+          <h2>{de ? "Grenzen zuerst" : "Boundaries first"}</h2>
           <p>
             Age, distance, intent, and lifestyle boundaries must work for both
             people.
@@ -5928,7 +6307,7 @@ function AboutView({
         </div>
         <div>
           <b>2</b>
-          <h2>Two visible scores</h2>
+          <h2>{de ? "Zwei sichtbare Werte" : "Two visible scores"}</h2>
           <p>
             Each person’s chosen priorities create a directed fit. Their
             harmonic mean prevents one-sided fit from being hidden.
@@ -5936,7 +6315,9 @@ function AboutView({
         </div>
         <div>
           <b>3</b>
-          <h2>One public lottery place</h2>
+          <h2>
+            {de ? "Ein öffentlicher Zufallsplatz" : "One public lottery place"}
+          </h2>
           <p>
             A five-person batch reserves one place for a reproducible weekly
             lottery among eligible people. The label, seed, and probability are
@@ -5945,7 +6326,7 @@ function AboutView({
         </div>
         <div>
           <b>4</b>
-          <h2>Human judgment</h2>
+          <h2>{de ? "Menschliche Entscheidung" : "Human judgment"}</h2>
           <p>
             You see the person and reasoning, then decide. Feedback can suggest
             preference edits but never changes them silently.
