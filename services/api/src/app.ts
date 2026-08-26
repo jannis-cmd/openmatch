@@ -907,7 +907,7 @@ export function createApp(
         return false;
       };
       const accountDirectory = Boolean(accountSession && accounts);
-      const candidates =
+      const candidates = () =>
         accountSession && accounts
           ? emailVerificationSender &&
             !accounts.emailStatus(accountSession.accountId).verifiedAt
@@ -1486,7 +1486,7 @@ export function createApp(
           ...store.hiddenIds(),
           ...store.savedIds(),
         ]);
-        const unresolved = candidates.filter(
+        const unresolved = candidates().filter(
           ({ profile }) => !unavailable.has(profile.id),
         );
         return send(response, 200, {
@@ -1660,7 +1660,7 @@ export function createApp(
         const items = currentBatchIntroductions(
           store,
           hidden,
-          candidates,
+          candidates(),
           accountDirectory,
         );
         return send(response, 200, {
@@ -1688,7 +1688,7 @@ export function createApp(
         return send(response, 200, {
           items: createIntroductions(
             store.profile(),
-            candidates,
+            candidates(),
             store.preferences(),
           )
             .filter(
@@ -1722,7 +1722,7 @@ export function createApp(
           return send(response, 409, { error: "profile_not_available" });
         const eligible = createIntroductions(
           store.profile(),
-          candidates,
+          candidates(),
           store.preferences(),
         ).some((item) => item.profile.id === profileId);
         if (!eligible)
@@ -1761,13 +1761,15 @@ export function createApp(
           currentBatchIntroductions(
             store,
             unavailable,
-            candidates,
+            candidates(),
             accountDirectory,
           ).find((item) => item.profile.id === decision[1]) ??
           (store.savedIds().has(decision[1])
             ? createIntroductions(
                 store.profile(),
-                candidates.filter(({ profile }) => profile.id === decision[1]),
+                candidates().filter(
+                  ({ profile }) => profile.id === decision[1],
+                ),
                 store.preferences(),
               )[0]
             : undefined);

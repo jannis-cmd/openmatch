@@ -93,6 +93,9 @@ test("uses Supabase Auth for confirmation, login, API authorization, and sign-ou
       verifiedAt: user.email_confirmed_at,
     });
 
+    accounts.candidatesFor = () => {
+      throw new Error("an unavailable peer must not block sign-out");
+    };
     assert.equal(
       (
         await fetch(base + "/v1/session", {

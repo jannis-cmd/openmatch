@@ -10,7 +10,11 @@ This repository is a verified pre-alpha development foundation, not a deployable
 
 ## Hosted Supabase development deployment
 
-The Tailnet-only `myna-1` API and web app now use the managed WhyMatch Supabase
+The `myna-1` API and web app are published for invited development testing
+through Tailscale Funnel at
+`https://myna-1.cheetah-vernier.ts.net:8443`. The origin proxies only the
+WhyMatch gateway; direct container and database ports remain unexposed. The
+deployment uses the managed WhyMatch Supabase
 project for Auth and authoritative, normalized, account-scoped PostgreSQL
 application data. All 26 Auth users and identities, their password hashes, and
 210 application-state rows were migrated and verified before cutover. Existing
@@ -28,9 +32,13 @@ a temporary rollback source and are no longer authoritative.
 
 Twenty fictional, fully onboarded accounts continue to exercise the reciprocal
 account-directory path. This remains a development deployment, not a public
-beta or production system. Supabase's built-in test mailer is rate-limited and
-is not sufficient for an invited pilot; Brevo SMTP, a verified WhyMatch sender
-domain, bounce/complaint operations, and delivery monitoring remain required.
+beta or production system. Hosted Auth now sends through a dedicated,
+one-year Brevo SMTP credential. A real reset message from the temporary
+authenticated `myna-ai.ch` sender was accepted and marked delivered by Brevo.
+The German/English signup and recovery templates are source-controlled under
+`infra/supabase/email-templates`. A verified WhyMatch sender domain,
+bounce/complaint operations, and delivery monitoring remain required before a
+real-person pilot.
 The synchronous PostgreSQL worker bridge must still become an asynchronous
 pooled repository before scale testing.
 

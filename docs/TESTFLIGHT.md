@@ -1,9 +1,11 @@
 # Mobile builds, TestFlight, and Android testing
 
 The native app is ready for owner testing. The current distributed-build API is
-the HTTPS tailnet service documented in `docs/TAILNET_BETA.md`; it is private,
-Mac-hosted, and not suitable for public testers. The repository intentionally
-contains no endpoint. EAS injects the selected HTTPS origin at build time.
+the HTTPS Tailscale Funnel development service documented in
+`docs/TAILNET_BETA.md`. It is internet-reachable for invited developers but is
+still a single-host development deployment, not a production or public-beta
+service. The repository intentionally contains no credential for the endpoint.
+EAS injects the selected HTTPS origin at build time.
 
 ## Current release state
 
