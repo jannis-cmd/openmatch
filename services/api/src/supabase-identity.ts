@@ -107,6 +107,8 @@ export class SupabaseIdentity {
 
   private authError(response: Response, body: AuthResponse) {
     const code = body.error_code ?? body.msg ?? body.error_description ?? "";
+    if (response.status === 429)
+      return new AccountError("authentication_rate_limit_exceeded", 429);
     if (
       response.status === 422 ||
       ["weak_password", "validation_failed"].includes(body.error_code ?? "")

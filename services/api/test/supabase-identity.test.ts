@@ -1,9 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Accounts } from "../src/accounts.ts";
+import { AccountError, Accounts } from "../src/accounts.ts";
 import { createApp } from "../src/app.ts";
 import { Store } from "../src/store.ts";
 import { SupabaseIdentity } from "../src/supabase-identity.ts";
+
+test("preserves hosted authentication rate limits", async () => {
+  const identity = new SupabaseIdentity(
+    "http://127.0.0.1:9999",
+    (async () =>
+      new Response(JSON.stringify({ error_code: "over_request_rate_limit" }), {
+        status: 429,
+      })) as typeof fetch,
+  );
+  await assert.rejects(
+    () => identity.signIn("person@example.org", "valid password", "web"),
+    (error: unknown) =>
+      error instanceof AccountError &&
+      error.code === "authentication_rate_limit_exceeded" &&
+      error.status === 429,
+  );
+});
 
 test("uses Supabase Auth for confirmation, login, API authorization, and sign-out", async () => {
   const token = "s".repeat(43);
