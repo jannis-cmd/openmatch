@@ -161,7 +161,11 @@ test("reauthenticates Supabase password changes and credential deletion", async 
             );
       }
       if (url.endsWith("/user") && init?.method === "PUT") {
-        const body = JSON.parse(String(init.body)) as { password: string };
+        const body = JSON.parse(String(init.body)) as {
+          password: string;
+          current_password: string;
+        };
+        assert.equal(body.current_password, password);
         password = body.password;
         return new Response(JSON.stringify(user), { status: 200 });
       }

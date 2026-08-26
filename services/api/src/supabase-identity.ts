@@ -265,7 +265,10 @@ export class SupabaseIdentity {
         authorization: `Bearer ${current.token}`,
         "content-type": "application/json",
       }),
-      body: JSON.stringify({ password: input.newPassword }),
+      body: JSON.stringify({
+        password: input.newPassword,
+        current_password: input.currentPassword,
+      }),
     }).catch(() => null);
     if (!response) throw new AccountError("identity_service_unavailable", 503);
     const body = await this.body(response);
