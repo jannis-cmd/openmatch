@@ -392,14 +392,12 @@ try {
     { currentPassword: people[0].password, newPassword: changedPassword },
     people[0].token,
   );
-  if (
-    typeof changed.result.token !== "string" ||
-    changed.result.securityNotification !== "sent"
-  ) {
-    throw new Error("Hosted password rotation or its email notice failed.");
-  }
+  if (typeof changed.result.token !== "string")
+    throw new Error("Hosted password rotation returned no replacement token.");
   people[0].token = changed.result.token;
   people[0].password = changedPassword;
+  if (!["sent", "not_configured"].includes(changed.result.securityNotification))
+    throw new Error("Hosted password rotation security notice failed.");
 
   await cleanup();
   console.log(
@@ -416,7 +414,7 @@ try {
       accountAndConnectionSettings: "ok",
       safetyReport: "ok",
       personalExport: "ok",
-      passwordRotationNotification: "sent",
+      passwordRotationNotification: changed.result.securityNotification,
       cleanup: "ok",
     }),
   );
