@@ -240,7 +240,16 @@ try {
       .id,
   ];
   if (!targets[0] || !targets[1]) {
-    throw new Error("The hosted pair was not mutually introduced.");
+    throw new Error(
+      `The hosted pair was not mutually introduced: ${JSON.stringify(
+        batches.map((batch) =>
+          (batch.items ?? []).map((item) => ({
+            id: item.profile.id,
+            name: item.profile.name,
+          })),
+        ),
+      )}`,
+    );
   }
 
   await request(

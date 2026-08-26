@@ -46,10 +46,6 @@ const client = new pg.Client({ connectionString: input.connectionString });
 try {
   pg.types.setTypeParser(20, (value) => Number(value));
   await client.connect();
-  await client.query("SET search_path TO app,public");
-  await client.query("SELECT set_config('openmatch.account_id',$1,false)", [
-    input.accountId,
-  ]);
   const encoded = new TextEncoder().encode(JSON.stringify({ ok: true }));
   readyBytes.set(encoded);
   Atomics.store(readyControl, 1, encoded.length);
@@ -70,10 +66,45 @@ try {
 }
 
 let queue = Promise.resolve();
+let transactionOpen = false;
+
+const setLocalAccountScope = async () => {
+  await client.query("SET LOCAL search_path TO app,public");
+  await client.query("SELECT set_config('openmatch.account_id',$1,true)", [
+    input.accountId,
+  ]);
+};
+
 parentPort?.on("message", (message: QueryMessage) => {
   queue = queue.then(async () => {
     try {
-      const result = await client.query(message.sql, message.parameters);
+      const command = message.sql.trim().replace(/;$/, "").toUpperCase();
+      let result: pg.QueryResult;
+      if (command === "BEGIN") {
+        result = await client.query(message.sql, message.parameters);
+        try {
+          await setLocalAccountScope();
+          transactionOpen = true;
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        }
+      } else if (command === "COMMIT" || command === "ROLLBACK") {
+        result = await client.query(message.sql, message.parameters);
+        transactionOpen = false;
+      } else if (transactionOpen) {
+        result = await client.query(message.sql, message.parameters);
+      } else {
+        await client.query("BEGIN");
+        try {
+          await setLocalAccountScope();
+          result = await client.query(message.sql, message.parameters);
+          await client.query("COMMIT");
+        } catch (error) {
+          await client.query("ROLLBACK");
+          throw error;
+        }
+      }
       finish(message.response, {
         ok: true,
         rows: result.rows ?? [],
