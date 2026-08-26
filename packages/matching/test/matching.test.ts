@@ -590,3 +590,142 @@ test("generated adversarial cases preserve matching invariants", () => {
   assert.equal(noPriorities.directedFitB, 1);
   assert.equal(noPriorities.finalScore, 1);
 });
+
+test("every smoking boundary combination is reciprocal and fail closed", () => {
+  const candidate = structuredClone(demoCandidates[0]);
+  const viewerPreferences = structuredClone(defaultPreferences);
+  const choices = ["no", "any"] as const;
+  const habits = ["no", "sometimes"] as const;
+
+  for (const viewerBoundary of choices)
+    for (const candidateBoundary of choices)
+      for (const viewerHabit of habits)
+        for (const candidateHabit of habits) {
+          viewerPreferences.smoking = viewerBoundary;
+          candidate.preferences.smoking = candidateBoundary;
+          const viewer = structuredClone(demoUser);
+          viewer.lifestyle.smoking = viewerHabit;
+          candidate.profile.lifestyle.smoking = candidateHabit;
+          const result = createIntroduction(
+            viewer,
+            candidate,
+            viewerPreferences,
+          ).explanation;
+          const expected =
+            (viewerBoundary === "any" || candidateHabit === "no") &&
+            (candidateBoundary === "any" || viewerHabit === "no");
+          assert.equal(
+            result.failedBoundaries.includes("Mutual smoking boundaries"),
+            !expected,
+          );
+        }
+});
+
+test("every family-plan boundary combination follows the published open semantics", () => {
+  const candidate = structuredClone(demoCandidates[0]);
+  const viewerPreferences = structuredClone(defaultPreferences);
+  const choices = ["want", "open", "do not want", "any"] as const;
+  const plans = ["want", "open", "do not want"] as const;
+  const accepts = (
+    boundary: (typeof choices)[number],
+    plan: (typeof plans)[number],
+  ) =>
+    boundary === "any" ||
+    boundary === "open" ||
+    plan === "open" ||
+    boundary === plan;
+
+  for (const viewerBoundary of choices)
+    for (const candidateBoundary of choices)
+      for (const viewerPlan of plans)
+        for (const candidatePlan of plans) {
+          viewerPreferences.children = viewerBoundary;
+          candidate.preferences.children = candidateBoundary;
+          const viewer = structuredClone(demoUser);
+          viewer.lifestyle.children = viewerPlan;
+          candidate.profile.lifestyle.children = candidatePlan;
+          const result = createIntroduction(
+            viewer,
+            candidate,
+            viewerPreferences,
+          ).explanation;
+          const expected =
+            accepts(viewerBoundary, candidatePlan) &&
+            accepts(candidateBoundary, viewerPlan);
+          assert.equal(
+            result.failedBoundaries.includes("Mutual family-plan boundaries"),
+            !expected,
+          );
+        }
+});
+
+test("presentation fields never influence eligibility or ranking", () => {
+  const candidate = structuredClone(demoCandidates[0]);
+  const baseline = createIntroduction(
+    demoUser,
+    candidate,
+    defaultPreferences,
+  ).explanation;
+  candidate.profile.bio = "A completely different valid biography.";
+  candidate.profile.prompt = "A small thing that matters";
+  candidate.profile.promptAnswer = "A completely different valid answer.";
+  candidate.profile.pronouns = "different pronouns";
+  candidate.profile.readiness =
+    candidate.profile.readiness === "Ready to meet in person"
+      ? "Prefer to chat first"
+      : "Ready to meet in person";
+  candidate.profile.photo = {
+    mimeType: "image/jpeg",
+    data: "QUJDREVGR0hJSktMTU5PUA==",
+  };
+  const changed = createIntroduction(
+    demoUser,
+    candidate,
+    defaultPreferences,
+  ).explanation;
+  assert.equal(changed.eligible, baseline.eligible);
+  assert.equal(changed.finalScore, baseline.finalScore);
+  assert.deepEqual(changed.factorsForA, baseline.factorsForA);
+  assert.deepEqual(changed.factorsForB, baseline.factorsForB);
+});
+
+test("finite batches are deterministic, unique, and reserve exploration only at five", () => {
+  for (let week = 1; week <= 52; week += 1) {
+    const weeklySeed = `2026-week-${week}`;
+    for (const limit of [1, 2, 3, 4, 5]) {
+      const options = {
+        weeklySeed,
+        limit,
+        explorationSlots: limit === 5 ? 1 : 0,
+      };
+      const first = createIntroductions(
+        demoUser,
+        demoCandidates,
+        defaultPreferences,
+        options,
+      );
+      const repeated = createIntroductions(
+        demoUser,
+        demoCandidates,
+        defaultPreferences,
+        options,
+      );
+      assert.deepEqual(
+        first.map(({ profile }) => profile.id),
+        repeated.map(({ profile }) => profile.id),
+      );
+      assert.equal(first.length, limit);
+      assert.equal(
+        new Set(first.map(({ profile }) => profile.id)).size,
+        first.length,
+      );
+      assert.ok(first.every(({ explanation }) => explanation.eligible));
+      assert.equal(
+        first.filter(
+          ({ explanation }) => explanation.selectionMode === "exploration",
+        ).length,
+        limit === 5 ? 1 : 0,
+      );
+    }
+  }
+});

@@ -543,6 +543,10 @@ function AppExperience({
       ? "profile"
       : "today",
   );
+  const navigate = (nextView: View) => {
+    setView(nextView);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0 }));
+  };
   const [preferences, setPreferences] = useState<Preferences>(
     structuredClone(defaultPreferences),
   );
@@ -1018,27 +1022,27 @@ function AppExperience({
           <aside className="sidebar" aria-label={t.primaryNavigation}>
             <Nav
               active={view === "today"}
-              onClick={() => setView("today")}
+              onClick={() => navigate("today")}
               label={t.today}
             />
             <Nav
               active={view === "connections"}
-              onClick={() => setView("connections")}
+              onClick={() => navigate("connections")}
               label={`${t.matches}${connected ? ` · ${connections.length}` : ""}`}
             />
             <Nav
               active={view === "preferences"}
-              onClick={() => setView("preferences")}
+              onClick={() => navigate("preferences")}
               label={t.preferences}
             />
             <Nav
               active={view === "profile"}
-              onClick={() => setView("profile")}
+              onClick={() => navigate("profile")}
               label={t.account}
             />
             <Nav
               active={view === "about"}
-              onClick={() => setView("about")}
+              onClick={() => navigate("about")}
               label={t.howItWorks}
             />
             <p className="side-note">
@@ -1826,7 +1830,7 @@ function AppExperience({
               {view === "profile" && (
                 <ProfileView
                   profile={profile}
-                  openPreferences={() => setView("preferences")}
+                  openPreferences={() => navigate("preferences")}
                   saveProfile={async (patch) => {
                     const saved = await api.updateProfile(patch);
                     setProfile(saved);
@@ -3328,10 +3332,15 @@ function OnboardingView({
           />
         </label>
         <MatchingProfileFields value={profile} onChange={onProfile} />
-        <PublicProfilePreview
-          profile={profile}
-          title={de ? "Öffentliche Live-Vorschau" : "Live public preview"}
-        />
+        <details className="inline-advanced">
+          <summary>
+            {de ? "Öffentliches Profil ansehen" : "Preview public profile"}
+          </summary>
+          <PublicProfilePreview
+            profile={profile}
+            title={de ? "Öffentliche Vorschau" : "Public preview"}
+          />
+        </details>
       </section>
       <section className="settings-card">
         <h2>{de ? "Gegenseitige Eignung" : "Mutual eligibility"}</h2>
@@ -3390,42 +3399,11 @@ function OnboardingView({
         />
       </section>
       <section className="settings-card">
-        <h2>{de ? "Deine Sortierprioritäten" : "Your ordering priorities"}</h2>
-        {Object.entries(preferences.weights).map(([key, weight]) => {
-          const index = PRIORITY_LEVELS.reduce(
-            (best, level, i) =>
-              Math.abs(level - weight) <
-              Math.abs(PRIORITY_LEVELS[best] - weight)
-                ? i
-                : best,
-            0,
-          );
-          return (
-            <label key={key}>
-              <span className="capitalize">{productLabel(locale, key)}</span>
-              <strong>{productLabel(locale, priorityLabel(weight))}</strong>
-              <input
-                type="range"
-                min="0"
-                max="3"
-                value={index}
-                onChange={(event) =>
-                  onPreferences({
-                    ...preferences,
-                    weights: {
-                      ...preferences.weights,
-                      [key]: PRIORITY_LEVELS[Number(event.target.value)],
-                    },
-                  })
-                }
-              />
-            </label>
-          );
-        })}
+        <h2>{de ? "Fast geschafft" : "Almost done"}</h2>
         <p className="help">
           {de
-            ? "Diese Prioritäten sortieren gegenseitig passende Personen. Sie bewerten keinen Menschen und sagen keine Chemie voraus."
-            : "These priorities order mutually eligible people. They do not measure anyone’s worth or predict chemistry."}
+            ? "WhyMatch startet mit einer ausgewogenen Sortierung. Du kannst sie später unter Präferenzen ändern."
+            : "WhyMatch starts with balanced ordering. You can change it later in Preferences."}
         </p>
         <div className="prototype-consent">
           <h3>{de ? "Bevor du fortfährst" : "Before you continue"}</h3>
@@ -3868,6 +3846,33 @@ function PreferencesView({
   }, [value]);
   const setWeight = (key: keyof Preferences["weights"], weight: number) =>
     onChange({ ...value, weights: { ...value.weights, [key]: weight } });
+  const priorityPresets = {
+    balanced: {
+      proximity: 2 / 3,
+      values: 1,
+      lifestyle: 2 / 3,
+      schedule: 1 / 3,
+    },
+    values: {
+      proximity: 1 / 3,
+      values: 1,
+      lifestyle: 2 / 3,
+      schedule: 1 / 3,
+    },
+    practical: {
+      proximity: 1,
+      values: 2 / 3,
+      lifestyle: 1,
+      schedule: 2 / 3,
+    },
+  } satisfies Record<string, Preferences["weights"]>;
+  const selectedPreset = Object.entries(priorityPresets).find(([, weights]) =>
+    Object.keys(weights).every(
+      (key) =>
+        value.weights[key as keyof Preferences["weights"]] ===
+        weights[key as keyof Preferences["weights"]],
+    ),
+  )?.[0];
   return (
     <div className="narrow">
       <p className="eyebrow">{de ? "Präferenzen" : "Preferences"}</p>
@@ -3908,12 +3913,17 @@ function PreferencesView({
       </div>
       {saveError && <p role="alert">{saveError}</p>}
       <fieldset className="preferences-editor" disabled={saving}>
-        <section className="settings-card">
-          <h2>{de ? "Begrenzte Auswahlgröße" : "Finite batch size"}</h2>
+        <details className="settings-card account-advanced">
+          <summary>
+            <span>
+              {de ? "Anzahl der Vorschläge" : "Number of introductions"}
+            </span>
+            <small>{delivery.batchSize}</small>
+          </summary>
           <p>
-            Choose up to how many mutually eligible people appear at once. One
-            to five is a product hypothesis, not a scientifically optimal
-            number.
+            {de
+              ? "Wähle, wie viele passende Personen gleichzeitig erscheinen."
+              : "Choose how many eligible people appear at once."}
           </p>
           <div className="decision-row" aria-label="Introductions per batch">
             {([1, 2, 3, 4, 5] as const).map((size) => (
@@ -3928,13 +3938,9 @@ function PreferencesView({
               </button>
             ))}
           </div>
-          <p className="help">
-            Saved profiles are separate. Pause introductions any time from Your
-            profile.
-          </p>
           {deliverySaving && <p role="status">Saving batch size…</p>}
           {deliverySaveError && <p role="alert">{deliverySaveError}</p>}
-        </section>
+        </details>
         <section className="settings-card">
           <h2>{de ? "Gegenseitige Grenzen" : "Mutual boundaries"}</h2>
           <label>
@@ -3962,12 +3968,14 @@ function PreferencesView({
             />
           </label>
           <BoundaryFields value={value} onChange={onChange} />
-          <div className="prototype-consent">
-            <h3>Current pool check</h3>
+          <details className="inline-advanced">
+            <summary>
+              {de ? "Aktuelle Auswahl prüfen" : "Check current pool"}
+            </summary>
             <p className="help">
-              Check these unsaved boundaries against the current unresolved
-              prototype pool. This returns counts only. A smaller count is not a
-              recommendation to relax a boundary.
+              {de
+                ? "Zeigt nur, wie viele aktuelle Profile zu diesen noch nicht gespeicherten Grenzen passen."
+                : "Shows only how many current profiles fit these unsaved boundaries."}
             </p>
             <button
               type="button"
@@ -4001,81 +4009,130 @@ function PreferencesView({
               </p>
             )}
             {previewError && <p role="alert">{previewError}</p>}
-          </div>
+          </details>
         </section>
         <section className="settings-card">
-          <h2>Distance</h2>
+          <h2>{de ? "Distanz" : "Distance"}</h2>
           <label>
-            Ideal distance <strong>{value.idealDistanceKm} km</strong>
-            <input
-              type="range"
-              min="1"
-              max="30"
-              value={value.idealDistanceKm}
-              onChange={(event) =>
-                onChange({
-                  ...value,
-                  idealDistanceKm: Number(event.target.value),
-                })
-              }
-            />
-          </label>
-          <label>
-            Maximum distance <strong>{value.maximumDistanceKm} km</strong>
+            {de ? "Maximale Distanz" : "Maximum distance"}{" "}
+            <strong>{value.maximumDistanceKm} km</strong>
             <input
               type="range"
               min="15"
               max="100"
               value={value.maximumDistanceKm}
-              onChange={(event) =>
+              onChange={(event) => {
+                const maximumDistanceKm = Number(event.target.value);
                 onChange({
                   ...value,
-                  maximumDistanceKm: Number(event.target.value),
-                })
-              }
+                  maximumDistanceKm,
+                  idealDistanceKm: Math.min(
+                    value.idealDistanceKm,
+                    maximumDistanceKm,
+                  ),
+                });
+              }}
             />
           </label>
           <p className="help">
-            Outside the maximum is a boundary. Inside it, nearer profiles
-            receive a simple visible proximity score.
+            {de
+              ? "Weiter entfernte Profile werden nicht angezeigt."
+              : "Profiles beyond this distance are not shown."}
           </p>
+          <details className="inline-advanced">
+            <summary>
+              {de ? "Distanz-Sortierung anpassen" : "Adjust distance ordering"}
+            </summary>
+            <label>
+              {de ? "Volle Nähe-Passung bis" : "Full proximity fit within"}{" "}
+              <strong>{value.idealDistanceKm} km</strong>
+              <input
+                type="range"
+                min="1"
+                max={Math.min(30, value.maximumDistanceKm)}
+                value={Math.min(value.idealDistanceKm, value.maximumDistanceKm)}
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    idealDistanceKm: Number(event.target.value),
+                  })
+                }
+              />
+            </label>
+          </details>
         </section>
         <section className="settings-card">
-          <h2>How to order eligible people</h2>
-          {Object.entries(value.weights).map(([key, weight]) => {
-            const index = PRIORITY_LEVELS.reduce(
-              (best, level, i) =>
-                Math.abs(level - weight) <
-                Math.abs(PRIORITY_LEVELS[best] - weight)
-                  ? i
-                  : best,
-              0,
-            );
-            return (
-              <label key={key}>
-                <span className="capitalize">{key}</span>
-                <strong>{priorityLabel(weight)}</strong>
-                <input
-                  type="range"
-                  min="0"
-                  max="3"
-                  value={index}
-                  onChange={(event) =>
-                    setWeight(
-                      key as keyof Preferences["weights"],
-                      PRIORITY_LEVELS[Number(event.target.value)],
-                    )
-                  }
-                />
-              </label>
-            );
-          })}
+          <h2>{de ? "Was soll zuerst zählen?" : "What should matter most?"}</h2>
+          <div
+            className="preference-presets"
+            aria-label={de ? "Sortierung" : "Ordering preset"}
+          >
+            {(
+              [
+                ["balanced", de ? "Ausgewogen" : "Balanced"],
+                ["values", de ? "Gemeinsame Werte" : "Shared values"],
+                ["practical", de ? "Praktischer Alltag" : "Practical life"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                type="button"
+                key={id}
+                aria-pressed={selectedPreset === id}
+                onClick={() =>
+                  onChange({
+                    ...value,
+                    weights: { ...priorityPresets[id] },
+                  })
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <p className="help">
-            These are relative priorities, not judgments of anyone’s worth.
+            {de
+              ? "Das ändert nur die Reihenfolge passender Profile."
+              : "This only changes the order of eligible profiles."}
           </p>
+          <details className="inline-advanced">
+            <summary>{de ? "Eigene Gewichtung" : "Custom weighting"}</summary>
+            {Object.entries(value.weights).map(([key, weight]) => {
+              const index = PRIORITY_LEVELS.reduce(
+                (best, level, i) =>
+                  Math.abs(level - weight) <
+                  Math.abs(PRIORITY_LEVELS[best] - weight)
+                    ? i
+                    : best,
+                0,
+              );
+              return (
+                <label key={key}>
+                  <span className="capitalize">
+                    {productLabel(locale, key)}
+                  </span>
+                  <strong>{productLabel(locale, priorityLabel(weight))}</strong>
+                  <input
+                    type="range"
+                    min="0"
+                    max="3"
+                    value={index}
+                    onChange={(event) =>
+                      setWeight(
+                        key as keyof Preferences["weights"],
+                        PRIORITY_LEVELS[Number(event.target.value)],
+                      )
+                    }
+                  />
+                </label>
+              );
+            })}
+          </details>
         </section>
-        <section className="settings-card">
-          <h2>Preference suggestions</h2>
+        <details className="settings-card account-advanced">
+          <summary>
+            <span>{de ? "Lernvorschläge" : "Learning suggestions"}</span>
+            <small>{de ? "Optional" : "Optional"}</small>
+          </summary>
           {suggestions.length === 0 ? (
             <p>
               Nothing suggested yet. The transparent learner waits for at least
@@ -4124,7 +4181,7 @@ function PreferencesView({
           >
             Clear learning examples
           </button>
-        </section>
+        </details>
       </fieldset>
     </div>
   );
@@ -4355,13 +4412,8 @@ function ProfileView({
   const [editing, setEditing] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
-  const [privacyAction, setPrivacyAction] = useState<
-    "directory" | "visibility" | null
-  >(null);
+  const [privacyAction, setPrivacyAction] = useState<"directory" | null>(null);
   const [directoryActionError, setDirectoryActionError] = useState<
-    string | null
-  >(null);
-  const [visibilityActionError, setVisibilityActionError] = useState<
     string | null
   >(null);
   const [researchConsentSaving, setResearchConsentSaving] = useState(false);
@@ -4441,6 +4493,9 @@ function ProfileView({
     currentPasswordWithinLimit &&
     newPasswordLongEnough &&
     confirmedPasswordMatches;
+  const profileVisible =
+    accountStatus === "active" &&
+    directoryParticipationIsActive(directoryConsent);
 
   return (
     <div className="narrow">
@@ -4448,8 +4503,8 @@ function ProfileView({
       <h1>{de ? "Dein Konto" : "Your account"}</h1>
       <p className="intro-copy">
         {de
-          ? "Ändere dein Dating-Profil, deine Matching-Präferenzen, Sichtbarkeit und Anmeldeeinstellungen jederzeit."
-          : "Update your dating profile, matching preferences, visibility, and sign-in settings whenever you want."}
+          ? "Verwalte dein Profil und dein Konto."
+          : "Manage your profile and account."}
       </p>
       <div className="account-shortcuts">
         <button onClick={() => setEditing(true)}>
@@ -4517,18 +4572,7 @@ function ProfileView({
                 {profileSaving ? "Saving…" : "Save"}
               </button>
             </div>
-          ) : (
-            <button
-              className="text-button"
-              onClick={() => {
-                setDraft(profile);
-                setProfileSaveError(null);
-                setEditing(true);
-              }}
-            >
-              Edit
-            </button>
-          )}
+          ) : null}
         </div>
         {profileSaveError && <p role="alert">{profileSaveError}</p>}
         {editing ? (
@@ -4624,12 +4668,23 @@ function ProfileView({
             />
           </div>
         ) : (
-          <PublicProfilePreview profile={profile} title="Public preview" />
+          <details className="inline-advanced">
+            <summary>View public profile</summary>
+            <PublicProfilePreview profile={profile} title="Public preview" />
+          </details>
         )}
       </section>
       {emailVerification && confirmEmail && (
-        <section className="settings-card">
-          <h2>Email for account messages</h2>
+        <details
+          className="settings-card account-advanced"
+          open={!emailVerification.verifiedAt}
+        >
+          <summary>
+            <span>Email</span>
+            <small>
+              {emailVerification.verifiedAt ? "Confirmed" : "Action needed"}
+            </small>
+          </summary>
           <p>
             <strong>{emailVerification.email}</strong>
           </p>
@@ -4716,14 +4771,16 @@ function ProfileView({
               configure encrypted SMTP delivery before relying on it.
             </p>
           )}
-        </section>
+        </details>
       )}
       {emailChange &&
         requestEmailChange &&
         confirmEmailChange &&
         cancelEmailChange && (
-          <section className="settings-card">
-            <h2>Change sign-in email</h2>
+          <details className="settings-card account-advanced">
+            <summary>
+              <span>Change sign-in email</span>
+            </summary>
             <p>
               Confirm both your current and new email address. Other sessions
               will be signed out after the change.
@@ -4901,16 +4958,20 @@ function ProfileView({
             )}
             {emailChangeNotice && <p role="status">{emailChangeNotice}</p>}
             {emailChangeError && <p role="alert">{emailChangeError}</p>}
-          </section>
+          </details>
         )}
       {notificationEmail &&
         requestNotificationEmail &&
         confirmNotificationEmail &&
         removeNotificationEmail && (
-          <section className="settings-card">
-            <h2>Backup security email</h2>
+          <details className="settings-card account-advanced">
+            <summary>
+              <span>Extra security email</span>
+              <small>Optional</small>
+            </summary>
             <p>
-              Optionally receive security notices at a second email address.
+              Add a second address only if you want security alerts in two
+              inboxes. It is never used for matching or marketing.
             </p>
             {notificationEmail.email ? (
               <>
@@ -4924,14 +4985,14 @@ function ProfileView({
                     event.preventDefault();
                     setBackupError(null);
                     setBackupNotice(null);
-                    if (!window.confirm("Remove the backup security email?"))
+                    if (!window.confirm("Remove the extra security email?"))
                       return;
                     try {
                       const notification =
                         await removeNotificationEmail(backupPassword);
                       setBackupPassword("");
                       setBackupNotice(
-                        "Backup security email removed." +
+                        "Extra security email removed." +
                           securityNotice(notification),
                       );
                     } catch (error) {
@@ -4939,7 +5000,7 @@ function ProfileView({
                         error instanceof ApiError &&
                           error.code === "invalid_current_password"
                           ? "The current password was not accepted."
-                          : "The backup security email could not be removed.",
+                          : "The extra security email could not be removed.",
                       );
                     }
                   }}
@@ -4957,7 +5018,7 @@ function ProfileView({
                     />
                   </label>
                   <button type="submit" disabled={!backupPassword}>
-                    Remove backup email
+                    Remove extra email
                   </button>
                 </form>
               </>
@@ -4973,7 +5034,7 @@ function ProfileView({
                       await confirmNotificationEmail(backupCode);
                     setBackupCode("");
                     setBackupNotice(
-                      "Backup security email confirmed." +
+                      "Extra security email confirmed." +
                         securityNotice(notification),
                     );
                   } catch (error) {
@@ -4981,7 +5042,7 @@ function ProfileView({
                       error instanceof ApiError &&
                         error.code === "invalid_verification_code"
                         ? "The code was not accepted or has expired."
-                        : "The backup security email could not be confirmed.",
+                        : "The extra security email could not be confirmed.",
                     );
                   }
                 }}
@@ -5006,7 +5067,7 @@ function ProfileView({
                   />
                 </label>
                 <button type="submit" disabled={backupCode.length !== 8}>
-                  Confirm backup email
+                  Confirm extra email
                 </button>
               </form>
             ) : (
@@ -5035,7 +5096,7 @@ function ProfileView({
                 }}
               >
                 <label>
-                  Backup email
+                  Extra security email
                   <input
                     type="email"
                     autoComplete="email"
@@ -5063,23 +5124,22 @@ function ProfileView({
             )}
             {backupNotice && <p role="status">{backupNotice}</p>}
             {backupError && <p role="alert">{backupError}</p>}
-          </section>
+          </details>
         )}
       {deleteAccount && (
         <section className="settings-card">
           <h2>Profile visibility</h2>
           <p>
-            When enabled and Active, your public dating profile can appear to
-            mutually eligible accounts in your approximate region. It stays on
-            until you pause or hide it here. Private preferences and one-sided
-            decisions are never shown.
+            {profileVisible
+              ? "Your profile can appear to mutually eligible people in your approximate region."
+              : "Your profile is not appearing in new introductions."}
           </p>
           <div className="data-actions">
             <button
-              aria-pressed={directoryParticipationIsActive(directoryConsent)}
+              aria-pressed={profileVisible}
               disabled={
                 privacyAction !== null ||
-                (!directoryParticipationIsActive(directoryConsent) &&
+                (!profileVisible &&
                   ((Boolean(emailVerification?.deliveryConfigured) &&
                     !emailVerification?.verifiedAt) ||
                     !profile.genderIdentities.length ||
@@ -5090,9 +5150,13 @@ function ProfileView({
                 setPrivacyAction("directory");
                 setDirectoryActionError(null);
                 try {
-                  await setDirectoryConsent(
-                    !directoryParticipationIsActive(directoryConsent),
-                  );
+                  if (profileVisible) await setDirectoryConsent(false);
+                  else {
+                    if (accountStatus !== "active")
+                      await setAccountStatus("active");
+                    if (!directoryParticipationIsActive(directoryConsent))
+                      await setDirectoryConsent(true);
+                  }
                 } catch {
                   setDirectoryActionError(
                     "Account matching was not changed. The previous confirmed choice is still active; retry when ready.",
@@ -5102,9 +5166,7 @@ function ProfileView({
                 }
               }}
             >
-              {directoryParticipationIsActive(directoryConsent)
-                ? "Pause profile visibility"
-                : "Show my profile"}
+              {profileVisible ? "Pause profile" : "Show profile"}
             </button>
           </div>
           {privacyAction === "directory" && (
@@ -5112,12 +5174,12 @@ function ProfileView({
           )}
           {directoryActionError && <p role="alert">{directoryActionError}</p>}
           <p className="help" role="status">
-            {directoryParticipationIsActive(directoryConsent) &&
+            {profileVisible &&
             (!profile.genderIdentities.length ||
               profile.genderGroups.length === 0 ||
               !genderPreferencesConfigured)
               ? "Participation is recorded, but you are excluded from matching until you finish gender discovery in Profile and Preferences."
-              : !directoryParticipationIsActive(directoryConsent) &&
+              : !profileVisible &&
                   (!profile.genderIdentities.length ||
                     profile.genderGroups.length === 0 ||
                     !genderPreferencesConfigured)
@@ -5125,16 +5187,17 @@ function ProfileView({
                 : emailVerification?.deliveryConfigured &&
                     !emailVerification.verifiedAt
                   ? "Confirm your email before joining account matching."
-                  : directoryParticipationIsActive(directoryConsent)
-                    ? "Visible to mutually eligible people in your approximate region."
-                    : "Paused. Your profile is excluded from new introductions."}
+                  : profileVisible
+                    ? "Visible"
+                    : "Paused"}
           </p>
         </section>
       )}
       {changePassword && (
-        <section className="settings-card">
-          <h2>Password</h2>
-          <p>Change the password you use to sign in.</p>
+        <details className="settings-card account-advanced">
+          <summary>
+            <span>Password</span>
+          </summary>
           <form
             className="profile-fields"
             onSubmit={async (event) => {
@@ -5249,7 +5312,7 @@ function ProfileView({
           </form>
           {passwordNotice && <p role="status">{passwordNotice}</p>}
           {passwordError && <p role="alert">{passwordError}</p>}
-        </section>
+        </details>
       )}
       {generateRecoveryCodes && (
         <details className="settings-card account-advanced">
@@ -5330,8 +5393,11 @@ function ProfileView({
           </div>
         </details>
       )}
-      <section className="settings-card">
-        <h2>Active sessions</h2>
+      <details className="settings-card account-advanced">
+        <summary>
+          <span>Signed-in devices</span>
+          <small>{sessions.length || "—"}</small>
+        </summary>
         <p>Sign out any session you no longer recognize.</p>
         {sessions.length ? (
           <div className="report-history">
@@ -5362,9 +5428,12 @@ function ProfileView({
         ) : (
           <p className="help">Sign in with an account to manage sessions.</p>
         )}
-      </section>
-      <section className="settings-card">
-        <h2>Optional research</h2>
+      </details>
+      <details className="settings-card account-advanced">
+        <summary>
+          <span>Research participation</span>
+          <small>Optional</small>
+        </summary>
         <p>
           Research participation is separate from using WhyMatch and defaults
           off. No study is active in this prototype, and this choice never
@@ -5404,9 +5473,12 @@ function ProfileView({
             ? `${researchConsent.participating ? "Opted in" : "Opted out"} under ${researchConsent.noticeVersion}.`
             : "Not enrolled. No research consent has been recorded."}
         </p>
-      </section>
-      <section className="settings-card">
-        <h2>Your safety reports</h2>
+      </details>
+      <details className="settings-card account-advanced">
+        <summary>
+          <span>Safety reports</span>
+          <small>{reports.length || "—"}</small>
+        </summary>
         <p>
           Reports are private. You can append context, correct the record, or
           request withdrawal without erasing the original. This prototype has no
@@ -5530,85 +5602,16 @@ function ProfileView({
           <p>No reports submitted.</p>
         )}
         {reportUpdateNotice && <p role="status">{reportUpdateNotice}</p>}
-      </section>
-      <section className="settings-card">
-        <h2>Privacy</h2>
+      </details>
+      <details className="settings-card account-advanced">
+        <summary>
+          <span>Data and privacy</span>
+        </summary>
         <p>
           Your precise location, legal name, contacts, activity time, and
           preference decisions are never displayed.
         </p>
-        {deleteAccount && (
-          <p className="help">
-            Active means your chosen public profile may be shown to mutually
-            eligible people whose approximate city or region exactly matches
-            yours. Paused or Hidden removes you from new introductions. The
-            prototype does not geocode or claim an exact distance.
-          </p>
-        )}
         <div className="data-actions">
-          {accountStatus === "active" ? (
-            <>
-              <button
-                disabled={privacyAction !== null}
-                onClick={async () => {
-                  setPrivacyAction("visibility");
-                  setVisibilityActionError(null);
-                  try {
-                    await setAccountStatus("paused");
-                  } catch {
-                    setVisibilityActionError(
-                      "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
-                    );
-                  } finally {
-                    setPrivacyAction(null);
-                  }
-                }}
-              >
-                Pause introductions
-              </button>
-              <button
-                disabled={privacyAction !== null}
-                onClick={async () => {
-                  setPrivacyAction("visibility");
-                  setVisibilityActionError(null);
-                  try {
-                    await setAccountStatus("hidden");
-                  } catch {
-                    setVisibilityActionError(
-                      "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
-                    );
-                  } finally {
-                    setPrivacyAction(null);
-                  }
-                }}
-              >
-                Hide my profile
-              </button>
-            </>
-          ) : (
-            <button
-              disabled={privacyAction !== null}
-              onClick={async () => {
-                setPrivacyAction("visibility");
-                setVisibilityActionError(null);
-                try {
-                  await setAccountStatus("active");
-                } catch {
-                  setVisibilityActionError(
-                    "Profile visibility was not changed. The previous confirmed state is still active; retry when ready.",
-                  );
-                } finally {
-                  setPrivacyAction(null);
-                }
-              }}
-            >
-              Resume and show profile
-            </button>
-          )}
-          {privacyAction === "visibility" && (
-            <p role="status">Saving profile visibility…</p>
-          )}
-          {visibilityActionError && <p role="alert">{visibilityActionError}</p>}
           <button
             disabled={dataAction !== null}
             onClick={async () => {
@@ -5699,7 +5702,7 @@ function ProfileView({
           </p>
         )}
         {dataActionError && <p role="alert">{dataActionError}</p>}
-      </section>
+      </details>
     </div>
   );
 }
